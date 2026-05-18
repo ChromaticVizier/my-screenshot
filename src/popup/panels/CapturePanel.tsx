@@ -15,6 +15,7 @@ import {
 } from "~src/constants/captureActions"
 import {
   captureDelayed,
+  captureDesktop,
   captureFullPage,
   captureSelection,
   captureVisibleArea
@@ -64,6 +65,17 @@ function CapturePanel() {
         // 倒计时浮窗在页面上展示，popup 必须先关闭，否则用户看不到也点不到「Cancel」。
         // 倒计时秒数由 background 从 chrome.storage.sync 读取（默认 3 秒）。
         captureDelayed({ format: "png" }).catch(() => {
+          /* popup 已关闭，错误由 background 控制台输出 */
+        })
+        window.close()
+        break
+      }
+
+      case "desktop": {
+        // background 会用 chrome.windows.create 打开一个独立的扩展窗口
+        // 作为「中转跳板」，在那里调用 getDisplayMedia 拉起共享选择器。
+        // popup 自身只负责发起请求，立即关闭。
+        captureDesktop({ format: "png" }).catch(() => {
           /* popup 已关闭，错误由 background 控制台输出 */
         })
         window.close()

@@ -5,6 +5,7 @@
 import {
   MessageType,
   type CaptureDelayedRequest,
+  type CaptureDesktopRequest,
   type CaptureFullPageRequest,
   type CaptureResponse,
   type CaptureSelectionRequest,
@@ -61,6 +62,15 @@ export function captureDelayed(
 ) {
   const req: CaptureDelayedRequest = {
     type: MessageType.CAPTURE_DELAYED,
+    payload
+  }
+  return send(req)
+}
+
+/** 截取整个屏幕或应用窗口（弹出系统级共享选择器） */
+export function captureDesktop(payload?: ImageOptions) {
+  const req: CaptureDesktopRequest = {
+    type: MessageType.CAPTURE_DESKTOP,
     payload
   }
   return send(req)

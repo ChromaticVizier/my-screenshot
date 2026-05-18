@@ -8,7 +8,14 @@ export const MessageType = {
   CAPTURE_VISIBLE: "capture/visible",
   CAPTURE_FULL_PAGE: "capture/fullPage",
   CAPTURE_SELECTION: "capture/selection",
-  CAPTURE_DELAYED: "capture/delayed"
+  CAPTURE_DELAYED: "capture/delayed",
+  CAPTURE_DESKTOP: "capture/desktop",
+  /** 中转窗口拿到屏幕截图 dataUrl 后，请求 background 下载 */
+  DOWNLOAD_DESKTOP_IMAGE: "download/desktopImage",
+  /** 中转窗口请求 background 把自己移到屏幕外（不能用 minimize，会冻结 JS） */
+  HIDE_RELAY_WINDOW: "window/hideRelay",
+  /** 中转窗口请求 background 销毁自己 */
+  CLOSE_RELAY_WINDOW: "window/closeRelay"
 } as const
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType]
@@ -55,6 +62,31 @@ export interface CaptureDelayedRequest {
   }
 }
 
+/* ---------- 整个屏幕或应用窗口 ---------- */
+export interface CaptureDesktopRequest {
+  type: typeof MessageType.CAPTURE_DESKTOP
+  payload?: ImageOptions
+}
+
+/* ---------- 中转窗口 → background：下载屏幕截图 dataUrl ---------- */
+export interface DownloadDesktopImageRequest {
+  type: typeof MessageType.DOWNLOAD_DESKTOP_IMAGE
+  payload: {
+    dataUrl: string
+    format: "png" | "jpeg"
+  }
+}
+
+/* ---------- 中转窗口 → background：把自己移到屏幕外 ---------- */
+export interface HideRelayWindowRequest {
+  type: typeof MessageType.HIDE_RELAY_WINDOW
+}
+
+/* ---------- 中转窗口 → background：销毁自己 ---------- */
+export interface CloseRelayWindowRequest {
+  type: typeof MessageType.CLOSE_RELAY_WINDOW
+}
+
 /** 通用响应 */
 export interface CaptureResponse {
   ok: boolean
@@ -72,3 +104,7 @@ export type ExtensionRequest =
   | CaptureFullPageRequest
   | CaptureSelectionRequest
   | CaptureDelayedRequest
+  | CaptureDesktopRequest
+  | DownloadDesktopImageRequest
+  | HideRelayWindowRequest
+  | CloseRelayWindowRequest

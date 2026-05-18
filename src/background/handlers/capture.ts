@@ -1,11 +1,13 @@
 /**
  * 截图相关的 background 处理逻辑
  *
- * 四种模式共享底层的 chrome.tabs.captureVisibleTab：
- *   - 可视区域：单次截图后直接下载
+ * 五种模式：
+ *   - 可视区域：单次 captureVisibleTab → 下载
  *   - 整页：滚动 + 多次截图 + OffscreenCanvas 拼接
- *   - 选区：注入遮罩获取选区 → 单次截图 → OffscreenCanvas 裁剪
- *   - 延迟可视区域：注入倒计时浮窗 → 结束后复用「可视区域」逻辑
+ *   - 选区：注入遮罩 → 单次截图 → OffscreenCanvas 裁剪
+ *   - 延迟可视区域：注入倒计时浮窗 → 复用「可视区域」
+ *   - 整个屏幕或应用窗口：注入函数到当前页 → 调 getDisplayMedia
+ *     → 抓首帧 → 下载（唯一不依赖 captureVisibleTab 的模式）
  */
 import { showCountdown } from "~src/background/injected/countdown"
 import {
@@ -26,10 +28,14 @@ import {
 import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
 import type {
   CaptureDelayedRequest,
+  CaptureDesktopRequest,
   CaptureFullPageRequest,
   CaptureResponse,
   CaptureSelectionRequest,
-  CaptureVisibleRequest
+  CaptureVisibleRequest,
+  CloseRelayWindowRequest,
+  DownloadDesktopImageRequest,
+  HideRelayWindowRequest
 } from "~src/shared/messages"
 import { MessageType } from "~src/shared/messages"
 import { getSettings } from "~src/shared/settings"
@@ -323,6 +329,108 @@ export async function handleCaptureDelayed(
         quality: request.payload?.quality
       }
     })
+  } catch (err) {
+    return errorResponse(err)
+  }
+}
+
+/* ============================================================
+ * 5. 整个屏幕或应用窗口
+ *
+ * 思路（参考 Awesome Screenshot 实现）：
+ *   getDisplayMedia 必须在「持有用户手势」+「拥有 DOM 上下文」的环境中调用，
+ *   service worker / 注入脚本都不满足。因此本扩展的做法是：
+ *
+ *     popup 点击 → background 用 chrome.windows.create 打开一个尺寸很小的
+ *     「中转扩展窗口」（加载 popup.html?action=desktopCapture）
+ *      → 该窗口里的 React 组件检测到 query 参数后立即调 getDisplayMedia
+ *      → 弹出系统级共享选择器（用户截图里的「选择要分享什么」）
+ *      → 用户选择后抓首帧 → 通过 storage 把 dataUrl 交给 background
+ *      → background 下载并关闭中转窗口
+ *
+ * 这里 background 只负责「打开窗口」，真正的截图逻辑在 popup 入口分支里。
+ * ============================================================ */
+export async function handleCaptureDesktop(
+  _request: CaptureDesktopRequest
+): Promise<CaptureResponse> {
+  try {
+    const url = chrome.runtime.getURL("popup.html") + "?action=desktopCapture"
+    await chrome.windows.create({
+      url,
+      type: "popup",
+      width: 480,
+      height: 560,
+      focused: true
+    })
+    // 中转窗口接管后续流程；这里直接返回 ok，popup 端只用于关闭自身。
+    return { ok: true }
+  } catch (err) {
+    return errorResponse(err)
+  }
+}
+
+/**
+ * 中转窗口请求把自己「移到屏幕外」（避免被截入屏幕共享画面）。
+ *
+ * 不能用 minimized：Chrome 会冻结最小化窗口里的 JS（setTimeout / rAF
+ * 都被节流甚至停止），导致后续抓帧、sendMessage 全部停滞。
+ *
+ * 这里把窗口缩到 1×1 并移到 (-32000, -32000)，这是 Windows 早年通用
+ * 的「隐藏窗口」坐标，远离任何可能的显示器；窗口里的 JS 仍正常运行。
+ */
+export async function handleHideRelayWindow(
+  _request: HideRelayWindowRequest,
+  sender: chrome.runtime.MessageSender
+): Promise<{ ok: true }> {
+  const winId = sender?.tab?.windowId
+  if (winId != null) {
+    try {
+      await chrome.windows.update(winId, {
+        left: -32000,
+        top: -32000,
+        width: 1,
+        height: 1,
+        focused: false
+      })
+    } catch {
+      /* 忽略 */
+    }
+  }
+  return { ok: true }
+}
+
+/** 中转窗口完成全部流程后请求销毁自己 */
+export async function handleCloseRelayWindow(
+  _request: CloseRelayWindowRequest,
+  sender: chrome.runtime.MessageSender
+): Promise<{ ok: true }> {
+  const winId = sender?.tab?.windowId
+  if (winId != null) {
+    try {
+      await chrome.windows.remove(winId)
+    } catch {
+      /* 忽略 */
+    }
+  }
+  return { ok: true }
+}
+
+/**
+ * 中转窗口完成屏幕共享截图后，把 dataUrl 发回 background 走下载链路。
+ * 单独走一个消息，避免在窗口间传 Blob 造成结构化克隆问题。
+ */
+export async function handleDownloadDesktopImage(
+  request: DownloadDesktopImageRequest
+): Promise<CaptureResponse> {
+  try {
+    const { dataUrl, format } = request.payload
+    const blob = await (await fetch(dataUrl)).blob()
+    const downloadId = await downloadImageBlob({
+      blob,
+      tabTitle: "screen",
+      ext: format
+    })
+    return { ok: true, downloadId }
   } catch (err) {
     return errorResponse(err)
   }

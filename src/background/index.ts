@@ -4,14 +4,18 @@
  */
 import {
   handleCaptureDelayed,
+  handleCaptureDesktop,
   handleCaptureFullPage,
   handleCaptureSelection,
-  handleCaptureVisible
+  handleCaptureVisible,
+  handleCloseRelayWindow,
+  handleDownloadDesktopImage,
+  handleHideRelayWindow
 } from "~src/background/handlers/capture"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
 
 chrome.runtime.onMessage.addListener(
-  (request: ExtensionRequest, _sender, sendResponse) => {
+  (request: ExtensionRequest, sender, sendResponse) => {
     // 异步处理：必须 return true 保持消息通道开启
     ;(async () => {
       switch (request.type) {
@@ -29,6 +33,22 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.CAPTURE_DELAYED: {
           sendResponse(await handleCaptureDelayed(request))
+          break
+        }
+        case MessageType.CAPTURE_DESKTOP: {
+          sendResponse(await handleCaptureDesktop(request))
+          break
+        }
+        case MessageType.DOWNLOAD_DESKTOP_IMAGE: {
+          sendResponse(await handleDownloadDesktopImage(request))
+          break
+        }
+        case MessageType.HIDE_RELAY_WINDOW: {
+          sendResponse(await handleHideRelayWindow(request, sender))
+          break
+        }
+        case MessageType.CLOSE_RELAY_WINDOW: {
+          sendResponse(await handleCloseRelayWindow(request, sender))
           break
         }
         default: {
