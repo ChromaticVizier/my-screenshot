@@ -1,0 +1,13 @@
+.popup {
+  width: 280px;
+  background: #ffffff;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #2c3e50;
+  user-select: none;
+}
+
+.content {
+  padding: 12px;
+}

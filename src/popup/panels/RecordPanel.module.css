@@ -1,0 +1,189 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 模式卡片 2x2 */
+.modeGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.modeCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 6px 10px;
+  background: #f5f7fa;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.modeCard:hover:not(:disabled) {
+  background: #eaf2ff;
+}
+
+.modeCard:disabled {
+  opacity: 0.45;
+}
+
+.modeActive {
+  background: #eaf2ff;
+  border-color: #4a90e2;
+}
+
+.modeIcon {
+  display: inline-flex;
+  color: #4a90e2;
+}
+
+.modeIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.modeCard:disabled .modeIcon {
+  color: #9aa5b1;
+}
+
+.modeLabel {
+  font-size: 12px;
+  color: #2c3e50;
+}
+
+.modeActive .modeLabel {
+  color: #4a90e2;
+  font-weight: 500;
+}
+
+/* 控制行 */
+.controlsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-top: 1px solid #eef0f3;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: #2c3e50;
+}
+
+.iconBtn:hover {
+  background: #f0f2f5;
+}
+
+.muted {
+  color: #e25c5c;
+}
+
+.toolbarToggle {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  color: #2c3e50;
+}
+
+.toolbarLabel {
+  flex: 1;
+  font-size: 12px;
+}
+
+/* 开关 */
+.switch {
+  width: 30px;
+  height: 16px;
+  background: #cfd6df;
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.switchOn {
+  background: #4a90e2;
+}
+
+.switchThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.15s ease;
+}
+
+.switchOn .switchThumb {
+  transform: translateX(14px);
+}
+
+/* 配置选项 */
+.optionsRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.optionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #2c3e50;
+}
+
+.optionBtn:hover {
+  background: #f0f2f5;
+}
+
+.moreBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  color: #6b7280;
+  padding: 4px 4px;
+}
+
+.moreBtn:hover {
+  color: #2c3e50;
+}
+
+/* 开始录制 */
+.startBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 0;
+  margin-top: 4px;
+  background: #5a8def;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.startBtn:hover {
+  background: #4a7de0;
+}
