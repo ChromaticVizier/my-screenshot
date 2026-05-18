@@ -2,7 +2,12 @@
  * Service Worker 入口
  * 负责接收 popup / content script 的消息并路由到对应处理器
  */
-import { handleCaptureVisible } from "~src/background/handlers/capture"
+import {
+  handleCaptureDelayed,
+  handleCaptureFullPage,
+  handleCaptureSelection,
+  handleCaptureVisible
+} from "~src/background/handlers/capture"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
 
 chrome.runtime.onMessage.addListener(
@@ -11,8 +16,19 @@ chrome.runtime.onMessage.addListener(
     ;(async () => {
       switch (request.type) {
         case MessageType.CAPTURE_VISIBLE: {
-          const res = await handleCaptureVisible(request)
-          sendResponse(res)
+          sendResponse(await handleCaptureVisible(request))
+          break
+        }
+        case MessageType.CAPTURE_FULL_PAGE: {
+          sendResponse(await handleCaptureFullPage(request))
+          break
+        }
+        case MessageType.CAPTURE_SELECTION: {
+          sendResponse(await handleCaptureSelection(request))
+          break
+        }
+        case MessageType.CAPTURE_DELAYED: {
+          sendResponse(await handleCaptureDelayed(request))
           break
         }
         default: {
@@ -27,5 +43,4 @@ chrome.runtime.onMessage.addListener(
   }
 )
 
-// 让 TS 把此文件当模块处理
 export {}

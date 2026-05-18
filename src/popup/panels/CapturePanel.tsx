@@ -2,10 +2,9 @@
  * 截图面板
  *
  * 已接入：
- * - 可视区域（visible）：通过 background 调用 chrome.tabs.captureVisibleTab，
- *   并触发 chrome.downloads.download 下载 png 图片
- *
- * 其余按钮逻辑后续补充
+ * - 可视区域（visible）：直接整屏截图后下载
+ * - 整个页面（fullPage）：滚动拼接长截图，期间 popup 保持打开显示进度
+ * - 选择区域（selection）：popup 立刻关闭以让出焦点，背景脚本继续完成选区流程
  */
 import { useState } from "react"
 
@@ -14,7 +13,12 @@ import {
   CAPTURE_CARD_ACTIONS,
   CAPTURE_LIST_ACTIONS
 } from "~src/constants/captureActions"
-import { captureVisibleArea } from "~src/services/capture"
+import {
+  captureDelayed,
+  captureFullPage,
+  captureSelection,
+  captureVisibleArea
+} from "~src/services/capture"
 import type { CaptureAction, CaptureMode } from "~src/types/popup"
 
 import * as styles from "./CapturePanel.module.css"
@@ -32,14 +36,40 @@ function CapturePanel() {
         setBusy(mode)
         const res = await captureVisibleArea({ format: "png" })
         setBusy(null)
-        if (!res.ok) {
-          setError(res.error ?? "截图失败")
-        } else {
-          // 截图成功后关闭 popup，让用户回到下载条/页面
-          window.close()
-        }
+        if (!res.ok) setError(res.error ?? "截图失败")
+        else window.close()
         break
       }
+
+      case "fullPage": {
+        setBusy(mode)
+        const res = await captureFullPage({ format: "png" })
+        setBusy(null)
+        if (!res.ok) setError(res.error ?? "整页截图失败")
+        else window.close()
+        break
+      }
+
+      case "selection": {
+        // 选区交互需要页面接收鼠标焦点，popup 必须先关闭。
+        // background 会接管后续：注入遮罩 → 等待用户拖拽 → 截图裁剪下载。
+        captureSelection({ format: "png" }).catch(() => {
+          /* popup 已关闭，错误由 background 控制台输出 */
+        })
+        window.close()
+        break
+      }
+
+      case "delayed": {
+        // 倒计时浮窗在页面上展示，popup 必须先关闭，否则用户看不到也点不到「Cancel」。
+        // 倒计时秒数由 background 从 chrome.storage.sync 读取（默认 3 秒）。
+        captureDelayed({ format: "png" }).catch(() => {
+          /* popup 已关闭，错误由 background 控制台输出 */
+        })
+        window.close()
+        break
+      }
+
       default: {
         // TODO: 其他截图模式
         console.log("[capture] action not implemented:", mode)
@@ -80,12 +110,19 @@ function CapturePanel() {
       {/* 错误提示 */}
       {error && <div className={styles.errorTip}>{error}</div>}
 
-      {/* 底部存储位置 */}
+      {/* 底部存储位置 + 设置入口 */}
       <div className={styles.footer}>
         <span className={styles.footerLabel}>把截屏存储到</span>
         <button type="button" className={styles.storageBtn}>
           <CloudIcon width={14} height={14} />
           <span>云端</span>
+        </button>
+        <button
+          type="button"
+          className={styles.settingsBtn}
+          title="打开设置"
+          onClick={() => chrome.runtime.openOptionsPage()}>
+          ⚙
         </button>
       </div>
     </div>

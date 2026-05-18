@@ -26,10 +26,12 @@
   "manifest": {
     "permissions": [
       "activeTab",
-      "downloads"
+      "downloads",
+      "scripting",
+      "storage"
     ],
     "host_permissions": [
-      "https://*/*"
+      "<all_urls>"
     ]
   }
 }

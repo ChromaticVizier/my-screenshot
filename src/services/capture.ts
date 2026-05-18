@@ -4,20 +4,20 @@
  */
 import {
   MessageType,
+  type CaptureDelayedRequest,
+  type CaptureFullPageRequest,
+  type CaptureResponse,
+  type CaptureSelectionRequest,
   type CaptureVisibleRequest,
-  type CaptureVisibleResponse
+  type ExtensionRequest,
+  type ImageOptions
 } from "~src/shared/messages"
 
-/** 截取当前标签页可视区域并触发下载 */
-export function captureVisibleArea(
-  payload?: CaptureVisibleRequest["payload"]
-): Promise<CaptureVisibleResponse> {
-  const request: CaptureVisibleRequest = {
-    type: MessageType.CAPTURE_VISIBLE,
-    payload
-  }
+function send<T extends ExtensionRequest>(
+  request: T
+): Promise<CaptureResponse> {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(request, (res: CaptureVisibleResponse) => {
+    chrome.runtime.sendMessage(request, (res: CaptureResponse) => {
       const lastError = chrome.runtime.lastError
       if (lastError) {
         resolve({ ok: false, error: lastError.message ?? "消息通道异常" })
@@ -26,4 +26,42 @@ export function captureVisibleArea(
       resolve(res)
     })
   })
+}
+
+/** 截取当前标签页可视区域并触发下载 */
+export function captureVisibleArea(payload?: ImageOptions) {
+  const req: CaptureVisibleRequest = {
+    type: MessageType.CAPTURE_VISIBLE,
+    payload
+  }
+  return send(req)
+}
+
+/** 截取整页（滚动拼接）并触发下载 */
+export function captureFullPage(payload?: ImageOptions) {
+  const req: CaptureFullPageRequest = {
+    type: MessageType.CAPTURE_FULL_PAGE,
+    payload
+  }
+  return send(req)
+}
+
+/** 截取选区并触发下载 */
+export function captureSelection(payload?: ImageOptions) {
+  const req: CaptureSelectionRequest = {
+    type: MessageType.CAPTURE_SELECTION,
+    payload
+  }
+  return send(req)
+}
+
+/** 延迟后截取可视区域并触发下载（页面右上角会显示倒计时） */
+export function captureDelayed(
+  payload?: CaptureDelayedRequest["payload"]
+) {
+  const req: CaptureDelayedRequest = {
+    type: MessageType.CAPTURE_DELAYED,
+    payload
+  }
+  return send(req)
 }

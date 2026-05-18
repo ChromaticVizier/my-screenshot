@@ -21,15 +21,13 @@ export const CAPTURE_CARD_ACTIONS: CaptureAction[] = [
     key: "fullPage",
     label: "整个页面",
     icon: <FullPageIcon />,
-    variant: "card",
-    disabled: true
+    variant: "card"
   },
   {
     key: "selection",
     label: "选择区域",
     icon: <SelectionIcon />,
-    variant: "card",
-    disabled: true
+    variant: "card"
   }
 ]
 
