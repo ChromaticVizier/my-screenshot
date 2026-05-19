@@ -6,7 +6,10 @@
  * dataUrl 体积比 Blob 大约 1.33 倍（Base64），但截图场景一般 < 几十 MB，
  * 与体验对比可以接受；后续若需优化可换用 fetch + service worker route。
  */
-import { buildScreenshotFilename } from "~src/shared/filename"
+import {
+  buildRecordingFilename,
+  buildScreenshotFilename
+} from "~src/shared/filename"
 
 export interface DownloadImageOptions {
   /** 图片二进制 */
@@ -25,6 +28,26 @@ export async function downloadImageBlob(
   const dataUrl = await blobToDataUrl(blob)
   const filename = buildScreenshotFilename({ tabTitle, ext })
 
+  return chrome.downloads.download({
+    url: dataUrl,
+    filename,
+    saveAs: false
+  })
+}
+
+export interface DownloadRecordingOptions {
+  /** 视频 dataUrl（recorder 窗口已自行 base64 编码） */
+  dataUrl: string
+  tabTitle?: string
+  ext: "webm" | "mp4"
+}
+
+/** 下载录屏视频 */
+export async function downloadRecordingDataUrl(
+  options: DownloadRecordingOptions
+): Promise<number> {
+  const { dataUrl, tabTitle, ext } = options
+  const filename = buildRecordingFilename({ tabTitle, ext })
   return chrome.downloads.download({
     url: dataUrl,
     filename,

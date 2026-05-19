@@ -15,7 +15,17 @@ export const MessageType = {
   /** 中转窗口请求 background 把自己移到屏幕外（不能用 minimize，会冻结 JS） */
   HIDE_RELAY_WINDOW: "window/hideRelay",
   /** 中转窗口请求 background 销毁自己 */
-  CLOSE_RELAY_WINDOW: "window/closeRelay"
+  CLOSE_RELAY_WINDOW: "window/closeRelay",
+
+  /* ====== 录屏 ====== */
+  /** popup → background：开始录制当前标签页 */
+  RECORD_START_CURRENT_TAB: "record/startCurrentTab",
+  /** popup → background：停止当前录制 */
+  RECORD_STOP: "record/stop",
+  /** background → recorder 窗口：触发停止 */
+  RECORDER_STOP: "recorder/stop",
+  /** recorder 窗口 → background：录制完成，提交视频数据并下载 */
+  RECORDER_FINISH: "recorder/finish"
 } as const
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType]
@@ -87,6 +97,39 @@ export interface CloseRelayWindowRequest {
   type: typeof MessageType.CLOSE_RELAY_WINDOW
 }
 
+/* ---------- 录屏：popup → background ---------- */
+export interface RecordStartCurrentTabRequest {
+  type: typeof MessageType.RECORD_START_CURRENT_TAB
+  payload: {
+    /** popup 已经申请好的 tab streamId，background 直接注入到当前 tab 消费 */
+    streamId: string
+  }
+}
+
+export interface RecordStopRequest {
+  type: typeof MessageType.RECORD_STOP
+}
+
+/* ---------- 录屏：background → recorder 窗口 ---------- */
+export interface RecorderStopRequest {
+  type: typeof MessageType.RECORDER_STOP
+}
+
+/* ---------- 录屏：recorder 窗口 → background ---------- */
+export interface RecorderFinishRequest {
+  type: typeof MessageType.RECORDER_FINISH
+  payload: {
+    /** 视频 base64 dataUrl */
+    dataUrl: string
+    /** 文件扩展名（不含点） */
+    ext: "webm" | "mp4"
+    /** 是否被用户主动取消 */
+    cancelled?: boolean
+    /** 出错信息 */
+    error?: string
+  }
+}
+
 /** 通用响应 */
 export interface CaptureResponse {
   ok: boolean
@@ -108,3 +151,7 @@ export type ExtensionRequest =
   | DownloadDesktopImageRequest
   | HideRelayWindowRequest
   | CloseRelayWindowRequest
+  | RecordStartCurrentTabRequest
+  | RecordStopRequest
+  | RecorderStopRequest
+  | RecorderFinishRequest

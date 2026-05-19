@@ -12,6 +12,11 @@ import {
   handleDownloadDesktopImage,
   handleHideRelayWindow
 } from "~src/background/handlers/capture"
+import {
+  handleRecorderFinish,
+  handleRecordStartCurrentTab,
+  handleRecordStop
+} from "~src/background/handlers/record"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
 
 chrome.runtime.onMessage.addListener(
@@ -49,6 +54,23 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.CLOSE_RELAY_WINDOW: {
           sendResponse(await handleCloseRelayWindow(request, sender))
+          break
+        }
+        case MessageType.RECORD_START_CURRENT_TAB: {
+          sendResponse(await handleRecordStartCurrentTab(request))
+          break
+        }
+        case MessageType.RECORD_STOP: {
+          sendResponse(await handleRecordStop(request))
+          break
+        }
+        case MessageType.RECORDER_FINISH: {
+          sendResponse(await handleRecorderFinish(request, sender))
+          break
+        }
+        case MessageType.RECORDER_STOP: {
+          // recorder 注入脚本才是这条消息的接收方，service worker 直接放行
+          sendResponse({ ok: true })
           break
         }
         default: {

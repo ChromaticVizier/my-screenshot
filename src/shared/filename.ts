@@ -30,3 +30,16 @@ export function buildScreenshotFilename(
   const prefix = tabTitle ? sanitize(tabTitle) : "screenshot"
   return `${prefix}-${timestamp()}.${ext}`
 }
+
+export interface RecordingFilenameOptions {
+  tabTitle?: string
+  ext: "webm" | "mp4"
+}
+
+export function buildRecordingFilename(
+  options: RecordingFilenameOptions
+): string {
+  const { tabTitle, ext } = options
+  const prefix = tabTitle ? sanitize(tabTitle) : "recording"
+  return `${prefix}-${timestamp()}.${ext}`
+}

@@ -29,7 +29,8 @@
       "downloads",
       "scripting",
       "storage",
-      "system.display"
+      "system.display",
+      "tabCapture"
     ],
     "host_permissions": [
       "<all_urls>"

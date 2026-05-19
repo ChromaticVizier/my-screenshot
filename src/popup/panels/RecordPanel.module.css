@@ -187,3 +187,45 @@
 .startBtn:hover {
   background: #4a7de0;
 }
+
+.startBtn:disabled {
+  opacity: 0.7;
+}
+
+/* 结束录制（红色变体） */
+.stopBtn {
+  background: #cf3a3a;
+}
+
+.stopBtn:hover {
+  background: #b73030;
+}
+
+/* 麦克风/系统声音「开」状态 */
+.iconBtnOn {
+  color: #4a90e2;
+}
+
+/* 错误提示 */
+.errorTip {
+  padding: 6px 10px;
+  background: #fff1f0;
+  color: #cf3a3a;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* 让 SelectButton 的原生 select 完全透明、覆盖整个按钮区域 */
+.optionBtn {
+  position: relative;
+  cursor: pointer;
+}
+
+.optionSelect {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
