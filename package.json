@@ -28,7 +28,8 @@
       "activeTab",
       "downloads",
       "scripting",
-      "storage"
+      "storage",
+      "system.display"
     ],
     "host_permissions": [
       "<all_urls>"

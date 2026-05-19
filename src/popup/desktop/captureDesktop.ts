@@ -81,11 +81,11 @@ export async function captureDesktopFrame(
   }
 
   try {
-    // 2) 让调用方先做一些清理工作（如把中转窗口最小化）
+    // 2) 让调用方先做准备工作（hideRelayWindow 会把本窗口移到屏幕外，
+    //    并在 background 中等待 OS 动画结束后再 resolve；本上下文不用
+    //    再额外 sleep）
     if (beforeCapture) {
       await beforeCapture()
-      // 等待 OS 的最小化动画完成，避免动画中途的画面被截入
-      await new Promise<void>((r) => setTimeout(r, 350))
     }
 
     // 3) 用 video 元素消费流
@@ -110,9 +110,8 @@ export async function captureDesktopFrame(
       setTimeout(() => reject(new Error("视频加载超时")), 5000)
     })
 
-    // 即便 beforeCapture 已经最小化了窗口，再额外丢掉几帧来确保拿到的是
-    // 最小化之后的画面（getDisplayMedia 的视频轨道默认会持续输出最新帧）
-    await new Promise<void>((r) => setTimeout(r, 200))
+    // 再额外丢一帧，确保拿到的是「窗口已移走之后」的画面
+    await new Promise<void>((r) => setTimeout(r, 100))
 
     const w = video.videoWidth
     const h = video.videoHeight

@@ -372,29 +372,53 @@ export async function handleCaptureDesktop(
 /**
  * 中转窗口请求把自己「移到屏幕外」（避免被截入屏幕共享画面）。
  *
- * 不能用 minimized：Chrome 会冻结最小化窗口里的 JS（setTimeout / rAF
- * 都被节流甚至停止），导致后续抓帧、sendMessage 全部停滞。
+ * Windows 上 Chrome 会把负坐标的窗口夹回主屏幕边缘，所以不能用
+ * (-32000, -32000)。这里用 chrome.system.display 拿到所有显示器
+ * bounds 的并集，把窗口放到并集**正下方**（top = maxBottom + 50），
+ * 这是一个 100% 屏外的位置。
  *
- * 这里把窗口缩到 1×1 并移到 (-32000, -32000)，这是 Windows 早年通用
- * 的「隐藏窗口」坐标，远离任何可能的显示器；窗口里的 JS 仍正常运行。
+ * 为什么不用 minimized：
+ *   Chrome 会冻结最小化窗口的 JS 主循环（包括 setTimeout、rAF），
+ *   导致后续抓帧、下载、关闭流程全部卡死。
  */
 export async function handleHideRelayWindow(
   _request: HideRelayWindowRequest,
   sender: chrome.runtime.MessageSender
 ): Promise<{ ok: true }> {
   const winId = sender?.tab?.windowId
-  if (winId != null) {
+  if (winId == null) return { ok: true }
+
+  try {
+    // 计算所有显示器 bounds 的并集，找一个真正屏外的位置
+    let outsideTop = 5000
+    let safeLeft = 0
     try {
-      await chrome.windows.update(winId, {
-        left: -32000,
-        top: -32000,
-        width: 1,
-        height: 1,
-        focused: false
-      })
+      const displays = await chrome.system.display.getInfo()
+      let maxBottom = 0
+      let minLeft = Number.POSITIVE_INFINITY
+      for (const d of displays) {
+        const bottom = d.bounds.top + d.bounds.height
+        if (bottom > maxBottom) maxBottom = bottom
+        if (d.bounds.left < minLeft) minLeft = d.bounds.left
+      }
+      outsideTop = maxBottom + 50
+      safeLeft = Number.isFinite(minLeft) ? minLeft : 0
     } catch {
-      /* 忽略 */
+      /* 拿不到显示器信息时用默认大正值 */
     }
+
+    await chrome.windows.update(winId, {
+      left: safeLeft,
+      top: outsideTop,
+      width: 200,
+      height: 200,
+      focused: true
+    })
+    // 在 background 等动画完成；中转窗口里的 setTimeout 不论是否被节流
+    // 都不影响这里
+    await new Promise<void>((r) => setTimeout(r, 350))
+  } catch {
+    /* 忽略 */
   }
   return { ok: true }
 }

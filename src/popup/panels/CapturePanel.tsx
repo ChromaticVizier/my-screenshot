@@ -13,13 +13,14 @@ import {
   CAPTURE_CARD_ACTIONS,
   CAPTURE_LIST_ACTIONS
 } from "~src/constants/captureActions"
+import { captureDesktopFrame } from "~src/popup/desktop/captureDesktop"
 import {
   captureDelayed,
-  captureDesktop,
   captureFullPage,
   captureSelection,
   captureVisibleArea
 } from "~src/services/capture"
+import { downloadDesktopImage } from "~src/services/desktopBridge"
 import type { CaptureAction, CaptureMode } from "~src/types/popup"
 
 import * as styles from "./CapturePanel.module.css"
@@ -72,13 +73,42 @@ function CapturePanel() {
       }
 
       case "desktop": {
-        // background 会用 chrome.windows.create 打开一个独立的扩展窗口
-        // 作为「中转跳板」，在那里调用 getDisplayMedia 拉起共享选择器。
-        // popup 自身只负责发起请求，立即关闭。
-        captureDesktop({ format: "png" }).catch(() => {
-          /* popup 已关闭，错误由 background 控制台输出 */
-        })
-        window.close()
+        // 直接在 popup 中调用 getDisplayMedia：
+        //   - popup 自身就持有用户手势
+        //   - getDisplayMedia 调出系统级共享选择器期间，popup 不会失焦关闭
+        //   - 选择器关闭后 popup 自动关掉（点击其他地方），但抓帧已经完成
+        // 不需要中转窗口，截图里也不会出现任何额外窗口。
+        setBusy(mode)
+        try {
+          const result = await captureDesktopFrame({ format: "png" })
+          if (!result.ok) {
+            if (!result.cancelled) {
+              setError(result.error ?? "屏幕截图失败")
+            }
+            setBusy(null)
+            if (result.cancelled) window.close()
+            break
+          }
+          if (!result.dataUrl) {
+            setError("屏幕截图失败：返回数据为空")
+            setBusy(null)
+            break
+          }
+          // popup 此时即将失焦，趁早把数据交给 background 下载
+          const res = await downloadDesktopImage({
+            dataUrl: result.dataUrl,
+            format: "png"
+          })
+          setBusy(null)
+          if (!res.ok) {
+            setError(res.error ?? "下载失败")
+          } else {
+            window.close()
+          }
+        } catch (err) {
+          setBusy(null)
+          setError(err instanceof Error ? err.message : String(err))
+        }
         break
       }
 
