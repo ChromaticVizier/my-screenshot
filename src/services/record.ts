@@ -1,12 +1,25 @@
 /**
  * 录屏：popup 端调用层（封装消息收发）
  *
- * 关键：startCurrentTabRecording 必须在用户手势的同步栈中被调用
- *   （也就是直接在 onClick 里 await 它），中间不能有任何前置 await。
+ * 关键约束（多次踩坑后总结）：
  *
- *   chrome.tabCapture.getMediaStreamId 在 popup 上下文有效，
- *   且能拿到当前活动 tab 的 streamId 同时指定 consumerTabId 让目标 tab
- *   的 content / 注入脚本合法消费。
+ * 1. chrome.tabCapture.getMediaStreamId 必须在用户手势的同步栈里调用，
+ *    任何 await 都会让微任务队列离开手势上下文，导致 callback 永不触发。
+ *
+ * 2. consumerTabId 取舍：
+ *      - 旧实现把 streamId 传到目标 tab 的注入脚本里消费，consumerTabId
+ *        必须 = 目标 tabId。但目标 tab 是普通网页进程，跑出来的 webm
+ *        Duration 缺失且字节布局疑似异常，导致下载文件无法播放。
+ *      - 新实现把 MediaRecorder 搬到「扩展自己的中转窗口」（屏幕外的 popup
+ *        类型 window）—— 这是扩展自有 origin 的 DOM 上下文，输出的 webm
+ *        与社区主流录屏扩展一致，可被 Chrome 内置播放器正常播放。
+ *      - 中转窗口的 tabId 在用户点击的同步栈里**未知**（窗口异步创建），
+ *        因此申请 streamId 时**不传 consumerTabId**，让 streamId 可被
+ *        任意扩展上下文消费。
+ *
+ * 3. 由于 (2) 我们仍需先拿到目标 tabId，但 chrome.tabs.query 是异步的；
+ *    为了保留手势，这里采取「先用 chrome.tabs.query 同步发起 → callback
+ *    内立即调 getMediaStreamId」的链式 callback 风格，全程不 await。
  */
 import {
   MessageType,
@@ -21,44 +34,61 @@ interface SimpleResponse {
 }
 
 /**
- * 在 popup 同步上下文中申请 streamId，再请求 background 注入录制脚本。
- *
- * 这里**不能**先 await 拿 tabId 再申请 streamId —— 那样会脱离手势上下文。
- * 我们改成：让 background 异步查 tab，popup 这边只负责把 streamId 传过去。
- *
- * 但 getMediaStreamId 需要 targetTabId / consumerTabId —— 不传时
- * 默认走"调用方所在的 tab" 在 popup 里就是当前活动 tab。这刚好满足
- * 「录制当前标签页」的语义。
+ * 在 popup 同步上下文中：查询当前活动 tab → 申请 streamId → 通知 background。
+ * 全程使用 callback，不引入 await，保留用户手势。
  */
 export function startCurrentTabRecording(): Promise<SimpleResponse> {
   return new Promise((resolve) => {
-    // 同步调用：保留用户手势
     try {
-      chrome.tabCapture.getMediaStreamId(
-        // 不传参数：targetTabId 与 consumerTabId 都默认为当前活动 tab，
-        // 注入到该 tab 的脚本可以合法消费这个 streamId
-        async (streamId: string) => {
-          const lastError = chrome.runtime.lastError
-          if (lastError || !streamId) {
-            resolve({
-              ok: false,
-              error: lastError?.message ?? "无法获取 streamId"
-            })
+      // 第 1 步：查询当前活动 tab（callback 内手势仍然有效）
+      chrome.tabs.query(
+        { active: true, currentWindow: true },
+        (tabs) => {
+          const lastErr1 = chrome.runtime.lastError
+          if (lastErr1) {
+            resolve({ ok: false, error: lastErr1.message ?? "无法查询标签页" })
             return
           }
-          // 把 streamId 通过消息交给 background，由它注入脚本到当前 tab
-          const req: RecordStartCurrentTabRequest = {
-            type: MessageType.RECORD_START_CURRENT_TAB,
-            payload: { streamId }
+          const tab = tabs[0]
+          if (!tab?.id) {
+            resolve({ ok: false, error: "未找到活动标签页" })
+            return
           }
-          chrome.runtime.sendMessage(req, (res: SimpleResponse) => {
-            const err = chrome.runtime.lastError
-            if (err) {
-              resolve({ ok: false, error: err.message ?? "消息通道异常" })
-              return
+          const tabId = tab.id
+
+          // 第 2 步：申请 streamId
+          //   targetTabId  = 要捕获的 tab
+          //   不传 consumerTabId → streamId 可被任意扩展上下文消费
+          //                       （后续在中转窗口里调 getUserMedia）
+          chrome.tabCapture.getMediaStreamId(
+            { targetTabId: tabId },
+            (streamId: string) => {
+              const lastErr2 = chrome.runtime.lastError
+              if (lastErr2 || !streamId) {
+                resolve({
+                  ok: false,
+                  error: lastErr2?.message ?? "无法获取 streamId"
+                })
+                return
+              }
+              // 第 3 步：把 streamId + tabId 交给 background 创建中转窗口
+              const req: RecordStartCurrentTabRequest = {
+                type: MessageType.RECORD_START_CURRENT_TAB,
+                payload: { streamId, tabId }
+              }
+              chrome.runtime.sendMessage(req, (res: SimpleResponse) => {
+                const lastErr3 = chrome.runtime.lastError
+                if (lastErr3) {
+                  resolve({
+                    ok: false,
+                    error: lastErr3.message ?? "消息通道异常"
+                  })
+                  return
+                }
+                resolve(res)
+              })
             }
-            resolve(res)
-          })
+          )
         }
       )
     } catch (err) {

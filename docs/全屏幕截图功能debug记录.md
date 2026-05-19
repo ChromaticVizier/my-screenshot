@@ -1,8 +1,6 @@
 # 「整个屏幕或应用窗口」截图功能开发实录
 
 > 本文档详细记录该功能从零到可用的完整开发过程，包括每一次方案选型的取舍、遇到的具体问题、以及为什么走到了最终的实现。
->
-> 之所以单独成文，是因为这个看似简单的"点一下截屏"功能，在浏览器扩展（Chrome MV3）环境下踩了一连串坑，每一步都有当时不显然的取舍；把过程记下来，对后续维护、对其他扩展开发者、以及对自己复盘都有价值。
 
 ---
 
@@ -10,10 +8,10 @@
 
 | 项 | 说明 |
 |---|---|
-| **入口** | popup 截图面板「整个屏幕或应用窗口」按钮 |
-| **预期交互** | 点击 → 弹出系统级共享选择器（"选择要分享什么 / 整个屏幕 / 窗口 / Chrome 标签页"）→ 用户选定 → 自动下载该屏幕/窗口的截图 |
-| **关键约束** | 截图里**不能**包含我们扩展自己的 UI（popup、中转窗口等） |
-| **参考实现** | Awesome Screenshot 等同类扩展 |
+| 入口 | popup 截图面板「整个屏幕或应用窗口」按钮 |
+| 预期交互 | 点击 → 弹出系统级共享选择器（"选择要分享什么 / 整个屏幕 / 窗口 / Chrome 标签页"）→ 用户选定 → 自动下载该屏幕/窗口的截图 |
+| 关键约束 | 截图里不能包含我们扩展自己的 UI（popup、中转窗口等） |
+| 参考实现 | Awesome Screenshot 等同类扩展 |
 
 ---
 
@@ -23,36 +21,36 @@
 
 在调研报告（`技术调研.md`）里我对比过四种截图技术：`html2canvas` / WebRTC `getDisplayMedia` / CDP / `chrome.tabs.captureVisibleTab`。
 
-对「整个屏幕或应用窗口」这个**特定语义**：
+对「整个屏幕或应用窗口」这个特定语义：
 
 | 方案 | 是否适用 |
 |---|---|
-| `html2canvas` | ❌ 只能截 DOM，不能截浏览器外的应用窗口 |
-| `chrome.tabs.captureVisibleTab` | ❌ 只能截**当前标签页**的可视区域 |
-| CDP | ❌ 扩展环境受限，且会顶部弹"正在调试"横条 |
-| **`navigator.mediaDevices.getDisplayMedia`** | ✅ 唯一能跨 Chrome 之外的应用窗口 / 整个屏幕的 Web API |
+| `html2canvas` | 只能截 DOM，不能截浏览器外的应用窗口 |
+| `chrome.tabs.captureVisibleTab` | 只能截当前标签页的可视区域 |
+| CDP | 扩展环境受限，且会顶部弹"正在调试"横条 |
+| `navigator.mediaDevices.getDisplayMedia` | 唯一能跨 Chrome 之外的应用窗口 / 整个屏幕的 Web API |
 
-`getDisplayMedia` 是**唯一**能满足语义需求的方案，没有替代品。
+`getDisplayMedia` 是唯一能满足语义需求的方案，没有替代品。
 
 ### 2.2 `getDisplayMedia` 的硬性约束
 
 参考 Chrome 官方文档（<https://developer.chrome.google.cn/docs/web-platform/screen-sharing-controls>），调用环境必须同时满足：
 
-1. **持有用户手势**（transient activation）
-2. **拥有 DOM 上下文**（不能在 service worker 里调）
+1. 持有用户手势（transient activation）
+2. 拥有 DOM 上下文（不能在 service worker 里调）
 3. 调用方必须可见 / 处于前台
 
-这三个条件一起决定了"在哪里调它"是个非平凡的问题。
+这三个条件一起决定了"在哪里调它
 
 ---
 
-## 3. 实施过程：四次大方案，一路踩坑
+## 3. 实施过程
 
 下面按时间线复述每次的设计、遇到的问题、为什么必须换。
 
 ### 3.1 第一版：在 content script 中注入
 
-**直觉方案**：用 `chrome.scripting.executeScript` 把 `getDisplayMedia` 注入到当前活动标签页执行 —— 这种模式我们之前在「选区截图」和「延迟截图」里已经成功用过。
+直觉方案：用 `chrome.scripting.executeScript` 把 `getDisplayMedia` 注入到当前活动标签页执行 —— 这种模式我们之前在「选区截图」和「延迟截图」里已经成功用过。
 
 ```ts
 // background/handlers/capture.ts (第一版)
@@ -64,16 +62,16 @@ const [{ result }] = await chrome.scripting.executeScript({
 ```
 
 #### 现象
-点击按钮后**完全没反应**。
+点击按钮后完全没反应。
 
 #### 排查
 直接打开页面 console，自己输入 `navigator.mediaDevices.getDisplayMedia(...)`，弹出选择器；但通过扩展注入的同样代码就静默失败。
 
 #### 根因
-`chrome.scripting.executeScript` 派发到 content script 执行时，**用户手势已跨进程边界丢失**。`getDisplayMedia` 没有手势就立即 reject，且 isolated world 里没有任何 UI 反馈，表现就是"点了没反应"。
+`chrome.scripting.executeScript` 派发到 content script 执行时，用户手势已跨进程边界丢失。`getDisplayMedia` 没有手势就立即 reject，且 isolated world 里没有任何 UI 反馈，表现就是点了没反应。
 
 #### 启示
-**"调用方必须自己持有用户手势"** —— 注入脚本不行。
+"调用方必须自己持有用户手势" —— 注入脚本不行。
 
 ---
 
@@ -81,7 +79,7 @@ const [{ result }] = await chrome.scripting.executeScript({
 
 Chrome MV3 提供了 `chrome.offscreen` API，专门给 service worker 提供 DOM 上下文。
 
-**理论上的流程**：
+理论上的流程：
 ```
 popup 点击 → background.createDocument("offscreen.html")
               → offscreen 文档里调 getDisplayMedia
@@ -89,7 +87,7 @@ popup 点击 → background.createDocument("offscreen.html")
 ```
 
 #### 现象
-代码全部写好后**无法构建**：Plasmo 0.90.5 不支持自定义 HTML 入口，`tabs/offscreen.tsx` 不会被编译为 `tabs/offscreen.html`。
+代码全部写好后无法构建：Plasmo 0.90.5 不支持自定义 HTML 入口，`tabs/offscreen.tsx` 不会被编译为 `tabs/offscreen.html`。
 
 ```bash
 $ pnpm build
@@ -103,27 +101,25 @@ $ ls build/chrome-mv3-prod/
 - 手写静态 `offscreen.html + offscreen.js` —— Plasmo 没有 postbuild 钩子，需要额外的复制脚本，工程上太重
 
 #### 根因
-**Plasmo 0.90.5 不原生支持 offscreen document**。这是较新版本（≥ 0.84 或某个分支）才加入的特性。当前版本下走 offscreen 路线意味着要么升级 Plasmo（连带破坏其它已工作的部分），要么手工拼装构建产物。
+Plasmo 0.90.5 不原生支持 offscreen document。这是较新版本（≥ 0.84 或某个分支）才加入的特性。当前版本下走 offscreen 路线意味着要么升级 Plasmo（连带破坏其它已工作的部分），要么手工拼装构建产物。
 
 #### 决定
-**放弃 offscreen 路线**，方案全部回滚。
+放弃 offscreen 路线，方案全部回滚。
 
 ---
 
 ### 3.3 第三版：用 `chrome.windows.create` 拉起"中转窗口"
 
-观察 Awesome Screenshot 的行为：点击它的"屏幕"按钮后，**桌面上先出现一个小窗口**（标题栏写着 "Capture"），然后才弹出系统级共享选择器。
+观察 Awesome Screenshot 的行为：点击它的"屏幕"按钮后，桌面上先出现一个小窗口（标题栏写着 "Capture"），然后才弹出系统级共享选择器。
 
-![参考截图：背景中有 Capture 窗口](附图描述：标题栏 "Capture" 的小窗口位于屏幕共享选择器后面)
-
-这给了我灵感：**用 `chrome.windows.create` 打开一个独立的扩展窗口，在那里调 `getDisplayMedia`**。这个窗口：
-- 是真正的浏览器窗口，有完整 DOM 上下文 ✅
-- 由用户的扩展点击派生，**保留用户手势** ✅
-- 是扩展自有 origin，权限稳定 ✅
+这给了我灵感：用 `chrome.windows.create` 打开一个独立的扩展窗口，在那里调 `getDisplayMedia`。这个窗口：
+- 是真正的浏览器窗口，有完整 DOM 上下文
+- 由用户的扩展点击派生，保留用户手势
+- 是扩展自有 origin，权限稳定
 
 #### 实现关键点
 
-1. **复用已有的 `popup.html`**：Plasmo 0.90 不支持新 HTML 入口，但 popup 已被构建。我让 popup 入口根据 URL query 参数分流：
+1. 复用已有的 `popup.html`：Plasmo 0.90 不支持新 HTML 入口，但 popup 已被构建。我让 popup 入口根据 URL query 参数分流：
    ```ts
    // src/popup/index.tsx
    const action = new URLSearchParams(window.location.search).get("action")
@@ -131,13 +127,13 @@ $ ls build/chrome-mv3-prod/
    return <MainPopup />
    ```
 
-2. **background 拉起中转窗口**：
+2. background 拉起中转窗口：
    ```ts
    const url = chrome.runtime.getURL("popup.html") + "?action=desktopCapture"
    await chrome.windows.create({ url, type: "popup", width: 480, height: 560 })
    ```
 
-3. **中转窗口里的核心逻辑**：`useEffect` 一加载就调 `captureDesktopFrame()`，拿到 dataUrl 后通过消息发给 background 下载。
+3. 中转窗口里的核心逻辑：`useEffect` 一加载就调 `captureDesktopFrame()`，拿到 dataUrl 后通过消息发给 background 下载。
 
 成功打开了中转窗口、成功调起了系统级共享选择器。但接下来一连串新问题。
 
@@ -147,20 +143,20 @@ $ ls build/chrome-mv3-prod/
 
 #### 子问题 A：选择器里没有可分享的内容
 
-**现象**：选择器弹出但 "Chrome 标签页" 那栏空空如也。
+现象：选择器弹出但 "Chrome 标签页" 那栏空空如也。
 
-**根因**：Chrome 119+ 引入了几个新约束（[官方文档](https://developer.chrome.google.cn/docs/web-platform/screen-sharing-controls)）：
+根因：Chrome 119+ 引入了几个新约束（[官方文档](https://developer.chrome.google.cn/docs/web-platform/screen-sharing-controls)）：
 
 | 选项 | 默认值 | 影响 |
 |---|---|---|
-| `selfBrowserSurface` | `"exclude"` | **默认排除**自己的浏览器窗口/标签 |
+| `selfBrowserSurface` | `"exclude"` | 默认排除自己的浏览器窗口/标签 |
 | `monitorTypeSurfaces` | `"include"` | 是否显示"整个屏幕"选项 |
 | `surfaceSwitching` | （无） | 共享中切换源 |
 | `systemAudio` | `"include"` | 系统音频 |
 
 `selfBrowserSurface: "exclude"` 是默认值，导致"Chrome 标签页"列表为空。
 
-**修复**：
+修复：
 ```ts
 stream = await navigator.mediaDevices.getDisplayMedia({
   video: { displaySurface: "monitor", width: { ideal: 7680 }, height: { ideal: 4320 } },
@@ -181,9 +177,9 @@ stream = await navigator.mediaDevices.getDisplayMedia({
 
 #### 子问题 B：截图里包含中转窗口
 
-**现象**：用户选择"整个屏幕"截屏后，下载的图里**有那个"My screenshot"中转小窗口**。
+现象：用户选择"整个屏幕"截屏后，下载的图里有那个"My screenshot"中转小窗口。
 
-**根因**：用户点"分享"的瞬间，中转窗口还在屏幕上。`getDisplayMedia` 拿到 stream 后，video 输出的"第一帧"就是含中转窗口的画面。
+根因：用户点"分享"的瞬间，中转窗口还在屏幕上。`getDisplayMedia` 拿到 stream 后，video 输出的"第一帧"就是含中转窗口的画面。
 
 #### 修复尝试 1：拿到 stream 后最小化中转窗口
 
@@ -194,15 +190,15 @@ const result = await captureDesktopFrame({
 })
 ```
 
-**新现象**：中转窗口最小化到任务栏，**整个流程卡住**。必须用户手动点回中转窗口才会触发下载。
+新现象：中转窗口最小化到任务栏，整个流程卡住。必须用户手动点回中转窗口才会触发下载。
 
-**新根因**：Chrome 会**冻结最小化窗口里的 JS 主循环** —— `setTimeout`、`requestAnimationFrame` 都被节流甚至完全暂停。我们用来等待"动画完成"的 `await new Promise(r => setTimeout(r, 350))` 在最小化窗口里**永远不 resolve**。
+新根因：Chrome 会冻结最小化窗口里的 JS 主循环 —— `setTimeout`、`requestAnimationFrame` 都被节流甚至完全暂停。我们用来等待"动画完成"的 `await new Promise(r => setTimeout(r, 350))` 在最小化窗口里永远不 resolve。
 
 #### 修复尝试 2：用 `requestVideoFrameCallback` 替代 setTimeout
 
 `rVFC` 由 GPU 视频管线驱动，理论上不受窗口可见性影响。
 
-**结果**：仍然卡住。说明 Chrome 把最小化窗口的**整个事件循环都暂停了**，连 video 解码事件回调也不派发。
+结果：仍然卡住。说明 Chrome 把最小化窗口的整个事件循环都暂停了，连 video 解码事件回调也不派发。
 
 #### 修复尝试 3：把窗口移到屏幕外，而不是最小化
 
@@ -212,9 +208,9 @@ chrome.windows.update(winId, {
 })
 ```
 
-**新现象**：流程不再卡死，但下载的截图**仍然带中转窗口**。
+新现象：流程不再卡死，但下载的截图仍然带中转窗口。
 
-**新根因**：Windows 的 `SetWindowPos` 行为：**坐标完全越界时会把窗口"夹"回主屏幕的边缘**。窗口实际还在屏幕角落里，被屏幕共享流捕获。
+新根因：Windows 的 `SetWindowPos` 行为：坐标完全越界时会把窗口"夹"回主屏幕的边缘。窗口实际还在屏幕角落里，被屏幕共享流捕获。
 
 #### 修复尝试 4：用 `chrome.system.display` 计算"屏外坐标"
 
@@ -225,11 +221,11 @@ const maxBottom = Math.max(...displays.map(d => d.bounds.top + d.bounds.height))
 chrome.windows.update(winId, { top: maxBottom + 50, left: 0, width: 200, height: 200 })
 ```
 
-**结果**：仍然能在截图里看到中转窗口。
+结果：仍然能在截图里看到中转窗口。
 
-**根因猜测**：Windows 11 的"防止丢失窗口"特性比想象中更激进，正方向越界依然会被夹回。或者 Windows DWM 的截屏管线对窗口可见性的判断与坐标无关，只看 z-order。
+根因猜测：Windows 11 的"防止丢失窗口"特性比想象中更激进，正方向越界依然会被夹回。或者 Windows DWM 的截屏管线对窗口可见性的判断与坐标无关，只看 z-order。
 
-至此，第三版方案**在 Windows 上无法清洁地隐藏中转窗口**。
+至此，第三版方案在 Windows 上无法清洁地隐藏中转窗口。
 
 ---
 
@@ -239,9 +235,9 @@ chrome.windows.update(winId, { top: maxBottom + 50, left: 0, width: 200, height:
 
 之前一直假设："popup 失焦会立即关闭，所以 popup 不能调需要等待用户操作的 API"。但实际上：
 
-- **`getDisplayMedia` 弹出系统级选择器期间，popup 不会失焦关闭** —— 因为系统选择器是 OS 级 modal，popup 仍然处于 Chrome 自己的"活跃"语义里
-- **popup 是 Chrome 浏览器 chrome 区的一部分**（属于 toolbar 弹层），**通常不会被屏幕共享流捕获**为独立窗口
-- **popup 自身就持有用户手势**（用户刚点了它的按钮），可以直接调 `getDisplayMedia`
+- `getDisplayMedia` 弹出系统级选择器期间，popup 不会失焦关闭 —— 因为系统选择器是 OS 级 modal，popup 仍然处于 Chrome 自己的"活跃"语义里
+- popup 是 Chrome 浏览器 chrome 区的一部分（属于 toolbar 弹层），通常不会被屏幕共享流捕获为独立窗口
+- popup 自身就持有用户手势（用户刚点了它的按钮），可以直接调 `getDisplayMedia`
 
 #### 实现
 
@@ -273,7 +269,7 @@ case "desktop": {
 }
 ```
 
-**关键点**：
+关键点：
 - popup 在"用户点击"那一刻持有手势，立即调 `getDisplayMedia`
 - 选择器期间 popup 保持打开
 - 选择器关闭、抓帧、下载完成后再 `window.close()`
@@ -339,15 +335,15 @@ src/
 
 ## 5. 经验小结
 
-### 5.1 浏览器扩展环境的"约束矩阵"很微妙
+### 5.1 浏览器扩展环境的"约束矩阵"
 
 | API | service worker | content script | popup | offscreen | 独立扩展窗口 |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `chrome.tabs.captureVisibleTab` | ✅ | ❌ | ✅ | ❌ | ✅ |
 | `chrome.scripting.executeScript` | ✅ | ❌ | ✅ | ❌ | ✅ |
-| **`getDisplayMedia`** | ❌ | ❌ | **✅** | ✅ | ✅ |
-| 持有用户手势 | ❌ | 跨边界丢失 | **✅** | 不持有 | 派生持有 |
-| 屏幕共享被捕获 | n/a | n/a | **不会** | 不会 | **会** |
+| `getDisplayMedia` | ❌ | ❌ | ✅ | ✅ | ✅ |
+| 持有用户手势 | ❌ | 跨边界丢失 | ✅ | 不持有 | 派生持有 |
+| 屏幕共享被捕获 | n/a | n/a | 不会 | 不会 | 会 |
 
 只有 popup 同时满足"能调 + 有手势 + 不被截入" —— 这正是最终方案。
 
@@ -363,18 +359,5 @@ Chrome 119+ 的 popup 在调用某些原生模态 API（如 `getDisplayMedia`、
 
 ### 5.4 `getDisplayMedia` 的选项必须显式声明
 
-`selfBrowserSurface`、`monitorTypeSurfaces` 等的默认值随 Chrome 版本变化，**必须显式写**才能保证选择器内容稳定。这些字段尚未进入 TS DOM 标准类型，需要用 `as Record<string, string>` 断言。
+`selfBrowserSurface`、`monitorTypeSurfaces` 等的默认值随 Chrome 版本变化，必须显式写才能保证选择器内容稳定。这些字段尚未进入 TS DOM 标准类型，需要用 `as Record<string, string>` 断言。
 
-### 5.5 调研报告里"理论方案对比"和"工程实施"是两件事
-
-调研里说 `getDisplayMedia` "必须 HTTPS、要弹共享选择器、是主流方案"，这些都对，但**完全没说在 Chrome 扩展具体环境里到底放在哪个上下文调**。这次实施中真正花时间的是后者。下次做调研报告时，应该按"目标运行环境"维度展开"调用上下文"分析。
-
----
-
-## 6. 后续可优化项
-
-- **格式与质量可配置**：当前固定 `"png"`，未来在设置页加 png/jpeg + 质量滑块
-- **支持只截"应用窗口/标签页"的语义区分**：当前按钮是"屏幕或应用窗口"二合一，可拆为"屏幕"和"窗口"两个按钮，分别 `displaySurface: "monitor"` / `"window"` / `"browser"`
-- **下载文件名**：当前 `screen-时间戳.png`，可加上"屏幕分辨率"提示
-- **第三版的中转窗口代码清理**：未投入使用的 `popup/desktop/index.tsx`、`hideRelayWindow` 等可考虑移除或标记为 deprecated
-- **如果未来升级 Plasmo 到支持 offscreen 的版本**：可将 `getDisplayMedia` 迁移到 offscreen，这样在 popup 关闭后流程仍可继续，体验上更稳健

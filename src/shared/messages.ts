@@ -20,11 +20,15 @@ export const MessageType = {
   /* ====== 录屏 ====== */
   /** popup → background：开始录制当前标签页 */
   RECORD_START_CURRENT_TAB: "record/startCurrentTab",
-  /** popup → background：停止当前录制 */
+  /** popup / 控制栏 → background：停止当前录制 */
   RECORD_STOP: "record/stop",
-  /** background → recorder 窗口：触发停止 */
+  /** background → 控制栏 / 中转窗口：触发停止 */
   RECORDER_STOP: "recorder/stop",
-  /** recorder 窗口 → background：录制完成，提交视频数据并下载 */
+  /** 控制栏 → 中转窗口（经 background 转发）：暂停 */
+  RECORDER_PAUSE: "recorder/pause",
+  /** 控制栏 → 中转窗口（经 background 转发）：继续 */
+  RECORDER_RESUME: "recorder/resume",
+  /** 中转窗口 → background：录制完成（已自行下载） */
   RECORDER_FINISH: "recorder/finish"
 } as const
 
@@ -101,8 +105,10 @@ export interface CloseRelayWindowRequest {
 export interface RecordStartCurrentTabRequest {
   type: typeof MessageType.RECORD_START_CURRENT_TAB
   payload: {
-    /** popup 已经申请好的 tab streamId，background 直接注入到当前 tab 消费 */
+    /** popup 已申请好的 tab streamId */
     streamId: string
+    /** 同时也是 streamId 的 consumerTabId，用于注入脚本到该 tab */
+    tabId: number
   }
 }
 
@@ -110,19 +116,23 @@ export interface RecordStopRequest {
   type: typeof MessageType.RECORD_STOP
 }
 
-/* ---------- 录屏：background → recorder 窗口 ---------- */
+/* ---------- 录屏：background → recorder 窗口 / 控制栏 ---------- */
 export interface RecorderStopRequest {
   type: typeof MessageType.RECORDER_STOP
 }
 
-/* ---------- 录屏：recorder 窗口 → background ---------- */
+export interface RecorderPauseRequest {
+  type: typeof MessageType.RECORDER_PAUSE
+}
+
+export interface RecorderResumeRequest {
+  type: typeof MessageType.RECORDER_RESUME
+}
+
+/* ---------- 录屏：中转窗口 → background ---------- */
 export interface RecorderFinishRequest {
   type: typeof MessageType.RECORDER_FINISH
   payload: {
-    /** 视频 base64 dataUrl */
-    dataUrl: string
-    /** 文件扩展名（不含点） */
-    ext: "webm" | "mp4"
     /** 是否被用户主动取消 */
     cancelled?: boolean
     /** 出错信息 */
@@ -154,4 +164,6 @@ export type ExtensionRequest =
   | RecordStartCurrentTabRequest
   | RecordStopRequest
   | RecorderStopRequest
+  | RecorderPauseRequest
+  | RecorderResumeRequest
   | RecorderFinishRequest

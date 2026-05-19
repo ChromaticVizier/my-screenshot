@@ -68,8 +68,12 @@ chrome.runtime.onMessage.addListener(
           sendResponse(await handleRecorderFinish(request, sender))
           break
         }
-        case MessageType.RECORDER_STOP: {
-          // recorder 注入脚本才是这条消息的接收方，service worker 直接放行
+        case MessageType.RECORDER_STOP:
+        case MessageType.RECORDER_PAUSE:
+        case MessageType.RECORDER_RESUME: {
+          // 这些消息的最终接收方是控制栏注入脚本和中转窗口；service worker
+          // 只是消息总线，不做处理。回 ok 即可，让 sendMessage 不报 channel
+          // closed 错误。
           sendResponse({ ok: true })
           break
         }

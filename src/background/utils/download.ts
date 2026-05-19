@@ -1,15 +1,16 @@
 /**
  * 下载工具：统一处理「图片 Blob → 浏览器下载」
  *
- * MV3 service worker 中 `URL.createObjectURL` 不可用（Chrome 已禁用），
- * 因此一律把 Blob 转成 dataUrl 再交给 chrome.downloads.download。
- * dataUrl 体积比 Blob 大约 1.33 倍（Base64），但截图场景一般 < 几十 MB，
- * 与体验对比可以接受；后续若需优化可换用 fetch + service worker route。
+ * MV3 service worker 中 `URL.createObjectURL` 自 Chrome 110+ 已恢复支持，
+ * 但截图链路里源数据一般来自其他进程（content script 网页进程），blob URL
+ * 不能跨进程；为简洁统一，截图统一把数据编码成 dataUrl 再交给
+ * chrome.downloads.download。
+ *
+ * 录屏视频不走这里：MediaRecorder 在「中转扩展窗口」里跑，窗口里直接用
+ * URL.createObjectURL + chrome.downloads.download 落盘，避免 base64 编码
+ * 和跨进程拷贝。
  */
-import {
-  buildRecordingFilename,
-  buildScreenshotFilename
-} from "~src/shared/filename"
+import { buildScreenshotFilename } from "~src/shared/filename"
 
 export interface DownloadImageOptions {
   /** 图片二进制 */
@@ -28,26 +29,6 @@ export async function downloadImageBlob(
   const dataUrl = await blobToDataUrl(blob)
   const filename = buildScreenshotFilename({ tabTitle, ext })
 
-  return chrome.downloads.download({
-    url: dataUrl,
-    filename,
-    saveAs: false
-  })
-}
-
-export interface DownloadRecordingOptions {
-  /** 视频 dataUrl（recorder 窗口已自行 base64 编码） */
-  dataUrl: string
-  tabTitle?: string
-  ext: "webm" | "mp4"
-}
-
-/** 下载录屏视频 */
-export async function downloadRecordingDataUrl(
-  options: DownloadRecordingOptions
-): Promise<number> {
-  const { dataUrl, tabTitle, ext } = options
-  const filename = buildRecordingFilename({ tabTitle, ext })
   return chrome.downloads.download({
     url: dataUrl,
     filename,
