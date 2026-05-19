@@ -15,6 +15,7 @@ import {
 import {
   handleRecorderFinish,
   handleRecordStartCurrentTab,
+  handleRecordStartRegionTab,
   handleRecordStop
 } from "~src/background/handlers/record"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
@@ -58,6 +59,10 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.RECORD_START_CURRENT_TAB: {
           sendResponse(await handleRecordStartCurrentTab(request))
+          break
+        }
+        case MessageType.RECORD_START_REGION_TAB: {
+          sendResponse(await handleRecordStartRegionTab(request))
           break
         }
         case MessageType.RECORD_STOP: {

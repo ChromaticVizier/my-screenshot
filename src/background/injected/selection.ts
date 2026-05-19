@@ -1,10 +1,11 @@
 /**
- * 选区截图：在页面上下文中执行的辅助函数
+ * 选区截图 / 选区录制：在页面上下文中执行的辅助函数
  *
  * 注入一层全屏遮罩，让用户拖拽选择矩形。
  * 通过 Promise 返回 { x, y, width, height } 或 null（用户取消）。
  *
- * 同样必须自包含、不引用外部模块。
+ * 必须自包含：函数体内不引用模块顶层变量、helper，因为 chrome.scripting
+ * .executeScript({ func }) 只把函数体本身序列化注入。
  */
 
 export interface SelectionResult {
@@ -15,8 +16,18 @@ export interface SelectionResult {
   devicePixelRatio: number
 }
 
-/** 在页面中渲染选区遮罩并等待用户操作 */
-export function pickSelection(): Promise<SelectionResult | null> {
+export interface PickSelectionArgs {
+  /**
+   * true：松手后**保留**一个红色细边框 div 留在页面上（录制模式）；
+   * false：松手后所有覆盖物全部移除（截图模式）。
+   */
+  keepFrameAfterPick: boolean
+}
+
+/** 注入到目标 tab 执行的选区交互（自包含）。 */
+export function pickSelection(
+  args: PickSelectionArgs
+): Promise<SelectionResult | null> {
   return new Promise((resolve) => {
     const Z = 2147483647
 
@@ -49,7 +60,9 @@ export function pickSelection(): Promise<SelectionResult | null> {
 
     // 提示
     const tip = document.createElement("div")
-    tip.textContent = "拖拽选择截图区域，按 Esc 取消"
+    tip.textContent = args.keepFrameAfterPick
+      ? "拖拽选择录制区域，松手开始录制；按 Esc 取消"
+      : "拖拽选择截图区域，按 Esc 取消"
     Object.assign(tip.style, {
       position: "absolute",
       top: "16px",
@@ -81,8 +94,30 @@ export function pickSelection(): Promise<SelectionResult | null> {
       root.remove()
     }
 
+    const planLeaveFrame = (r: SelectionResult) => {
+      // 录制模式：松手后留下一个红色细边框，用户能持续看到「正在录哪一块」
+      const frame = document.createElement("div")
+      frame.setAttribute("data-my-screenshot-region-frame", "1")
+      Object.assign(frame.style, {
+        position: "fixed",
+        left: `${r.x}px`,
+        top: `${r.y}px`,
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+        border: "2px solid #ff5252",
+        boxSizing: "border-box",
+        pointerEvents: "none",
+        zIndex: String(Z),
+        boxShadow: "0 0 0 2px rgba(255, 82, 82, 0.3)"
+      } satisfies Partial<CSSStyleDeclaration>)
+      document.documentElement.appendChild(frame)
+    }
+
     const finish = (result: SelectionResult | null) => {
       cleanup()
+      if (result && args.keepFrameAfterPick) {
+        planLeaveFrame(result)
+      }
       resolve(result)
     }
 
@@ -126,7 +161,6 @@ export function pickSelection(): Promise<SelectionResult | null> {
     const onUp = (e: MouseEvent) => {
       if (!dragging) return
       dragging = false
-      // 太小视为取消
       if (!rect || rect.width < 3 || rect.height < 3) {
         finish(null)
         return
@@ -148,4 +182,37 @@ export function pickSelection(): Promise<SelectionResult | null> {
     window.addEventListener("mouseup", onUp)
     window.addEventListener("keydown", onKey, true)
   })
+}
+
+/**
+ * 在指定坐标画一个红色边框（录制模式跨页面跳转后由 background 调用恢复）。
+ */
+export function injectRegionFrame(rect: SelectionResult): void {
+  document
+    .querySelectorAll("[data-my-screenshot-region-frame]")
+    .forEach((el) => el.remove())
+
+  const Z = 2147483647
+  const frame = document.createElement("div")
+  frame.setAttribute("data-my-screenshot-region-frame", "1")
+  Object.assign(frame.style, {
+    position: "fixed",
+    left: `${rect.x}px`,
+    top: `${rect.y}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    border: "2px solid #ff5252",
+    boxSizing: "border-box",
+    pointerEvents: "none",
+    zIndex: String(Z),
+    boxShadow: "0 0 0 2px rgba(255, 82, 82, 0.3)"
+  } satisfies Partial<CSSStyleDeclaration>)
+  document.documentElement.appendChild(frame)
+}
+
+/** 移除录制区域边框（录制结束时由 background 调用） */
+export function removeRegionFrame(): void {
+  document
+    .querySelectorAll("[data-my-screenshot-region-frame]")
+    .forEach((el) => el.remove())
 }

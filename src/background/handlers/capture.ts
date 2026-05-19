@@ -243,7 +243,8 @@ export async function handleCaptureSelection(
     // 1) 注入遮罩并等待用户拖拽（注意：popup 此时已关闭，由 background 等待）
     const [{ result: selection }] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: pickSelection
+      func: pickSelection,
+      args: [{ keepFrameAfterPick: false }]
     })
 
     if (!selection) {

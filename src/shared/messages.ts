@@ -18,8 +18,10 @@ export const MessageType = {
   CLOSE_RELAY_WINDOW: "window/closeRelay",
 
   /* ====== 录屏 ====== */
-  /** popup → background：开始录制当前标签页 */
+  /** popup → background：开始录制当前标签页（整页） */
   RECORD_START_CURRENT_TAB: "record/startCurrentTab",
+  /** popup → background：开始区域录制当前标签页 */
+  RECORD_START_REGION_TAB: "record/startRegionTab",
   /** popup / 控制栏 → background：停止当前录制 */
   RECORD_STOP: "record/stop",
   /** background → 控制栏 / 中转窗口：触发停止 */
@@ -112,6 +114,14 @@ export interface RecordStartCurrentTabRequest {
   }
 }
 
+export interface RecordStartRegionTabRequest {
+  type: typeof MessageType.RECORD_START_REGION_TAB
+  payload: {
+    streamId: string
+    tabId: number
+  }
+}
+
 export interface RecordStopRequest {
   type: typeof MessageType.RECORD_STOP
 }
@@ -162,6 +172,7 @@ export type ExtensionRequest =
   | HideRelayWindowRequest
   | CloseRelayWindowRequest
   | RecordStartCurrentTabRequest
+  | RecordStartRegionTabRequest
   | RecordStopRequest
   | RecorderStopRequest
   | RecorderPauseRequest

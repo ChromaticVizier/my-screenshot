@@ -26,6 +26,7 @@ import {
 import { RECORD_MODE_ACTIONS } from "~src/constants/recordActions"
 import {
   startCurrentTabRecording,
+  startRegionTabRecording,
   stopRecording
 } from "~src/services/record"
 import {
@@ -93,20 +94,24 @@ function RecordPanel() {
       return
     }
 
-    // 开始录制：仅当选了「当前标签页」时实际启动
-    if (activeMode !== "currentTab") {
+    // 开始录制：根据所选模式分发
+    if (activeMode !== "currentTab" && activeMode !== "regionTab") {
       setBusy(false)
-      setError("当前仅支持「当前标签页」录制")
+      setError("当前仅支持「当前标签页」与「区域录制(当前标签页)」")
       return
     }
 
-    const res = await startCurrentTabRecording()
+    const res =
+      activeMode === "regionTab"
+        ? await startRegionTabRecording()
+        : await startCurrentTabRecording()
     setBusy(false)
     if (!res.ok) {
+      if (res.cancelled) return // 用户主动取消，静默
       setError(res.error ?? "无法启动录制")
       return
     }
-    // 关闭 popup，让出焦点给 recorder 窗口的共享选择器
+    // 关闭 popup，让出焦点给目标 tab 的 picker / 控制栏
     window.close()
   }
 

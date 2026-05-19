@@ -22,6 +22,14 @@ import { useEffect, useRef, useState } from "react"
 
 import * as styles from "./index.module.css"
 
+interface BootRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+  devicePixelRatio: number
+}
+
 interface BootConfig {
   streamId: string
   tabId: number
@@ -29,6 +37,8 @@ interface BootConfig {
   microphone: boolean
   systemAudio: boolean
   filename: string
+  /** 区域录制：裁剪矩形（CSS 像素 + dpr）。省略 = 录整个视口 */
+  region?: BootRegion
 }
 
 const RECORDER_BOOT_KEY = "__recorderBoot"
@@ -49,13 +59,17 @@ function OffscreenRecorder() {
       let mediaRecorder: MediaRecorder | null = null
       let combinedStream: MediaStream | null = null
       let micStream: MediaStream | null = null
+      let tabStreamRef: MediaStream | null = null
       let blobUrl = ""
       let finalized = false
+      let cropCancel: (() => void) | null = null
       const chunks: Blob[] = []
 
       const cleanupTracks = () => {
         try {
+          if (cropCancel) cropCancel()
           combinedStream?.getTracks().forEach((t) => t.stop())
+          tabStreamRef?.getTracks().forEach((t) => t.stop())
           micStream?.getTracks().forEach((t) => t.stop())
         } catch {
           /* 忽略 */
@@ -107,6 +121,7 @@ function OffscreenRecorder() {
         } as unknown as MediaStreamConstraints
 
         const tabStream = await navigator.mediaDevices.getUserMedia(constraints)
+        tabStreamRef = tabStream
 
         // 把 tabCapture 拿到的音频接回 destination，让用户依然能听到页面声音
         if (boot.systemAudio) {
@@ -119,27 +134,44 @@ function OffscreenRecorder() {
           }
         }
 
-        const tracks: MediaStreamTrack[] = []
-        tabStream.getVideoTracks().forEach((t) => tracks.push(t))
-        if (boot.systemAudio) {
-          tabStream.getAudioTracks().forEach((t) => tracks.push(t))
-        }
-
         // 3) 麦克风
         if (boot.microphone) {
           try {
             micStream = await navigator.mediaDevices.getUserMedia({
               audio: { echoCancellation: true, noiseSuppression: true }
             })
-            micStream.getAudioTracks().forEach((t) => tracks.push(t))
           } catch (err) {
             console.warn("[recorder] 麦克风获取失败", err)
           }
         }
 
+        // 4) 组装最终 MediaStream
+        //    - 视频：整页录制 → 直接用 tab 视频；区域录制 → 通过 canvas 裁剪
+        //    - 音频：tab 音频（systemAudio）+ 麦克风（按选项叠加）
+        let finalVideoTracks: MediaStreamTrack[]
+        if (boot.region) {
+          finalVideoTracks = await buildCroppedVideoTracks(
+            tabStream,
+            boot.region,
+            (cancel) => {
+              cropCancel = cancel
+            }
+          )
+        } else {
+          finalVideoTracks = tabStream.getVideoTracks()
+        }
+
+        const tracks: MediaStreamTrack[] = [...finalVideoTracks]
+        if (boot.systemAudio) {
+          tabStream.getAudioTracks().forEach((t) => tracks.push(t))
+        }
+        if (micStream) {
+          micStream.getAudioTracks().forEach((t) => tracks.push(t))
+        }
+
         combinedStream = new MediaStream(tracks)
 
-        // 4) MediaRecorder：仅 webm（Chrome 唯一稳定支持的录制容器）
+        // 5) MediaRecorder：仅 webm（Chrome 唯一稳定支持的录制容器）
         const mimeCandidates = [
           "video/webm;codecs=vp9,opus",
           "video/webm;codecs=vp8,opus",
@@ -189,7 +221,7 @@ function OffscreenRecorder() {
           }
         }
 
-        // 用户在 Chrome 共享栏点「停止」会让 video track ended
+        // 用户在 Chrome 共享栏点「停止」会让 tab 视频 track ended
         tabStream.getVideoTracks().forEach((t) => {
           t.addEventListener("ended", () => {
             if (mediaRecorder && mediaRecorder.state !== "inactive") {
@@ -245,6 +277,119 @@ function OffscreenRecorder() {
       )}
     </div>
   )
+}
+
+/**
+ * 把 tab 视频 stream 裁剪到 region。
+ *
+ * **采用 WebCodecs Insertable Streams 在帧层面裁剪**（Chrome 94+）：
+ *   原 tab video track
+ *     → MediaStreamTrackProcessor → ReadableStream<VideoFrame>
+ *     → TransformStream：用 new VideoFrame(src, { visibleRect, ... }) 裁剪，
+ *        关键是**保留原 frame.timestamp**
+ *     → MediaStreamTrackGenerator → 输出新的 video track
+ *
+ * 为什么不再用 canvas.captureStream:
+ *   canvas.captureStream 输出的 track 没有真实 frame timestamp 源 ——
+ *   MediaRecorder 写出的 webm Cluster timecode / Duration 元数据异常，
+ *   Chrome 内置播放器拒绝渲染（控件灰、时间 0）。
+ *   Insertable Streams 路径下输出 track 的每一帧带有从源 track 继承的
+ *   timestamp，MediaRecorder 写出的 webm 与整页录制路径性质一致，可正常播放。
+ *
+ * 坐标换算：
+ *   tabCapture 输出帧的物理像素 = 目标 tab CSS 像素 × devicePixelRatio
+ *   VideoFrame.visibleRect 接受物理像素坐标，所以 = region × dpr
+ */
+async function buildCroppedVideoTracks(
+  tabStream: MediaStream,
+  region: BootRegion,
+  onSetup: (cancel: () => void) => void
+): Promise<MediaStreamTrack[]> {
+  const srcTrack = tabStream.getVideoTracks()[0]
+  if (!srcTrack) throw new Error("源视频轨道为空")
+
+  // 检查 API 可用性
+  const win = window as unknown as {
+    MediaStreamTrackProcessor?: new (init: { track: MediaStreamTrack }) => {
+      readable: ReadableStream<VideoFrame>
+    }
+    MediaStreamTrackGenerator?: new (init: { kind: "video" }) => MediaStreamTrack & {
+      writable: WritableStream<VideoFrame>
+    }
+  }
+  if (!win.MediaStreamTrackProcessor || !win.MediaStreamTrackGenerator) {
+    throw new Error(
+      "当前浏览器不支持 WebCodecs Insertable Streams（需 Chrome 94+）"
+    )
+  }
+
+  const dpr = region.devicePixelRatio || 1
+  const cropX = Math.max(0, Math.round(region.x * dpr))
+  const cropY = Math.max(0, Math.round(region.y * dpr))
+  const cropW = Math.max(2, Math.round(region.width * dpr))
+  const cropH = Math.max(2, Math.round(region.height * dpr))
+
+  const processor = new win.MediaStreamTrackProcessor({ track: srcTrack })
+  const generator = new win.MediaStreamTrackGenerator({ kind: "video" })
+
+  const transformer = new TransformStream<VideoFrame, VideoFrame>({
+    transform(frame, controller) {
+      // 安全裁剪：source frame 的 codedWidth/Height 是物理像素
+      // 取交集避免越界（页面尺寸刚好变化时）
+      const fw = frame.codedWidth
+      const fh = frame.codedHeight
+      const x = Math.min(cropX, Math.max(0, fw - 2))
+      const y = Math.min(cropY, Math.max(0, fh - 2))
+      const w = Math.min(cropW, fw - x)
+      const h = Math.min(cropH, fh - y)
+      try {
+        const cropped = new VideoFrame(frame, {
+          visibleRect: { x, y, width: w, height: h },
+          // 保留时间戳：MediaRecorder 写 webm Cluster timecode 的依据
+          timestamp: frame.timestamp ?? 0
+        })
+        controller.enqueue(cropped)
+      } catch (err) {
+        // 偶发的 codedWidth/Height = 0 等情况，跳过本帧
+        console.warn("[recorder] 裁剪帧失败", err)
+      } finally {
+        frame.close()
+      }
+    },
+    flush() {
+      /* 源 stream 关闭时 transform 会自然终止 */
+    }
+  })
+
+  // pipe：source → transform → generator
+  // 不 await pipeTo —— 它会在 source 关闭时才 resolve
+  let pipeAborted = false
+  const abortController = new AbortController()
+  processor.readable
+    .pipeThrough(transformer, { signal: abortController.signal })
+    .pipeTo(generator.writable, { signal: abortController.signal })
+    .catch((err: unknown) => {
+      if (!pipeAborted) {
+        console.warn("[recorder] insertable stream pipeline error", err)
+      }
+    })
+
+  const cancel = () => {
+    pipeAborted = true
+    try {
+      abortController.abort()
+    } catch {
+      /* 忽略 */
+    }
+    try {
+      generator.stop()
+    } catch {
+      /* 忽略 */
+    }
+  }
+  onSetup(cancel)
+
+  return [generator]
 }
 
 export default OffscreenRecorder

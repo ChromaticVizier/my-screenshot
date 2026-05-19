@@ -25,7 +25,6 @@ export const RECORD_MODE_ACTIONS: RecordAction[] = [
   {
     key: "regionTab",
     label: "区域录制(当前标签页)",
-    icon: <RegionIcon />,
-    disabled: true
+    icon: <RegionIcon />
   }
 ]

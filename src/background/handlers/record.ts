@@ -6,25 +6,28 @@
  *   而不是目标页面的 content script —— 因为后者所在的网页进程产出的 webm
  *   缺 Duration、字节布局异常，导致下载文件无法播放。
  *
- *   流程：
- *     popup 用户手势同步栈里：
- *       chrome.tabs.query → chrome.tabCapture.getMediaStreamId({targetTabId})
- *       拿到 streamId → 消息 → 本 handler。
- *     本 handler：
+ *   录制模式：
+ *     - 当前标签页（整个视口）：handleRecordStartCurrentTab
+ *     - 区域录制（当前标签页）：handleRecordStartRegionTab
+ *         · 在目标 tab 注入选区 picker 等用户拖出 rect
+ *         · 松手后保留一个红色边框 div 标记「正在录的区域」
+ *         · rect 写入 RECORDER_BOOT.region；中转窗口里把视频流接到 canvas
+ *           按 rect 裁剪后再喂给 MediaRecorder
+ *         · 跳转后由 webNavigation 监听器同时重注「控制栏 + 边框」
+ *
+ *   流程（共通）：
+ *     popup 用户手势同步栈里申请 streamId → 消息 → 本 handler。
+ *     handler：
  *       1. 把控制栏 UI 注入到目标 tab（仅 UI，不再做 MediaRecorder）
- *       2. 把 streamId / 选项 / tabTitle 暂存 storage
+ *       2. 把 streamId / 选项 / tabTitle / region 暂存 storage
  *       3. chrome.windows.create 拉起中转窗口（popup.html?action=offscreenRecorder）
- *          屏幕外，方便不被用户察觉；窗口里读 storage 后立刻调 getUserMedia
- *          + MediaRecorder。
- *       4. 注册 webNavigation 监听器：录制中目标 tab 跳转后自动重注控制栏，
- *          保证「页面只有一份控制栏 + 跳转后仍在」。
+ *       4. 通过顶层注册的 webNavigation 监听器跟踪目标 tab 的跳转
  *
  *   停止：
  *     - popup / 控制栏「停止」→ background 广播 RECORDER_STOP
- *     - 同时 background 主动 executeScript 移除控制栏 DOM（无需依赖控制栏
- *       自身的 listener，避免新文档 listener 还没建上的窗口期）
+ *     - background 主动 executeScript 移除控制栏 + 区域边框 DOM
  *     - 中转窗口里的 MediaRecorder.stop → 下载 → 发 RECORDER_FINISH
- *     - background 关闭中转窗口、解绑 webNavigation 监听、清理会话
+ *     - background 关闭中转窗口、清除活跃 tab 标记、清理会话
  */
 import {
   injectRecorderControlBar,
@@ -32,10 +35,17 @@ import {
   type InjectedControlBarArgs
 } from "~src/background/injected/recorder"
 import {
+  injectRegionFrame,
+  pickSelection,
+  removeRegionFrame,
+  type SelectionResult
+} from "~src/background/injected/selection"
+import {
   MessageType,
   type RecorderFinishRequest,
   type RecorderStopRequest,
   type RecordStartCurrentTabRequest,
+  type RecordStartRegionTabRequest,
   type RecordStopRequest
 } from "~src/shared/messages"
 import { buildRecordingFilename } from "~src/shared/filename"
@@ -64,6 +74,8 @@ interface RecorderBootConfig {
   microphone: boolean
   systemAudio: boolean
   filename: string
+  /** 区域录制：裁剪矩形（CSS 像素 + dpr）；省略 = 录整个视口 */
+  region?: SelectionResult
 }
 
 /* ============================================================
@@ -75,6 +87,7 @@ interface RecorderBootConfig {
  * ============================================================ */
 let activeTargetTabId: number | null = null
 let recordingStartTime = 0
+let activeRegion: SelectionResult | null = null
 
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   // 仅响应主框架导航
@@ -90,6 +103,7 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       if (!boot) return
       activeTargetTabId = boot.tabId
       recordingStartTime = session.startedAt
+      activeRegion = boot.region ?? null
     } catch {
       return
     }
@@ -97,8 +111,11 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
   if (details.tabId !== activeTargetTabId) return
 
-  // 跳转完成后控制栏 DOM 必然已被销毁，重新注入一份
+  // 跳转完成后控制栏 / 边框 DOM 必然已被销毁，重新注入
   void reinjectControlBar(details.tabId)
+  if (activeRegion) {
+    void reinjectRegionFrame(details.tabId, activeRegion)
+  }
 })
 
 async function reinjectControlBar(tabId: number): Promise<void> {
@@ -115,75 +132,108 @@ async function reinjectControlBar(tabId: number): Promise<void> {
   }
 }
 
-function setActiveTab(tabId: number, startTime: number): void {
+async function reinjectRegionFrame(
+  tabId: number,
+  region: SelectionResult
+): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: injectRegionFrame,
+      args: [region]
+    })
+  } catch {
+    /* 忽略 */
+  }
+}
+
+function setActiveTab(
+  tabId: number,
+  startTime: number,
+  region: SelectionResult | null
+): void {
   activeTargetTabId = tabId
   recordingStartTime = startTime
+  activeRegion = region
 }
 
 function clearActiveTab(): void {
   activeTargetTabId = null
   recordingStartTime = 0
+  activeRegion = null
 }
 
 /* ============================================================
- * 1) 开始录制
+ * 通用：校验目标 tab + 拿 tabTitle / opts
  * ============================================================ */
-export async function handleRecordStartCurrentTab(
-  request: RecordStartCurrentTabRequest
-): Promise<SimpleResponse> {
+async function validateTargetTab(tabId: number): Promise<
+  | { ok: true; tab: chrome.tabs.Tab; tabTitle: string }
+  | { ok: false; error: string }
+> {
+  let tab: chrome.tabs.Tab | null = null
   try {
-    const session = await getRecordSession()
-    if (session.recording) return { ok: true }
+    tab = await chrome.tabs.get(tabId)
+  } catch {
+    return { ok: false, error: "目标标签页不可访问" }
+  }
+  const url = tab?.url ?? ""
+  if (
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("chrome-extension://")
+  ) {
+    return { ok: false, error: "当前页面不允许录制（浏览器内部页）" }
+  }
+  return { ok: true, tab, tabTitle: tab?.title ?? "tab" }
+}
 
-    const { streamId, tabId } = request.payload
+/* ============================================================
+ * 通用：录制启动主流程
+ *   - 注入控制栏
+ *   - 写入 RECORDER_BOOT
+ *   - 拉起中转窗口
+ *   - 设会话 + 活跃 tab 标记
+ * ============================================================ */
+async function bootstrapRecorder(params: {
+  streamId: string
+  tabId: number
+  tabTitle: string
+  microphone: boolean
+  systemAudio: boolean
+  region: SelectionResult | null
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { streamId, tabId, tabTitle, microphone, systemAudio, region } = params
 
-    // 拿 tab 信息（用于文件名 + 内部页校验）
-    let tab: chrome.tabs.Tab | null = null
-    try {
-      tab = await chrome.tabs.get(tabId)
-    } catch {
-      return { ok: false, error: "目标标签页不可访问" }
-    }
-    const url = tab?.url ?? ""
-    if (
-      url.startsWith("chrome://") ||
-      url.startsWith("edge://") ||
-      url.startsWith("chrome-extension://")
-    ) {
-      return { ok: false, error: "当前页面不允许录制（浏览器内部页）" }
-    }
+  const startedAt = Date.now()
 
-    const opts = await getRecordOptions()
-    const tabTitle = tab?.title ?? "tab"
+  // 1) 注入控制栏 UI
+  const controlBarArgs: InjectedControlBarArgs = { startTime: startedAt }
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    func: injectRecorderControlBar,
+    args: [controlBarArgs]
+  })
 
-    const startedAt = Date.now()
-    recordingStartTime = startedAt
+  // 2) 写 storage
+  const boot: RecorderBootConfig = {
+    streamId,
+    tabId,
+    tabTitle,
+    microphone,
+    systemAudio,
+    filename: buildRecordingFilename({ tabTitle, ext: "webm" }),
+    ...(region ? { region } : {})
+  }
+  await chrome.storage.local.set({
+    [RECORDER_BOOT_KEY]: boot,
+    [RECORDING_TAB_TITLE_KEY]: tabTitle
+  })
 
-    // 1.1 注入控制栏 UI 到目标 tab（不做录制，仅显示计时 + 暂停 + 停止）
-    const controlBarArgs: InjectedControlBarArgs = { startTime: startedAt }
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: injectRecorderControlBar,
-      args: [controlBarArgs]
-    })
-
-    // 1.2 把启动配置写入 storage 供中转窗口读取
-    const boot: RecorderBootConfig = {
-      streamId,
-      tabId,
-      tabTitle,
-      microphone: opts.microphone,
-      systemAudio: opts.systemAudio,
-      filename: buildRecordingFilename({ tabTitle, ext: "webm" })
-    }
-    await chrome.storage.local.set({
-      [RECORDER_BOOT_KEY]: boot,
-      [RECORDING_TAB_TITLE_KEY]: tabTitle
-    })
-
-    // 1.3 创建中转窗口（屏幕外，避免占视野）
-    const recorderUrl =
-      chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
+  // 3) 中转窗口
+  const recorderUrl =
+    chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
+  let recorderWindowId: number | undefined
+  try {
     const win = await chrome.windows.create({
       url: recorderUrl,
       type: "popup",
@@ -193,23 +243,107 @@ export async function handleRecordStartCurrentTab(
       top: 0,
       focused: false
     })
-    const recorderWindowId = win?.id
+    recorderWindowId = win?.id
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err)
+    }
+  }
+  if (recorderWindowId != null) {
+    await moveWindowOffscreen(recorderWindowId).catch(() => undefined)
+  }
 
-    // 把窗口移到屏幕外
-    if (recorderWindowId != null) {
-      await moveWindowOffscreen(recorderWindowId).catch(() => undefined)
+  await setRecordSession({
+    recording: true,
+    startedAt,
+    recorderWindowId
+  })
+  setActiveTab(tabId, startedAt, region)
+
+  return { ok: true }
+}
+
+/* ============================================================
+ * 1) 开始录制（整个 tab）
+ * ============================================================ */
+export async function handleRecordStartCurrentTab(
+  request: RecordStartCurrentTabRequest
+): Promise<SimpleResponse> {
+  try {
+    const session = await getRecordSession()
+    if (session.recording) return { ok: true }
+
+    const { streamId, tabId } = request.payload
+    const v = await validateTargetTab(tabId)
+    if (!v.ok) return v
+
+    const opts = await getRecordOptions()
+    return await bootstrapRecorder({
+      streamId,
+      tabId,
+      tabTitle: v.tabTitle,
+      microphone: opts.microphone,
+      systemAudio: opts.systemAudio,
+      region: null
+    })
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err)
+    }
+  }
+}
+
+/* ============================================================
+ * 1') 区域录制（当前标签页）
+ *
+ * 流程：
+ *   1. 在目标 tab 注入选区 picker（保留松手后的红色边框 div）
+ *   2. 等用户拖完拿 rect；取消则放行 streamId 不做任何事
+ *   3. 复用 bootstrapRecorder 启动录制，把 rect 写到 boot.region
+ * ============================================================ */
+export async function handleRecordStartRegionTab(
+  request: RecordStartRegionTabRequest
+): Promise<SimpleResponse> {
+  try {
+    const session = await getRecordSession()
+    if (session.recording) return { ok: true }
+
+    const { streamId, tabId } = request.payload
+    const v = await validateTargetTab(tabId)
+    if (!v.ok) return v
+
+    // 注入选区 picker 等用户拖拽
+    let selection: SelectionResult | null = null
+    try {
+      const [result] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: pickSelection,
+        args: [{ keepFrameAfterPick: true }]
+      })
+      selection = (result?.result as SelectionResult | null) ?? null
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : String(err)
+      }
     }
 
-    await setRecordSession({
-      recording: true,
-      startedAt,
-      recorderWindowId
+    if (!selection) {
+      // 用户取消（按 Esc 或拖拽过小）
+      return { ok: false, cancelled: true, error: "已取消" }
+    }
+
+    const opts = await getRecordOptions()
+    return await bootstrapRecorder({
+      streamId,
+      tabId,
+      tabTitle: v.tabTitle,
+      microphone: opts.microphone,
+      systemAudio: opts.systemAudio,
+      region: selection
     })
-
-    // 1.4 标记当前活跃目标 tab（webNavigation 监听器永久挂在顶层）
-    setActiveTab(tabId, startedAt)
-
-    return { ok: true }
   } catch (err) {
     return {
       ok: false,
@@ -250,35 +384,44 @@ async function moveWindowOffscreen(windowId: number): Promise<void> {
 }
 
 /* ============================================================
- * 2) 停止录制：广播消息 + 主动清理目标 tab 控制栏
+ * 2) 停止录制：广播 + 主动清理目标 tab 控制栏 / 边框
  * ============================================================ */
 export async function handleRecordStop(
   _request: RecordStopRequest
 ): Promise<SimpleResponse> {
   try {
     const stopMsg: RecorderStopRequest = { type: MessageType.RECORDER_STOP }
-    // 广播给所有上下文：中转窗口收到后停 MediaRecorder
     await chrome.runtime.sendMessage(stopMsg).catch(() => undefined)
 
-    // 同时主动清理目标 tab 上的控制栏 DOM —— 不依赖控制栏自身 listener，
-    // 因为页面跳转过程中 listener 可能未及时建立。
     if (activeTargetTabId != null) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: activeTargetTabId },
-          func: removeRecorderControlBar
-        })
-      } catch {
-        /* tab 已关闭等情况，忽略 */
-      }
+      await cleanupTargetTab(activeTargetTabId)
     }
-
     return { ok: true }
   } catch (err) {
     return {
       ok: false,
       error: err instanceof Error ? err.message : String(err)
     }
+  }
+}
+
+/** 主动清理目标 tab 上的控制栏 + 区域边框 */
+async function cleanupTargetTab(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: removeRecorderControlBar
+    })
+  } catch {
+    /* 忽略 */
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: removeRegionFrame
+    })
+  } catch {
+    /* 忽略 */
   }
 }
 
@@ -301,17 +444,10 @@ export async function handleRecorderFinish(
     }
   }
 
-  // 兜底再清一次目标 tab 的控制栏（handleRecordStop 通常已清，但 stop 链路
+  // 兜底再清一次目标 tab 上的覆盖物（handleRecordStop 通常已清，但 stop 链路
   // 可能由其它路径触发，例如用户点 Chrome 共享栏的「停止共享」按钮）
   if (activeTargetTabId != null) {
-    try {
-      await chrome.scripting.executeScript({
-        target: { tabId: activeTargetTabId },
-        func: removeRecorderControlBar
-      })
-    } catch {
-      /* 忽略 */
-    }
+    await cleanupTargetTab(activeTargetTabId)
   }
 
   // 解绑活跃 tab 标记 + 清理会话状态
