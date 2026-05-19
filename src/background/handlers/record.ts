@@ -16,15 +16,19 @@
  *       3. chrome.windows.create 拉起中转窗口（popup.html?action=offscreenRecorder）
  *          屏幕外，方便不被用户察觉；窗口里读 storage 后立刻调 getUserMedia
  *          + MediaRecorder。
+ *       4. 注册 webNavigation 监听器：录制中目标 tab 跳转后自动重注控制栏，
+ *          保证「页面只有一份控制栏 + 跳转后仍在」。
  *
- *   停止：popup 或控制栏「停止」→ 广播 RECORDER_STOP → 控制栏隐藏自己 +
- *         中转窗口里的 MediaRecorder.stop。
- *   下载：中转窗口直接用 ObjectURL + chrome.downloads.download 落盘。
- *   清理：下载完成后中转窗口发 RECORDER_FINISH → background 关闭中转窗口
- *         + 清理会话。
+ *   停止：
+ *     - popup / 控制栏「停止」→ background 广播 RECORDER_STOP
+ *     - 同时 background 主动 executeScript 移除控制栏 DOM（无需依赖控制栏
+ *       自身的 listener，避免新文档 listener 还没建上的窗口期）
+ *     - 中转窗口里的 MediaRecorder.stop → 下载 → 发 RECORDER_FINISH
+ *     - background 关闭中转窗口、解绑 webNavigation 监听、清理会话
  */
 import {
   injectRecorderControlBar,
+  removeRecorderControlBar,
   type InjectedControlBarArgs
 } from "~src/background/injected/recorder"
 import {
@@ -63,6 +67,65 @@ interface RecorderBootConfig {
 }
 
 /* ============================================================
+ * 跨调用状态：录制中目标 tab 的 webNavigation 监听器
+ *
+ * 监听器**顶层注册一次**，永久挂住；内部根据 storage / 内存中的
+ * activeTargetTabId 判断是否要重注控制栏。这样即便 service worker
+ * 因空闲被回收又被事件唤醒，也能继续工作。
+ * ============================================================ */
+let activeTargetTabId: number | null = null
+let recordingStartTime = 0
+
+chrome.webNavigation.onCommitted.addListener(async (details) => {
+  // 仅响应主框架导航
+  if (details.frameId !== 0) return
+
+  // 内存里没有目标 tab，说明 SW 刚被唤醒；从 storage 兜底恢复
+  if (activeTargetTabId == null || recordingStartTime === 0) {
+    try {
+      const session = await getRecordSession()
+      if (!session.recording || session.startedAt == null) return
+      const store = await chrome.storage.local.get(RECORDER_BOOT_KEY)
+      const boot = store[RECORDER_BOOT_KEY] as RecorderBootConfig | undefined
+      if (!boot) return
+      activeTargetTabId = boot.tabId
+      recordingStartTime = session.startedAt
+    } catch {
+      return
+    }
+  }
+
+  if (details.tabId !== activeTargetTabId) return
+
+  // 跳转完成后控制栏 DOM 必然已被销毁，重新注入一份
+  void reinjectControlBar(details.tabId)
+})
+
+async function reinjectControlBar(tabId: number): Promise<void> {
+  if (recordingStartTime === 0) return
+  const args: InjectedControlBarArgs = { startTime: recordingStartTime }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: injectRecorderControlBar,
+      args: [args]
+    })
+  } catch {
+    /* 浏览器内部页 / 已关闭等情况，忽略 */
+  }
+}
+
+function setActiveTab(tabId: number, startTime: number): void {
+  activeTargetTabId = tabId
+  recordingStartTime = startTime
+}
+
+function clearActiveTab(): void {
+  activeTargetTabId = null
+  recordingStartTime = 0
+}
+
+/* ============================================================
  * 1) 开始录制
  * ============================================================ */
 export async function handleRecordStartCurrentTab(
@@ -93,11 +156,11 @@ export async function handleRecordStartCurrentTab(
     const opts = await getRecordOptions()
     const tabTitle = tab?.title ?? "tab"
 
+    const startedAt = Date.now()
+    recordingStartTime = startedAt
+
     // 1.1 注入控制栏 UI 到目标 tab（不做录制，仅显示计时 + 暂停 + 停止）
-    const controlBarArgs: InjectedControlBarArgs = {
-      // 注入脚本里通过这个 token 校验自身实例（防重复注入）
-      token: String(Date.now())
-    }
+    const controlBarArgs: InjectedControlBarArgs = { startTime: startedAt }
     await chrome.scripting.executeScript({
       target: { tabId },
       func: injectRecorderControlBar,
@@ -126,8 +189,6 @@ export async function handleRecordStartCurrentTab(
       type: "popup",
       width: 320,
       height: 200,
-      // 屏幕外坐标：Windows 上 Chrome 会把负坐标夹回主屏，
-      // 所以这里放到「最右下显示器底部以下 50px」的空旷处。
       left: 0,
       top: 0,
       focused: false
@@ -141,9 +202,12 @@ export async function handleRecordStartCurrentTab(
 
     await setRecordSession({
       recording: true,
-      startedAt: Date.now(),
+      startedAt,
       recorderWindowId
     })
+
+    // 1.4 标记当前活跃目标 tab（webNavigation 监听器永久挂在顶层）
+    setActiveTab(tabId, startedAt)
 
     return { ok: true }
   } catch (err) {
@@ -186,15 +250,29 @@ async function moveWindowOffscreen(windowId: number): Promise<void> {
 }
 
 /* ============================================================
- * 2) 停止录制：通过广播消息让控制栏 + 中转窗口同时收到
+ * 2) 停止录制：广播消息 + 主动清理目标 tab 控制栏
  * ============================================================ */
 export async function handleRecordStop(
   _request: RecordStopRequest
 ): Promise<SimpleResponse> {
   try {
     const stopMsg: RecorderStopRequest = { type: MessageType.RECORDER_STOP }
-    // 广播给所有上下文，控制栏注入脚本 + 中转窗口都会收到
+    // 广播给所有上下文：中转窗口收到后停 MediaRecorder
     await chrome.runtime.sendMessage(stopMsg).catch(() => undefined)
+
+    // 同时主动清理目标 tab 上的控制栏 DOM —— 不依赖控制栏自身 listener，
+    // 因为页面跳转过程中 listener 可能未及时建立。
+    if (activeTargetTabId != null) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTargetTabId },
+          func: removeRecorderControlBar
+        })
+      } catch {
+        /* tab 已关闭等情况，忽略 */
+      }
+    }
+
     return { ok: true }
   } catch (err) {
     return {
@@ -223,8 +301,21 @@ export async function handleRecorderFinish(
     }
   }
 
-  // 清理控制栏：广播再播一次 RECORDER_STOP，让仍在 DOM 上的控制栏移除
-  // （正常情况下控制栏在收到第一次 STOP 时已隐藏，这里是兜底）
+  // 兜底再清一次目标 tab 的控制栏（handleRecordStop 通常已清，但 stop 链路
+  // 可能由其它路径触发，例如用户点 Chrome 共享栏的「停止共享」按钮）
+  if (activeTargetTabId != null) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTargetTabId },
+        func: removeRecorderControlBar
+      })
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  // 解绑活跃 tab 标记 + 清理会话状态
+  clearActiveTab()
   await chrome.storage.local.remove([
     RECORDER_BOOT_KEY,
     RECORDING_TAB_TITLE_KEY

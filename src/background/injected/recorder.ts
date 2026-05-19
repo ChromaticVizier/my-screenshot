@@ -8,33 +8,50 @@
  *   - 监听 background 广播的 RECORDER_STOP / RECORDER_PAUSE / RECORDER_RESUME
  *     消息，更新控制栏 UI 状态
  *   - 用户点击「暂停 / 停止」按钮时，向 background 发对应消息
+ *   - 兼容页面跳转：每次注入会先把页面上残留的同类控制栏全部移除，确保
+ *     页面只存在一份；跳转后由 background 监听 webNavigation 重新注入。
  *
  * **不**做的事：
  *   - 不再调 getUserMedia / MediaRecorder（中转扩展窗口接管）
  *   - 不再处理 streamId / 下载等
- *
- * 之前把 MediaRecorder 放在这个网页进程里，输出的 webm 缺 Duration 且
- * 部分 Chrome 版本下文件结构异常，无法被内置播放器解析。改放到扩展自有
- * 中转窗口里跑后输出正常。
  */
 
+const BAR_DATA_ATTR = "data-my-screenshot-recorder-bar"
+
 export interface InjectedControlBarArgs {
-  /** 一次注入的唯一 token，用于防重复注入与跨 reload 校验 */
-  token: string
+  /** 录制开始时间（ms epoch），用于跨注入实例显示同一计时 */
+  startTime: number
 }
 
 /* ========== 注入函数：必须自包含（chrome.scripting.executeScript 用 func 序列化） ========== */
 export function injectRecorderControlBar(args: InjectedControlBarArgs): void {
+  const BAR_ATTR = "data-my-screenshot-recorder-bar"
   const FLAG = "__myScreenshotRecorderBar"
-  const w = window as unknown as Record<string, unknown>
-  if (w[FLAG]) return
-  w[FLAG] = args.token
+  const w = window as unknown as {
+    [key: string]: unknown
+    __myScreenshotRecorderBar?: {
+      cleanup: () => void
+    }
+  }
+
+  // 1) 移除任何已注入但未清理的控制栏 + 旧 listener，保证页面唯一实例
+  if (w[FLAG]) {
+    try {
+      w[FLAG]?.cleanup()
+    } catch {
+      /* 忽略 */
+    }
+  }
+  // 兜底：连同任何残留 DOM（例如旧版本注入的）一起移除
+  document
+    .querySelectorAll(`[${BAR_ATTR}]`)
+    .forEach((el) => el.remove())
 
   const Z = 2147483647
 
   /* ---------- DOM：控制栏 ---------- */
   const bar = document.createElement("div")
-  bar.setAttribute("data-my-screenshot-recorder-bar", "1")
+  bar.setAttribute(BAR_ATTR, "1")
   Object.assign(bar.style, {
     position: "fixed",
     left: "16px",
@@ -70,8 +87,8 @@ export function injectRecorderControlBar(args: InjectedControlBarArgs): void {
   bar.appendChild(stopBtn)
   document.documentElement.appendChild(bar)
 
-  /* ---------- 计时（本地估算，与中转窗口的 MediaRecorder 时长可能微差） ---------- */
-  const startTime = Date.now()
+  /* ---------- 计时（与中转窗口的 MediaRecorder 共享起点） ---------- */
+  const startTime = args.startTime
   let pausedAccumMs = 0
   let pauseStart = 0
   let paused = false
@@ -114,7 +131,7 @@ export function injectRecorderControlBar(args: InjectedControlBarArgs): void {
       .catch(() => undefined)
   })
 
-  /* ---------- 监听全局停止广播：移除控制栏自身 ---------- */
+  /* ---------- 监听全局消息：停止时清理自己 ---------- */
   const listener = (msg: { type?: string }) => {
     if (msg?.type === "recorder/stop" || msg?.type === "recorder/finish") {
       cleanup()
@@ -126,12 +143,19 @@ export function injectRecorderControlBar(args: InjectedControlBarArgs): void {
     try {
       window.clearInterval(timerId)
       bar.remove()
+      // 兜底再清一次同类 DOM
+      document
+        .querySelectorAll(`[${BAR_ATTR}]`)
+        .forEach((el) => el.remove())
       chrome.runtime.onMessage.removeListener(listener)
       delete (window as unknown as Record<string, unknown>)[FLAG]
     } catch {
       /* 忽略 */
     }
   }
+
+  // 把 cleanup 暴露给后续注入的实例 + background 主动清理使用
+  w[FLAG] = { cleanup }
 
   /* ---------- 帮助函数 ---------- */
   function makeBarButton(
@@ -160,4 +184,23 @@ export function injectRecorderControlBar(args: InjectedControlBarArgs): void {
     } satisfies Partial<CSSStyleDeclaration>)
     return b
   }
+}
+
+/**
+ * 主动移除控制栏（background 在停止时跑这个函数，确保即便新文档刚加载、
+ * 注入脚本未运行时，也能在下一次注入前先把残留 DOM 清掉）。
+ */
+export function removeRecorderControlBar(): void {
+  const BAR_ATTR = "data-my-screenshot-recorder-bar"
+  const FLAG = "__myScreenshotRecorderBar"
+  try {
+    const w = window as unknown as {
+      [key: string]: unknown
+      __myScreenshotRecorderBar?: { cleanup: () => void }
+    }
+    w[FLAG]?.cleanup()
+  } catch {
+    /* 忽略 */
+  }
+  document.querySelectorAll(`[${BAR_ATTR}]`).forEach((el) => el.remove())
 }

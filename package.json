@@ -30,7 +30,8 @@
       "scripting",
       "storage",
       "system.display",
-      "tabCapture"
+      "tabCapture",
+      "webNavigation"
     ],
     "host_permissions": [
       "<all_urls>"
