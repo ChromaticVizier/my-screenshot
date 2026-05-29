@@ -11,8 +11,10 @@
  */
 import { showCountdown } from "~src/background/injected/countdown"
 import {
+  hideStickyForFrame,
   preparePage,
   restorePage,
+  restoreStickyForFrame,
   scrollToY,
   type PageMetrics,
   type PreparePageSnapshot
@@ -126,7 +128,7 @@ export async function handleCaptureFullPage(
   let snapshot: PreparePageSnapshot | null = null
 
   try {
-    // 1) 准备：隐藏 fixed/sticky，拿页面度量
+    // 1) 准备：锁定滚动条 + 拿页面度量（首帧保留顶 / 侧栏，不在这里隐藏）
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: preparePage
@@ -141,6 +143,7 @@ export async function handleCaptureFullPage(
     const totalHeight = metrics.totalHeight
     let targetY = 0
     let prevScrollY = -1
+    let frameIndex = 0
     /**
      * 真实可达的页面总高度。
      * preparePage 报告的 totalHeight 可能因 margin/transform 等偏大，
@@ -161,13 +164,37 @@ export async function handleCaptureFullPage(
       // 滚动后留一帧时间让浏览器完成 layout/paint
       await sleep(120)
 
-      const dataUrl = await safeCaptureVisibleTab(tab.windowId, {
-        format: "png" // 中间帧统一用 png 无损，最后再按目标格式编码
-      })
+      // 非首帧：隐藏所有粘在视口边缘的元素（覆盖 fixed/sticky 及 SPA 中
+      // 用 JS+transform 模拟的伪 sticky 顶/侧栏），避免拼接图中重复出现
+      const isFirstFrame = frameIndex === 0
+      if (!isFirstFrame) {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: hideStickyForFrame
+        })
+        // 留一帧时间让浏览器应用 visibility 变更
+        await sleep(60)
+      }
+
+      let dataUrl: string
+      try {
+        dataUrl = await safeCaptureVisibleTab(tab.windowId, {
+          format: "png" // 中间帧统一用 png 无损，最后再按目标格式编码
+        })
+      } finally {
+        // 立即恢复，避免页面长时间出现"消失的顶栏"
+        if (!isFirstFrame) {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            func: restoreStickyForFrame
+          })
+        }
+      }
       if (!dataUrl) throw new Error("截图失败：返回数据为空")
 
       const bitmap = await dataUrlToBitmap(dataUrl)
       slices.push({ bitmap, scrollY })
+      frameIndex++
 
       // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）
       // 这同时覆盖了：短页面无法滚动、totalHeight 高估、动态加载未触发等情况
