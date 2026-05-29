@@ -13,6 +13,7 @@ import { showCountdown } from "~src/background/injected/countdown"
 import {
   hideStickyForFrame,
   preparePage,
+  recordAnchors,
   restorePage,
   restoreStickyForFrame,
   scrollToY,
@@ -194,6 +195,15 @@ export async function handleCaptureFullPage(
 
       const bitmap = await dataUrlToBitmap(dataUrl)
       slices.push({ bitmap, scrollY })
+
+      // 首帧截完立即记录"贴边/视口内候选元素"的文档绝对位置，作为
+      // 后续帧检测 sticky / 伪 sticky 的参考基准
+      if (isFirstFrame) {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: recordAnchors
+        })
+      }
       frameIndex++
 
       // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）

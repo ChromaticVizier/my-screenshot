@@ -9,16 +9,19 @@
  * 工作方式：background 通过多次调用以下函数完成长截图流程：
  *   1. preparePage()         → 锁定滚动条 + 收集页面尺寸（首帧保留顶/侧栏）
  *   2. scrollTo({ y })       → 滚到指定位置（重复多次）
- *   3. hideStickyForFrame()  → 后续帧滚动后调用：隐藏所有粘在视口边缘的元素
- *   4. restoreStickyForFrame() → 截图完成后立即恢复，避免页面长时间观感异常
- *   5. restorePage(snapshot) → 流程结束恢复滚动条与滚动位置
+ *   3. recordAnchors()       → 首帧滚到 y=0 时调用：记录候选元素当前的"文档绝对 top"
+ *   4. hideStickyForFrame()  → 后续帧滚动后调用：对比绝对 top，跟着视口走的元素就隐藏
+ *   5. restoreStickyForFrame() → 截图完成后立即恢复
+ *   6. restorePage(snapshot) → 流程结束恢复滚动条与滚动位置
  *
- * 隐藏策略（对齐 awesome-screenshot）：
- *   - 首帧不隐藏，让顶栏 / 侧栏 / 角标正常出现
- *   - 后续每滚到新位置都重新扫描：
- *     a) computed position 为 fixed / sticky 的元素
- *     b) 形似"伪 sticky"的元素：体积接近视口宽 / 高，且贴在视口某条边
- *        （覆盖部分 SPA 用 JS + transform 模拟的 sticky 顶栏 / 侧栏）
+ * 检测原理：
+ *   非 sticky 元素的"文档绝对 top"（rect.top + scrollY）滚动时不变；
+ *   sticky/fixed/JS 伪 sticky 元素会"跟着视口走"，绝对 top 随 scrollY 同步增长。
+ *   后续帧测量同一元素绝对 top 与首帧记录值之差，> 阈值即视为"贴着视口"，隐藏。
+ *   这能同时覆盖：真 fixed、真 sticky、JS+transform 模拟的伪 sticky。
+ *
+ *   候选元素只选"可能贴边"的：position 不是 static / sticky / fixed 的小元素也纳入，
+ *   范围足够宽以兜底；首帧绝对 top 由 dataset 暂存以跨次调用读取。
  */
 
 /** 由 preparePage 返回，传给 restorePage 用于还原 */
@@ -81,28 +84,18 @@ export function scrollToY(y: number): number {
 }
 
 /**
- * 截图前隐藏所有"粘在视口边缘"的元素。
+ * 首帧调用：记录所有可见元素当前的"文档绝对 top/left"到 dataset。
  *
- * 核心思路：只隐藏"条状贴边元素"（顶/底/侧栏），保留作为内容容器的大块。
+ * 后续帧用这两个值比对：若元素在视口里位置没怎么变（绝对位置随 scrollY 同步移动），
+ * 说明它是"跟着视口走"的 sticky / fixed / JS 伪 sticky，需要隐藏。
  *
- * 命中条件（必须同时满足）：
- *  1) 紧贴视口某条边（top<=1 / bottom>=vh-1 / left<=1 / right>=vw-1）
- *  2) 形态是"条"：
- *     - 横向栏：宽度 >= 视口宽 60%，且高度 <= 视口高 40%
- *     - 纵向栏：高度 >= 视口高 60%，且宽度 <= 视口宽 40%
- *  3) 自身不是内部可滚动容器
- *     （scrollHeight > clientHeight 或 scrollWidth > clientWidth 的元素是 SPA
- *      内容滚动容器，例如 Confluence 的 main panel；隐藏它会把全部内容抹掉）
- *
- * 命中后区分 fixed/sticky 与其它定位：
- *  - 对真 fixed/sticky 总是隐藏（典型的顶/侧栏、悬浮按钮）
- *  - 对其它定位（absolute/relative/static）只在"条形 + 贴边"满足时隐藏
- *    （覆盖 SPA 用 JS+transform 模拟的伪 sticky）
- *
- * 返回 hiddenCount 仅用于诊断；恢复不依赖返回值，统一扫描 dataset 标记。
+ * 只记录"可能贴边"的元素（rect 在视口里或紧邻视口），减少 dataset 噪音。
  */
-export function hideStickyForFrame(): number {
-  const MARK = "__myScreenshotHidden"
+export function recordAnchors(): number {
+  const ANCHOR_TOP = "__myScreenshotAnchorTop"
+  const ANCHOR_LEFT = "__myScreenshotAnchorLeft"
+  const scrollX = window.scrollX
+  const scrollY = window.scrollY
   const vw = document.documentElement.clientWidth
   const vh = document.documentElement.clientHeight
 
@@ -110,8 +103,74 @@ export function hideStickyForFrame(): number {
   let count = 0
 
   all.forEach((el) => {
-    // 已隐藏跳过
-    if (MARK in (el.dataset as Record<string, string | undefined>)) return
+    let cs: CSSStyleDeclaration
+    try {
+      cs = getComputedStyle(el)
+    } catch {
+      return
+    }
+    if (cs.visibility === "hidden" || cs.display === "none") return
+
+    const rect = el.getBoundingClientRect()
+    if (rect.width < 1 || rect.height < 1) return
+
+    // 跳过明显与"贴边"无关的元素：完全不在视口内的
+    if (
+      rect.bottom < 0 ||
+      rect.top > vh ||
+      rect.right < 0 ||
+      rect.left > vw
+    ) {
+      return
+    }
+
+    ;(el.dataset as Record<string, string>)[ANCHOR_TOP] = String(
+      rect.top + scrollY
+    )
+    ;(el.dataset as Record<string, string>)[ANCHOR_LEFT] = String(
+      rect.left + scrollX
+    )
+    count++
+  })
+
+  return count
+}
+
+/**
+ * 截图前隐藏所有"跟着视口走的小型贴边元素"。
+ *
+ * 判别两个维度：
+ *
+ *  A) 行为：当前帧"文档绝对 top/left"（rect.top + scrollY）与首帧记录值显著不同
+ *     → 元素跟着视口走（真 fixed/sticky 或 JS 伪 sticky 都会命中）
+ *
+ *  B) 形态：必须是"小型贴边装饰"，不能是占据视口的内容容器
+ *     - 横向栏：宽 >= 视口宽 50%，高 <= 视口高 30%
+ *     - 纵向栏：高 >= 视口高 50%，宽 <= 视口宽 30%
+ *     - 小角标 / 浮窗：宽 <= 视口宽 40% 且 高 <= 视口高 40%
+ *     - 任何占据视口大部分（同时 宽 > 50% 且 高 > 50%）的元素一律保留
+ *       （SPA 主内容容器、卡片大块、模态层底框等）
+ *
+ * 两条都满足才隐藏。
+ *
+ * 返回 hiddenCount 仅用于诊断。
+ */
+export function hideStickyForFrame(): number {
+  const MARK = "__myScreenshotHidden"
+  const ANCHOR_TOP = "__myScreenshotAnchorTop"
+  const ANCHOR_LEFT = "__myScreenshotAnchorLeft"
+  const scrollX = window.scrollX
+  const scrollY = window.scrollY
+  const vw = document.documentElement.clientWidth
+  const vh = document.documentElement.clientHeight
+
+  const all = document.querySelectorAll<HTMLElement>("body *")
+  let count = 0
+
+  all.forEach((el) => {
+    const ds = el.dataset as Record<string, string | undefined>
+    if (MARK in ds) return
+    if (!(ANCHOR_TOP in ds) || !(ANCHOR_LEFT in ds)) return
 
     let cs: CSSStyleDeclaration
     try {
@@ -119,58 +178,39 @@ export function hideStickyForFrame(): number {
     } catch {
       return
     }
-
-    // 不可见 / 不占空间的不处理
     if (cs.visibility === "hidden" || cs.display === "none") return
 
     const rect = el.getBoundingClientRect()
     if (rect.width < 1 || rect.height < 1) return
 
-    // 内部可滚动容器：是承载内容的滚动区，绝不能隐藏
-    const isInternalScroller =
-      (el.scrollHeight > el.clientHeight + 1 &&
-        (cs.overflowY === "auto" || cs.overflowY === "scroll")) ||
-      (el.scrollWidth > el.clientWidth + 1 &&
-        (cs.overflowX === "auto" || cs.overflowX === "scroll"))
-    if (isInternalScroller) return
+    // ---- A 行为：是否跟着视口走 ----
+    const anchorTop = Number(ds[ANCHOR_TOP])
+    const anchorLeft = Number(ds[ANCHOR_LEFT])
+    if (!isFinite(anchorTop) || !isFinite(anchorLeft)) return
 
-    // 形态检测：必须是"条状贴边"
-    const stickTop = rect.top <= 1
-    const stickBottom = rect.bottom >= vh - 1
-    const stickLeft = rect.left <= 1
-    const stickRight = rect.right >= vw - 1
+    const dyFollow = rect.top + scrollY - anchorTop
+    const dxFollow = rect.left + scrollX - anchorLeft
+    const followsViewport =
+      Math.abs(dyFollow) > 3 || Math.abs(dxFollow) > 3
+    if (!followsViewport) return
+
+    // ---- B 形态：必须是"小型贴边"，绝不能是内容容器 ----
+    // 同时占视口大部分的元素 = 内容容器，保留
+    const isLargeContent = rect.width > vw * 0.5 && rect.height > vh * 0.5
+    if (isLargeContent) return
 
     const isHorizontalBar =
-      (stickTop || stickBottom) &&
-      rect.width >= vw * 0.6 &&
-      rect.height <= vh * 0.4
-
+      rect.width >= vw * 0.5 && rect.height <= vh * 0.3
     const isVerticalBar =
-      (stickLeft || stickRight) &&
-      rect.height >= vh * 0.6 &&
-      rect.width <= vw * 0.4
-
-    // 角标 / 浮窗：尺寸小且贴角，对 fixed/sticky 也认为是悬浮元素
+      rect.height >= vh * 0.5 && rect.width <= vw * 0.3
     const isSmallFloater =
-      (stickTop || stickBottom || stickLeft || stickRight) &&
-      rect.width <= vw * 0.4 &&
-      rect.height <= vh * 0.4
+      rect.width <= vw * 0.4 && rect.height <= vh * 0.4
 
-    const isFixedish = cs.position === "fixed" || cs.position === "sticky"
+    if (!(isHorizontalBar || isVerticalBar || isSmallFloater)) return
 
-    let shouldHide = false
-    if (isHorizontalBar || isVerticalBar) {
-      shouldHide = true
-    } else if (isFixedish && isSmallFloater) {
-      // 真 fixed/sticky 的小型悬浮元素（回到顶部按钮、聊天小窗等）
-      shouldHide = true
-    }
-
-    if (shouldHide) {
-      ;(el.dataset as Record<string, string>)[MARK] = el.style.visibility || ""
-      el.style.visibility = "hidden"
-      count++
-    }
+    ;(el.dataset as Record<string, string>)[MARK] = el.style.visibility || ""
+    el.style.visibility = "hidden"
+    count++
   })
 
   return count
@@ -188,15 +228,19 @@ export function restoreStickyForFrame(): void {
   })
 }
 
-/** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理可能残留的隐藏标记。 */
+/** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理隐藏标记与首帧锚点。 */
 export function restorePage(snapshot: PreparePageSnapshot): void {
   const MARK = "__myScreenshotHidden"
+  const ANCHOR_TOP = "__myScreenshotAnchorTop"
+  const ANCHOR_LEFT = "__myScreenshotAnchorLeft"
   document.querySelectorAll<HTMLElement>("body *").forEach((el) => {
     const ds = el.dataset as Record<string, string | undefined>
     if (MARK in ds) {
       el.style.visibility = ds[MARK] ?? ""
       delete ds[MARK]
     }
+    if (ANCHOR_TOP in ds) delete ds[ANCHOR_TOP]
+    if (ANCHOR_LEFT in ds) delete ds[ANCHOR_LEFT]
   })
 
   document.documentElement.style.overflow = snapshot.htmlOverflow

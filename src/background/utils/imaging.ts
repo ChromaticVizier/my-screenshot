@@ -101,6 +101,11 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("无法创建 OffscreenCanvas 2D 上下文")
 
+  // 先填白底：dpr 非整数时各帧首尾对齐会有 1px 透明缝隙，
+  // 透明区在某些查看器 / jpeg 输出下会显示为黑色细线
+  ctx.fillStyle = "#ffffff"
+  ctx.fillRect(0, 0, canvasW, canvasH)
+
   for (const slice of slices) {
     const dx = 0
     const dy = Math.round(slice.scrollY * dpr)
