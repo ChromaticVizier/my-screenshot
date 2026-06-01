@@ -11,12 +11,17 @@
  */
 import { showCountdown } from "~src/background/injected/countdown"
 import {
-  hideStickyForFrame,
+  detectAndHidePseudoSticky,
+  flattenOversizedModals,
+  freezeFlattenedModals,
+  hideFixedElements,
   preparePage,
-  recordAnchors,
+  rehideFixedElements,
+  restoreFixedElements,
+  restoreFlattenedModals,
   restorePage,
-  restoreStickyForFrame,
   scrollToY,
+  unfreezeFlattenedModals,
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
@@ -126,10 +131,16 @@ export async function handleCaptureFullPage(
   const tab = tabRes.tab
   const tabId = tab.id!
 
+  // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
+  const settings = await getSettings()
+  const fullPageRules = settings.fullPageRules
+
   let snapshot: PreparePageSnapshot | null = null
+  let hidingApplied = false
+  let flattenApplied = false
 
   try {
-    // 1) 准备：锁定滚动条 + 拿页面度量（首帧保留顶 / 侧栏，不在这里隐藏）
+    // 1) 准备：锁定滚动条 + 拿页面度量
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: preparePage
@@ -138,13 +149,9 @@ export async function handleCaptureFullPage(
     const metrics: PageMetrics = prepResult
     snapshot = prepResult.snapshot
 
-    // 2) 滚动 + 多次截图
     const slices: CaptureSlice[] = []
     const stepHeight = metrics.viewportHeight
-    const totalHeight = metrics.totalHeight
-    let targetY = 0
-    let prevScrollY = -1
-    let frameIndex = 0
+    let totalHeight = metrics.totalHeight
     /**
      * 真实可达的页面总高度。
      * preparePage 报告的 totalHeight 可能因 margin/transform 等偏大，
@@ -153,79 +160,197 @@ export async function handleCaptureFullPage(
      */
     let effectiveHeight = Math.max(totalHeight, stepHeight)
 
-    while (true) {
-      // 滚到目标位置（可能因为页面底部不足而被夹到 maxScrollY）
-      const [{ result: actualY }] = await chrome.scripting.executeScript({
+    // 2) 首帧：不隐藏任何 fixed/sticky，让弹窗 / iframe / 顶部 banner
+    //    原样进入第一张图。从第二屏才开始隐藏，避免它们重复出现。
+    //
+    // 顺序很重要：flatten + freeze 必须在 scrollToY(0) 之前执行。
+    // 原因：很多 SPA dropdown（典型如有道字典「全部产品」iframe）会监听 scroll
+    // 事件，scroll 一发生立刻 display:none 自身。如果先 scrollToY(0) 再 flatten，
+    // 摊平时弹窗已被收回，getBoundingClientRect 返回 0×0，flatten 直接漏判。
+    // 摊平后弹窗 position 已变 absolute、坐标用文档系书写，scrollToY(0) 不影响其
+    // 视觉位置；MutationObserver 同步回滚 display:none 的写入，scroll 事件触发
+    // 的关闭也被即时还原。
+
+    // 2.1) 把含 iframe 且超出首屏的 fixed/sticky 弹窗摊平为 absolute，
+    //      使其底部能延伸到文档下方区域，从而被后续滚动帧完整拍下。
+    //      maxBottom 是摊平后弹窗最低的文档坐标，用来扩展 totalHeight。
+    try {
+      const [{ result: flattenResult }] = await chrome.scripting.executeScript({
         target: { tabId },
-        func: scrollToY,
-        args: [targetY]
+        func: flattenOversizedModals,
+        args: [fullPageRules]
       })
-      const scrollY = actualY ?? targetY
-
-      // 滚动后留一帧时间让浏览器完成 layout/paint
-      await sleep(120)
-
-      // 非首帧：隐藏所有粘在视口边缘的元素（覆盖 fixed/sticky 及 SPA 中
-      // 用 JS+transform 模拟的伪 sticky 顶/侧栏），避免拼接图中重复出现
-      const isFirstFrame = frameIndex === 0
-      if (!isFirstFrame) {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          func: hideStickyForFrame
-        })
-        // 留一帧时间让浏览器应用 visibility 变更
-        await sleep(60)
-      }
-
-      let dataUrl: string
-      try {
-        dataUrl = await safeCaptureVisibleTab(tab.windowId, {
-          format: "png" // 中间帧统一用 png 无损，最后再按目标格式编码
-        })
-      } finally {
-        // 立即恢复，避免页面长时间出现"消失的顶栏"
-        if (!isFirstFrame) {
+      console.log("[fullPage] flatten result:", flattenResult, {
+        originalTotalHeight: totalHeight,
+        viewportHeight: stepHeight
+      })
+      if (flattenResult && flattenResult.count > 0) {
+        flattenApplied = true
+        // 摊平后弹窗下沿可能超过原文档高度，扩展 totalHeight 防止被裁
+        if (flattenResult.maxBottom > totalHeight) {
+          totalHeight = flattenResult.maxBottom
+          effectiveHeight = Math.max(effectiveHeight, totalHeight)
+        }
+        // 立即冻结：装 MutationObserver + 吞噬鼠标/焦点事件，
+        // 阻止页面 JS 在截图过程中把弹窗收回。
+        try {
           await chrome.scripting.executeScript({
             target: { tabId },
-            func: restoreStickyForFrame
+            func: freezeFlattenedModals
           })
+        } catch {
+          /* 冻结失败仅表现为弹窗可能消失，不致命 */
         }
+        // 给一帧时间让浏览器完成布局；
+        // 摊平时若把 iframe 弹窗移到 body 末尾会触发 iframe reload，需要更长
+        // 等待时间让其重新加载完成，否则首帧拍到的是空白 iframe
+        await sleep(800)
       }
-      if (!dataUrl) throw new Error("截图失败：返回数据为空")
-
-      const bitmap = await dataUrlToBitmap(dataUrl)
-      slices.push({ bitmap, scrollY })
-
-      // 首帧截完立即记录"贴边/视口内候选元素"的文档绝对位置，作为
-      // 后续帧检测 sticky / 伪 sticky 的参考基准
-      if (isFirstFrame) {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          func: recordAnchors
-        })
-      }
-      frameIndex++
-
-      // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）
-      // 这同时覆盖了：短页面无法滚动、totalHeight 高估、动态加载未触发等情况
-      if (scrollY === prevScrollY) {
-        effectiveHeight = scrollY + stepHeight
-        break
-      }
-
-      // 终止条件 2：当前可视区已到达页面底部
-      if (scrollY + stepHeight >= totalHeight) {
-        effectiveHeight = Math.max(scrollY + stepHeight, totalHeight)
-        break
-      }
-
-      prevScrollY = scrollY
-      // 下一目标位置：步进一屏，但若下一步会超出页面，则改为对齐底部
-      const nextY = scrollY + stepHeight
-      targetY = Math.min(nextY, totalHeight - stepHeight)
+    } catch {
+      /* 摊平失败不致命，按原流程继续 */
     }
 
-    // 3) 拼接
+    //    flatten + freeze 完成后再滚回顶部（用户可能未在 scrollY=0 触发截图）。
+    //    此时即使 scroll 事件触发页面 JS 把弹窗 display:none，MutationObserver
+    //    会同步回滚。
+    const [{ result: firstScrollYRaw }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: scrollToY,
+      args: [0]
+    })
+    const firstScrollY = firstScrollYRaw ?? 0
+    await sleep(120)
+
+    const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
+      format: "png"
+    })
+    if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
+    const firstBitmap = await dataUrlToBitmap(firstDataUrl)
+    slices.push({ bitmap: firstBitmap, scrollY: firstScrollY })
+
+    // 首屏即覆盖整页（短页面，无需后续滚动拼接）
+    if (firstScrollY + stepHeight >= totalHeight) {
+      effectiveHeight = Math.max(firstScrollY + stepHeight, totalHeight)
+    } else {
+      // 3) 一次性隐藏 fixed/sticky + 用户自定义隐藏元素
+      //    KoalaSnap 风格：用 display:none 让父容器回流，确保子元素也不可见。
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: hideFixedElements,
+        args: [fullPageRules]
+      })
+      hidingApplied = true
+      await sleep(120)
+
+      // 3.5) 探测并隐藏 JS 模拟的伪 sticky（如 Confluence 顶栏，computed position
+      //      不是 fixed/sticky 但靠 scroll 事件 + transform 跟随视口）。
+      //      通过短距滚动探测漂移识别，再 display:none 加入恢复列表。
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: detectAndHidePseudoSticky,
+        args: [fullPageRules]
+      })
+      await sleep(120)
+
+      // 4) 滚动 + 多次截图（从第二屏开始）
+      let targetY = firstScrollY + stepHeight
+      // 上一轮已经拍过的 scrollY（首帧），用于检测「无法再滚」
+      let prevScrollY = firstScrollY
+
+      while (true) {
+        // 滚到目标位置（可能因为页面底部不足而被夹到 maxScrollY）
+        const [{ result: actualY }] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: scrollToY,
+          args: [targetY]
+        })
+        const scrollY = actualY ?? targetY
+
+        // 滚动后留一帧时间让浏览器完成 layout/paint
+        await sleep(120)
+
+        // 补隐藏 SPA（React/Vue）滚动回调里重新挂载的顶栏/侧栏 DOM。
+        // 旧节点已被 MARK，函数内部幂等跳过；仅对新增 fixed/sticky 节点生效。
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            func: rehideFixedElements,
+            args: [fullPageRules]
+          })
+        } catch {
+          /* 隐藏失败不致命，继续截图 */
+        }
+
+        const dataUrl = await safeCaptureVisibleTab(tab.windowId, {
+          format: "png" // 中间帧统一用 png 无损，最后再按目标格式编码
+        })
+        if (!dataUrl) throw new Error("截图失败：返回数据为空")
+
+        const bitmap = await dataUrlToBitmap(dataUrl)
+        slices.push({ bitmap, scrollY })
+
+        // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）
+        // 这同时覆盖了：短页面无法滚动、totalHeight 高估、动态加载未触发等情况
+        if (scrollY === prevScrollY) {
+          // 兜底：仍取已扩展的 totalHeight / effectiveHeight 较大值。
+          // 摊平弹窗时已通过 spacer 撑高文档，正常会先命中条件 2；
+          // 此处用 max 确保即使 spacer 失效，弹窗 maxBottom 也不会被回退覆盖。
+          effectiveHeight = Math.max(
+            scrollY + stepHeight,
+            totalHeight,
+            effectiveHeight
+          )
+          break
+        }
+
+        // 终止条件 2：当前可视区已到达页面底部
+        if (scrollY + stepHeight >= totalHeight) {
+          effectiveHeight = Math.max(scrollY + stepHeight, totalHeight)
+          break
+        }
+
+        prevScrollY = scrollY
+        // 下一目标位置：步进一屏，但若下一步会超出页面，则改为对齐底部
+        const nextY = scrollY + stepHeight
+        targetY = Math.min(nextY, totalHeight - stepHeight)
+      }
+    }
+
+    // 5) 截完恢复 fixed/sticky 元素
+    if (hidingApplied) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: restoreFixedElements
+        })
+        hidingApplied = false
+      } catch {
+        /* tab 可能关闭，下面 finally 还会兜底 */
+      }
+    }
+
+    // 5.1) 恢复被摊平的 iframe 弹窗（先卸载冻结守护，再回填 inline style）
+    if (flattenApplied) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: unfreezeFlattenedModals
+        })
+      } catch {
+        /* tab 可能关闭，下面 finally 还会兜底 */
+      }
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: restoreFlattenedModals
+        })
+        flattenApplied = false
+      } catch {
+        /* tab 可能关闭，下面 finally 还会兜底 */
+      }
+    }
+
+    // 6) 拼接
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
@@ -247,13 +372,35 @@ export async function handleCaptureFullPage(
   } catch (err) {
     return errorResponse(err)
   } finally {
-    // 4) 无论成功失败，恢复页面
-    if (snapshot) {
+    // 6) 无论成功失败，恢复页面（restorePage 已包含 restoreFixedElements 兜底）
+    if (flattenApplied) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: unfreezeFlattenedModals
+        })
+      } catch {
+        /* 忽略 */
+      }
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: restoreFlattenedModals
+        })
+      } catch {
+        /* 忽略 */
+      }
+    }
+    if (snapshot || hidingApplied) {
       try {
         await chrome.scripting.executeScript({
           target: { tabId },
           func: restorePage,
-          args: [snapshot]
+          args: [snapshot ?? {
+            htmlOverflow: "",
+            bodyOverflow: "",
+            originalScrollY: 0
+          }]
         })
       } catch {
         /* 标签可能已关闭，忽略 */
