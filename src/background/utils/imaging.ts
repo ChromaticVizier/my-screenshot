@@ -65,6 +65,14 @@ export interface CaptureSlice {
   bitmap: ImageBitmap
   /** 该片段在页面中对应的 scrollY（CSS 像素） */
   scrollY: number
+  /** 从源图裁切的 X（CSS 像素）。内部滚动容器模式下用于只拼中间主体栏 */
+  sourceX?: number
+  /** 从源图裁切的 Y（CSS 像素） */
+  sourceY?: number
+  /** 从源图裁切的宽度（CSS 像素） */
+  sourceWidth?: number
+  /** 从源图裁切的高度（CSS 像素） */
+  sourceHeight?: number
 }
 
 export interface StitchParams {
@@ -109,9 +117,20 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   for (const slice of slices) {
     const dx = 0
     const dy = Math.round(slice.scrollY * dpr)
-    // 注意：bitmap 自身宽高是设备像素
-    // 直接 1:1 绘制即可（源大小 = 视口宽 * dpr × 视口高 * dpr）
-    ctx.drawImage(slice.bitmap, dx, dy)
+    const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))
+    const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr))
+    const sw = Math.min(
+      slice.bitmap.width - sx,
+      Math.round((slice.sourceWidth ?? viewportWidth) * dpr)
+    )
+    const sh = Math.min(
+      slice.bitmap.height - sy,
+      Math.round((slice.sourceHeight ?? slice.bitmap.height / dpr) * dpr)
+    )
+    if (sw <= 0 || sh <= 0) continue
+    // 注意：bitmap 自身宽高是设备像素。
+    // 默认整帧 1:1 绘制；内部滚动容器模式下先从整屏截图里裁出主体区域。
+    ctx.drawImage(slice.bitmap, sx, sy, sw, sh, dx, dy, sw, sh)
   }
 
   return canvas.convertToBlob({

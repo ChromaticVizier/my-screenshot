@@ -152,11 +152,6 @@ const RULE_GROUPS: Array<{
         max: 1,
         step: 0.01,
         control: "slider"
-      },
-      {
-        key: "hideAllFixedFallback",
-        label: "兜底隐藏剩余跟随视口元素",
-        hint: "关闭后只隐藏明确命中浮层/插件规则的元素，更保守。"
       }
     ]
   },
@@ -174,6 +169,76 @@ const RULE_GROUPS: Array<{
         label: "扩展浮层关键词",
         hint: "命中即标记为插件浮层（按小写子串匹配 id/class/tag/role）。",
         control: "tags"
+      }
+    ]
+  },
+  {
+    title: "7. 主滚动容器识别",
+    fields: [
+      {
+        key: "detectScrollContainer",
+        label: "自动检测内部滚动容器",
+        hint: "适配 window 不滚、主体 div 滚动的 SPA/三栏页面。关闭后只使用 window 滚动。"
+      },
+      {
+        key: "scrollContainerMinRatio",
+        label: "滚动容器最小高度比",
+        hint: "scrollHeight / clientHeight ≥ 此值才作为候选。调小更容易命中短滚动区域。",
+        min: 1,
+        max: 3,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerMinOverflowPx",
+        label: "滚动容器最小溢出距离 (px)",
+        hint: "scrollHeight - clientHeight 至少超过此值才作为候选。调小更激进。",
+        min: 0,
+        max: 1000,
+        step: 10
+      },
+      {
+        key: "scrollContainerAreaWeight",
+        label: "视口面积权重",
+        hint: "越高越偏向占屏大的容器；三栏页面可适当降低。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerTextWeight",
+        label: "文本量权重",
+        hint: "越高越偏向正文/聊天内容等文本较多的容器。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerSemanticWeight",
+        label: "语义命中权重",
+        hint: "越高越依赖 id/class 命中 main/content/chat/scroll 等关键词。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerRegex",
+        label: "滚动容器语义正则",
+        hint: "按 id/class 字符串匹配，命中会提高主体滚动容器评分。",
+        control: "text"
+      }
+    ]
+  },
+  {
+    title: "8. 模式开关",
+    fields: [
+      {
+        key: "hideAllFixedFallback",
+        label: "兜底隐藏剩余跟随视口元素",
+        hint: "关闭后只隐藏明确命中浮层/插件规则的元素，更保守。"
       }
     ]
   },

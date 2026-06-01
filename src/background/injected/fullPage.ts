@@ -34,8 +34,20 @@ export interface PreparePageSnapshot {
   htmlOverflow: string
   /** 原 body.style.overflow */
   bodyOverflow: string
-  /** 原 scrollY */
+  /** 原 scrollY（window 滚动） */
   originalScrollY: number
+  /** 主滚动容器是否落在某个内部元素上（如 SPA 里的 #app / 中栏内容区）。 */
+  scrollerIsElement: boolean
+  /** scrollerIsElement=true 时记录原 scrollTop，restore 时还原 */
+  originalScrollerScrollTop: number
+  /** 主滚动容器在浏览器视口中的 top；拼接时用于从每帧裁掉固定头部 */
+  scrollerViewportTop: number
+  /** 主滚动容器在浏览器视口中的 left；拼接时用于横向裁切 */
+  scrollerViewportLeft: number
+  /** 主滚动容器宽度 */
+  scrollerViewportWidth: number
+  /** 主滚动容器可视高度 */
+  scrollerViewportHeight: number
 }
 
 export interface PageMetrics {
@@ -43,46 +55,224 @@ export interface PageMetrics {
   viewportWidth: number
   viewportHeight: number
   devicePixelRatio: number
+  /** true 表示实际滚动发生在内部元素而不是 window */
+  scrollerIsElement: boolean
+  /** scroller 模式下用于从 captureVisibleTab 全屏图里裁切主体区域 */
+  captureX: number
+  captureY: number
+  captureWidth: number
+  captureHeight: number
 }
 
 /* ========== 注入函数：必须自包含 ========== */
 
 /**
- * 准备页面：只收集度量、锁定 overflow，不隐藏任何元素。
+ * 准备页面：收集度量、锁定 overflow、检测主滚动容器，不隐藏任何元素。
  * 隐藏由 hideFixedElements 单独负责。
+ *
+ * 主滚动容器检测：很多 SPA 用 `<div id="app" style="height:100vh; overflow:auto">`
+ * 做主滚动容器，document/body 反而 `height: 100vh; overflow: hidden|visible`，
+ * window 完全不可滚。这种页面下 documentElement.scrollHeight ≈ viewportHeight，
+ * 直接走 window.scrollTo 截图只会拍单帧。
+ *
+ * 检测启发：
+ *   1) 先试 window.scrollTo(任意大值)，若 scrollY 不变 → window 不可滚
+ *   2) 在 document.documentElement 子树上找：
+ *      - computed overflow-y 是 auto/scroll
+ *      - rect 接近全屏（占视口宽 ≥ 90% 高 ≥ 90%）
+ *      - scrollHeight > clientHeight + 4
+ *      命中候选里取面积最大的；若 window 可滚则跳过此步
+ *   3) 给命中的元素打 dataset `data-my-screenshot-scroller="1"`，后续注入函数靠这个标记同步
  */
-export function preparePage(): PageMetrics & {
+export function preparePage(rules?: FullPageRuleSet): PageMetrics & {
   snapshot: PreparePageSnapshot
 } {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
   const html = document.documentElement
   const body = document.body
 
+  // 清掉上一轮可能残留的标记
+  document
+    .querySelectorAll(`[${SCROLLER_ATTR}="1"]`)
+    .forEach((el) => el.removeAttribute(SCROLLER_ATTR))
+
+  const originalScrollY = window.scrollY
+
+  // 1) 探测 window 是否真的能滚
+  const probeY = originalScrollY + 1
+  window.scrollTo({ top: probeY, left: 0, behavior: "instant" as ScrollBehavior })
+  const reachedY = window.scrollY
+  // 还原 scrollY，避免影响后续探测
+  window.scrollTo({
+    top: originalScrollY,
+    left: 0,
+    behavior: "instant" as ScrollBehavior
+  })
+  const windowScrollable = reachedY !== originalScrollY
+
+  // 2) 找主滚动容器。
+  // 不再只限「接近全屏」：三栏应用/知识库/IM 页面经常只有中间栏是主体可滚区。
+  // 评分同时考虑：可滚动距离、视口面积、文本量、语义类名、居中程度。
+  let scrollerEl: HTMLElement | null = null
+  if (rules?.detectScrollContainer !== false) {
+    const vw = html.clientWidth || window.innerWidth
+    const vh = html.clientHeight || window.innerHeight
+    const minRatio = rules?.scrollContainerMinRatio ?? 1.05
+    const minOverflowPx = rules?.scrollContainerMinOverflowPx ?? 80
+    const areaWeight = rules?.scrollContainerAreaWeight ?? 0.35
+    const textWeight = rules?.scrollContainerTextWeight ?? 0.3
+    const semanticWeight = rules?.scrollContainerSemanticWeight ?? 0.35
+    let semanticRe: RegExp | null = null
+    try {
+      semanticRe = new RegExp(rules?.scrollContainerRegex || "", "i")
+    } catch {
+      semanticRe = null
+    }
+
+    const windowDocHeight = Math.max(
+      body.scrollHeight,
+      html.scrollHeight,
+      body.offsetHeight,
+      html.offsetHeight,
+      html.clientHeight
+    )
+    const windowCanCover = windowScrollable && windowDocHeight > vh + minOverflowPx
+    let bestScore = 0
+    let bestEl: HTMLElement | null = null
+
+    document.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      let cs: CSSStyleDeclaration
+      try {
+        cs = getComputedStyle(el)
+      } catch {
+        return
+      }
+      const oy = cs.overflowY
+      if (oy !== "auto" && oy !== "scroll") return
+      if (cs.display === "none" || cs.visibility === "hidden") return
+      const scrollHeight = el.scrollHeight
+      const clientHeight = el.clientHeight
+      const overflowPx = scrollHeight - clientHeight
+      if (clientHeight <= 0 || overflowPx < minOverflowPx) return
+      if (scrollHeight / Math.max(1, clientHeight) < minRatio) return
+
+      const rect = el.getBoundingClientRect()
+      // 不在视口内或过小的滚动块不作为整页主体
+      if (rect.width < vw * 0.15 || rect.height < vh * 0.25) return
+      if (rect.bottom <= 0 || rect.top >= vh) return
+      const visibleW = Math.max(0, Math.min(rect.right, vw) - Math.max(rect.left, 0))
+      const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0))
+      const visibleAreaRatio = Math.min(1, (visibleW * visibleH) / Math.max(1, vw * vh))
+      if (visibleAreaRatio <= 0.03) return
+
+      const idClass = `${el.id || ""} ${String(el.className || "")}`
+      const semanticScore = semanticRe && semanticRe.test(idClass) ? 1 : 0
+      const textLen = (el.innerText || "").trim().length
+      const textScore = Math.min(1, textLen / 1200)
+      const overflowScore = Math.min(1, overflowPx / Math.max(1, vh))
+      const heightScore = Math.min(1, visibleH / Math.max(1, vh))
+      const widthScore = Math.min(1, visibleW / Math.max(1, vw))
+      const centerX = rect.left + rect.width / 2
+      const centerScore = 1 - Math.min(1, Math.abs(centerX - vw / 2) / Math.max(1, vw / 2))
+      const depthPenalty = (() => {
+        let depth = 0
+        let cur: HTMLElement | null = el
+        while (cur && cur !== document.documentElement) {
+          depth++
+          cur = cur.parentElement
+        }
+        return Math.min(0.2, depth * 0.01)
+      })()
+
+      const areaScore = visibleAreaRatio * 0.55 + heightScore * 0.3 + widthScore * 0.15
+      const score =
+        overflowScore * 0.25 +
+        areaScore * areaWeight +
+        textScore * textWeight +
+        semanticScore * semanticWeight +
+        centerScore * 0.12 -
+        depthPenalty
+
+      if (score > bestScore) {
+        bestScore = score
+        bestEl = el
+      }
+    })
+
+    // 仅当 window 不可滚，或内部容器明显比 window 更像主体时才切换。
+    // 避免普通页面里某个侧栏列表误夺主滚动权。
+    if (bestEl && (!windowCanCover || bestScore >= 0.55)) {
+      scrollerEl = bestEl
+      scrollerEl.setAttribute(SCROLLER_ATTR, "1")
+    }
+  }
+
+  const scrollerRect = scrollerEl?.getBoundingClientRect()
   const snapshot: PreparePageSnapshot = {
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
-    originalScrollY: window.scrollY
+    originalScrollY,
+    scrollerIsElement: !!scrollerEl,
+    originalScrollerScrollTop: scrollerEl ? scrollerEl.scrollTop : 0,
+    scrollerViewportTop: scrollerRect ? Math.max(0, scrollerRect.top) : 0,
+    scrollerViewportLeft: scrollerRect ? Math.max(0, scrollerRect.left) : 0,
+    scrollerViewportWidth: scrollerRect
+      ? Math.min(scrollerRect.width, html.clientWidth - Math.max(0, scrollerRect.left))
+      : html.clientWidth,
+    scrollerViewportHeight: scrollerRect
+      ? Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top))
+      : html.clientHeight
   }
 
-  // 计算总高度（取多种属性的最大值，处理特殊布局）
-  const totalHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-    document.body.offsetHeight,
-    document.documentElement.offsetHeight,
-    document.documentElement.clientHeight
-  )
+  // 计算总高度：内部容器模式下用容器 scrollHeight；否则用文档高度
+  const totalHeight = scrollerEl
+    ? Math.max(scrollerEl.scrollHeight, scrollerEl.clientHeight)
+    : Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight,
+        document.documentElement.clientHeight
+      )
+
+  // captureVisibleTab 捕获的是浏览器可视窗口；内部容器模式下从全屏图中裁切主体区域。
+  const captureX = snapshot.scrollerViewportLeft
+  const captureY = snapshot.scrollerViewportTop
+  const captureWidth = snapshot.scrollerViewportWidth
+  const captureHeight = snapshot.scrollerViewportHeight
 
   return {
     totalHeight,
-    viewportWidth: html.clientWidth,
-    viewportHeight: html.clientHeight,
+    viewportWidth: captureWidth,
+    viewportHeight: captureHeight,
     devicePixelRatio: window.devicePixelRatio || 1,
+    scrollerIsElement: !!scrollerEl,
+    captureX,
+    captureY,
+    captureWidth,
+    captureHeight,
     snapshot
   }
 }
 
-/** 滚动到指定 Y 位置（同步：滚动后立即返回当前实际 scrollY） */
+/**
+ * 滚动到指定 Y 位置（同步：滚动后立即返回当前实际 scrollY）。
+ * 若 preparePage 检测到主滚动容器在某个内部元素上，则用 element.scrollTo 替代
+ * window.scrollTo，并返回 element.scrollTop。
+ */
 export function scrollToY(y: number): number {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  if (scroller) {
+    scroller.scrollTo({
+      top: y,
+      left: 0,
+      behavior: "instant" as ScrollBehavior
+    })
+    return scroller.scrollTop
+  }
   window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior })
   return window.scrollY
 }
@@ -162,6 +352,8 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     } catch {
       return
     }
+    // 主滚动容器本身不能隐藏，否则内部滚动截图会直接白屏/只剩背景。
+    if (el.getAttribute("data-my-screenshot-scroller") === "1") return
     if (cs.position === "fixed" || cs.position === "sticky") {
       hide(el)
     }
@@ -241,6 +433,8 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
       } catch {
         return
       }
+      // 主滚动容器本身不能隐藏，否则内部滚动截图会直接白屏/只剩背景。
+      if (el.getAttribute("data-my-screenshot-scroller") === "1") return
       if (cs.position === "fixed" || cs.position === "sticky") {
         hide(el)
       }
@@ -307,13 +501,32 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
   const LARGE_SUBTREE_RATIO = 0.9 // scrollHeight / 文档高度 ≥ 此值视为主滚动容器，豁免
 
   const html = document.documentElement
-  const vw = html.clientWidth
-  const vh = html.clientHeight
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-    vh
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
   )
+  const getScrollTop = () => (scroller ? scroller.scrollTop : window.scrollY)
+  const getScrollLeft = () => (scroller ? scroller.scrollLeft : window.scrollX)
+  const scrollToPos = (top: number, left: number) => {
+    if (scroller) {
+      scroller.scrollTo({
+        top,
+        left,
+        behavior: "instant" as ScrollBehavior
+      })
+    } else {
+      window.scrollTo({
+        top,
+        left,
+        behavior: "instant" as ScrollBehavior
+      })
+    }
+  }
+  const vw = scroller ? scroller.clientWidth : html.clientWidth
+  const vh = scroller ? scroller.clientHeight : html.clientHeight
+  const docHeight = scroller
+    ? Math.max(scroller.scrollHeight, scroller.clientHeight)
+    : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, vh)
 
   // 不足以滚动的页面无需探测
   const maxScroll = Math.max(0, docHeight - vh)
@@ -355,12 +568,13 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
     baselineAbsLeft: number
   }[] = []
 
-  const initialScrollY = window.scrollY
-  const initialScrollX = window.scrollX
+  const initialScrollY = getScrollTop()
+  const initialScrollX = getScrollLeft()
 
   walk(document.documentElement).forEach((el) => {
     const ds = el.dataset as Record<string, string | undefined>
     if (MARK in ds) return // 已被 hideFixedElements 隐藏
+    if (el.getAttribute(SCROLLER_ATTR) === "1") return
     if (keepSet.has(el)) return
 
     let cs: CSSStyleDeclaration
@@ -395,29 +609,21 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
   if (candidates.length === 0) return 0
 
   // 滚动探测
-  window.scrollTo({
-    top: initialScrollY + PROBE_DISTANCE,
-    left: initialScrollX,
-    behavior: "instant" as ScrollBehavior
-  })
-  const probedScrollY = window.scrollY
+  scrollToPos(initialScrollY + PROBE_DISTANCE, initialScrollX)
+  const probedScrollY = getScrollTop()
   const actualMove = probedScrollY - initialScrollY
 
   // 必须实际滚动了才有判别意义
   if (Math.abs(actualMove) < PROBE_DISTANCE * 0.5) {
     // 回到原位
-    window.scrollTo({
-      top: initialScrollY,
-      left: initialScrollX,
-      behavior: "instant" as ScrollBehavior
-    })
+    scrollToPos(initialScrollY, initialScrollX)
     return 0
   }
 
   const toHide: HTMLElement[] = []
   candidates.forEach(({ el, baselineAbsTop }) => {
     const rect = el.getBoundingClientRect()
-    const curAbsTop = rect.top + window.scrollY
+    const curAbsTop = rect.top + getScrollTop()
     const drift = curAbsTop - baselineAbsTop
     // 跟随视口的漂移量约等于 actualMove
     if (Math.abs(drift) >= actualMove * FOLLOW_RATIO) {
@@ -426,11 +632,7 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
   })
 
   // 滚回原位
-  window.scrollTo({
-    top: initialScrollY,
-    left: initialScrollX,
-    behavior: "instant" as ScrollBehavior
-  })
+  scrollToPos(initialScrollY, initialScrollX)
 
   if (toHide.length === 0) return 0
 
@@ -453,11 +655,26 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
 
 /** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理隐藏列表残留。 */
 export function restorePage(snapshot: PreparePageSnapshot): void {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
   // 万一 restoreFixedElements 因异常没被调用，这里再兜底一遍
   restoreFixedElements()
 
   document.documentElement.style.overflow = snapshot.htmlOverflow
   document.body.style.overflow = snapshot.bodyOverflow
+
+  if (snapshot.scrollerIsElement) {
+    const scroller = document.querySelector<HTMLElement>(
+      `[${SCROLLER_ATTR}="1"]`
+    )
+    if (scroller) {
+      scroller.scrollTo({
+        top: snapshot.originalScrollerScrollTop,
+        left: 0,
+        behavior: "instant" as ScrollBehavior
+      })
+      scroller.removeAttribute(SCROLLER_ATTR)
+    }
+  }
   window.scrollTo({
     top: snapshot.originalScrollY,
     left: 0,
@@ -501,8 +718,12 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
   const MARK = "__myScreenshotFlattened"
 
   const html = document.documentElement
-  const vw = html.clientWidth
-  const vh = html.clientHeight
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  const vw = scroller ? scroller.clientWidth : html.clientWidth
+  const vh = scroller ? scroller.clientHeight : html.clientHeight
 
   // keepSet（含祖先链）：用户强制保留的元素链不参与摊平
   const keepSet = new Set<HTMLElement>()
@@ -521,8 +742,8 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
     }
   })
 
-  const scrollY = window.scrollY
-  const scrollX = window.scrollX
+  const scrollY = scroller ? scroller.scrollTop : window.scrollY
+  const scrollX = scroller ? scroller.scrollLeft : window.scrollX
 
   interface FlattenedRecord {
     el: HTMLElement
@@ -554,11 +775,9 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
   // 主滚动容器豁免：fixed 全屏遮罩 + 内部 overflow:auto 的 SPA 主容器，
   // 误摊平会让整个页面布局崩坏。命中条件：自身 scrollHeight ≥ 文档高度 90%
   // 或自身高度 ≥ 视口 90% 且子树包含大量内容
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-    vh
-  )
+  const docHeight = scroller
+    ? Math.max(scroller.scrollHeight, scroller.clientHeight)
+    : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, vh)
   const isMainContainer = (el: HTMLElement, rect: DOMRect): boolean => {
     if (vh > 0 && rect.height >= vh * 0.9 && rect.width >= vw * 0.9) {
       // 占满视口的 fixed 元素：除非它是真的弹窗，否则极可能是 SPA 主壳
@@ -773,11 +992,13 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
   delete (window as unknown as Record<string, unknown>)[SPACER_STORE]
 
   if (list.length > 0 && maxBottom > 0) {
-    const curDocHeight = Math.max(
-      document.body.scrollHeight,
-      document.documentElement.scrollHeight,
-      document.documentElement.clientHeight
-    )
+    const curDocHeight = scroller
+      ? Math.max(scroller.scrollHeight, scroller.clientHeight)
+      : Math.max(
+          document.body.scrollHeight,
+          document.documentElement.scrollHeight,
+          document.documentElement.clientHeight
+        )
     if (maxBottom > curDocHeight) {
       const spacer = document.createElement("div")
       spacer.setAttribute("data-my-screenshot-spacer", "1")
@@ -797,7 +1018,9 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
       ss.setProperty("position", "static", "important")
       ss.setProperty("float", "none", "important")
       ss.setProperty("clear", "both", "important")
-      document.body.appendChild(spacer)
+      // 内部滚动容器模式下，spacer 必须插到该容器里才能撑高它的 scrollHeight；
+      // window 滚动模式才插 body。
+      ;(scroller ?? document.body).appendChild(spacer)
       ;(window as unknown as Record<string, unknown>)[SPACER_STORE] = spacer
     }
   }

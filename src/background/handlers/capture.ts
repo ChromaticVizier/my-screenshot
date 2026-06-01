@@ -143,11 +143,24 @@ export async function handleCaptureFullPage(
     // 1) 准备：锁定滚动条 + 拿页面度量
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: preparePage
+      func: preparePage,
+      args: [fullPageRules]
     })
     if (!prepResult) return { ok: false, error: "页面准备失败" }
     const metrics: PageMetrics = prepResult
     snapshot = prepResult.snapshot
+    const makeSlice = (bitmap: ImageBitmap, scrollY: number): CaptureSlice => ({
+      bitmap,
+      scrollY,
+      ...(metrics.scrollerIsElement
+        ? {
+            sourceX: metrics.captureX,
+            sourceY: metrics.captureY,
+            sourceWidth: metrics.captureWidth,
+            sourceHeight: metrics.captureHeight
+          }
+        : {})
+    })
 
     const slices: CaptureSlice[] = []
     const stepHeight = metrics.viewportHeight
@@ -226,7 +239,7 @@ export async function handleCaptureFullPage(
     })
     if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
     const firstBitmap = await dataUrlToBitmap(firstDataUrl)
-    slices.push({ bitmap: firstBitmap, scrollY: firstScrollY })
+    slices.push(makeSlice(firstBitmap, firstScrollY))
 
     // 首屏即覆盖整页（短页面，无需后续滚动拼接）
     if (firstScrollY + stepHeight >= totalHeight) {
@@ -287,7 +300,7 @@ export async function handleCaptureFullPage(
         if (!dataUrl) throw new Error("截图失败：返回数据为空")
 
         const bitmap = await dataUrlToBitmap(dataUrl)
-        slices.push({ bitmap, scrollY })
+        slices.push(makeSlice(bitmap, scrollY))
 
         // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）
         // 这同时覆盖了：短页面无法滚动、totalHeight 高估、动态加载未触发等情况
@@ -399,7 +412,13 @@ export async function handleCaptureFullPage(
           args: [snapshot ?? {
             htmlOverflow: "",
             bodyOverflow: "",
-            originalScrollY: 0
+            originalScrollY: 0,
+            scrollerIsElement: false,
+            originalScrollerScrollTop: 0,
+            scrollerViewportTop: 0,
+            scrollerViewportLeft: 0,
+            scrollerViewportWidth: 0,
+            scrollerViewportHeight: 0
           }]
         })
       } catch {

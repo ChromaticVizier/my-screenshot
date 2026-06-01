@@ -60,7 +60,23 @@ export interface FullPageRuleSet {
   /** 永远隐藏：匹配的元素在每一帧（含首帧）都隐藏 */
   customHideSelectors: string[]
 
-  /* ---- 7. 模式开关 ---- */
+  /* ---- 7. 主滚动容器识别 ---- */
+  /** 自动检测内部主滚动容器（SPA 常见：window 不滚，主体 div 滚） */
+  detectScrollContainer: boolean
+  /** 滚动容器最小 scrollHeight/clientHeight 比例 */
+  scrollContainerMinRatio: number
+  /** 滚动容器最小可滚动距离（px） */
+  scrollContainerMinOverflowPx: number
+  /** 视口覆盖面积权重：越高越偏向全屏容器 */
+  scrollContainerAreaWeight: number
+  /** 文本量权重：越高越偏向正文区域 */
+  scrollContainerTextWeight: number
+  /** 语义命中权重：越高越偏向 main/content/chat/list 等类名 */
+  scrollContainerSemanticWeight: number
+  /** 识别候选容器的 id/class 正则 */
+  scrollContainerRegex: string
+
+  /* ---- 8. 模式开关 ---- */
   /** 兜底：剩余跟随视口元素是否一律隐藏（关闭后只隐藏明确命中浮层规则的） */
   hideAllFixedFallback: boolean
 }
@@ -104,6 +120,15 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
 
   customKeepSelectors: [],
   customHideSelectors: [],
+
+  detectScrollContainer: true,
+  scrollContainerMinRatio: 1.05,
+  scrollContainerMinOverflowPx: 80,
+  scrollContainerAreaWeight: 0.35,
+  scrollContainerTextWeight: 0.3,
+  scrollContainerSemanticWeight: 0.35,
+  scrollContainerRegex:
+    "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
 
   hideAllFixedFallback: true
 }
