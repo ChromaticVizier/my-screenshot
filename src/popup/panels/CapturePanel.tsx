@@ -18,7 +18,9 @@ import {
   captureDelayed,
   captureFullPage,
   captureSelection,
-  captureVisibleArea
+  captureVisibleArea,
+  clearScrollRegion,
+  selectScrollRegion
 } from "~src/services/capture"
 import { downloadDesktopImage } from "~src/services/desktopBridge"
 import type { CaptureAction, CaptureMode } from "~src/types/popup"
@@ -26,8 +28,30 @@ import type { CaptureAction, CaptureMode } from "~src/types/popup"
 import * as styles from "./CapturePanel.module.css"
 
 function CapturePanel() {
-  const [busy, setBusy] = useState<CaptureMode | null>(null)
+  const [busy, setBusy] = useState<CaptureMode | "scrollRegion" | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const handleSelectScrollRegion = async () => {
+    if (busy) return
+    setError(null)
+    setBusy("scrollRegion")
+    const res = await selectScrollRegion()
+    setBusy(null)
+    if (!res.ok) {
+      if (!res.cancelled) setError(res.error ?? "选择滚动区域失败")
+      return
+    }
+    window.close()
+  }
+
+  const handleClearScrollRegion = async () => {
+    if (busy) return
+    setError(null)
+    setBusy("scrollRegion")
+    const res = await clearScrollRegion()
+    setBusy(null)
+    if (!res.ok) setError(res.error ?? "清除滚动区域失败")
+  }
 
   const handleAction = async (mode: CaptureMode) => {
     if (busy) return
@@ -148,6 +172,23 @@ function CapturePanel() {
           </li>
         ))}
       </ul>
+
+      <div className={styles.regionActions}>
+        <button
+          type="button"
+          className={styles.regionBtn}
+          disabled={busy !== null}
+          onClick={handleSelectScrollRegion}>
+          {busy === "scrollRegion" ? "选择中…" : "选择滚动区域"}
+        </button>
+        <button
+          type="button"
+          className={styles.regionBtnSecondary}
+          disabled={busy !== null}
+          onClick={handleClearScrollRegion}>
+          清除本网站区域
+        </button>
+      </div>
 
       {/* 错误提示 */}
       {error && <div className={styles.errorTip}>{error}</div>}

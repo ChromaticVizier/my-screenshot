@@ -100,6 +100,43 @@
   text-align: left;
 }
 
+.regionActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.regionBtn,
+.regionBtnSecondary {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.regionBtn {
+  background: #eaf2ff;
+  color: #1d4ed8;
+}
+
+.regionBtn:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.regionBtnSecondary {
+  background: #f5f7fa;
+  color: #4b5563;
+}
+
+.regionBtnSecondary:hover:not(:disabled) {
+  background: #eef0f3;
+}
+
+.regionBtn:disabled,
+.regionBtnSecondary:disabled {
+  opacity: 0.5;
+}
+
 /* 错误提示 */
 .errorTip {
   padding: 6px 10px;

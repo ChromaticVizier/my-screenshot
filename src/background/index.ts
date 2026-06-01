@@ -8,9 +8,11 @@ import {
   handleCaptureFullPage,
   handleCaptureSelection,
   handleCaptureVisible,
+  handleClearScrollRegion,
   handleCloseRelayWindow,
   handleDownloadDesktopImage,
-  handleHideRelayWindow
+  handleHideRelayWindow,
+  handleSelectScrollRegion
 } from "~src/background/handlers/capture"
 import {
   handleRecorderFinish,
@@ -31,6 +33,14 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.CAPTURE_FULL_PAGE: {
           sendResponse(await handleCaptureFullPage(request))
+          break
+        }
+        case MessageType.SELECT_SCROLL_REGION: {
+          sendResponse(await handleSelectScrollRegion(request))
+          break
+        }
+        case MessageType.CLEAR_SCROLL_REGION: {
+          sendResponse(await handleClearScrollRegion(request))
           break
         }
         case MessageType.CAPTURE_SELECTION: {

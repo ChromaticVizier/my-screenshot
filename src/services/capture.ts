@@ -10,8 +10,10 @@ import {
   type CaptureResponse,
   type CaptureSelectionRequest,
   type CaptureVisibleRequest,
+  type ClearScrollRegionRequest,
   type ExtensionRequest,
-  type ImageOptions
+  type ImageOptions,
+  type SelectScrollRegionRequest
 } from "~src/shared/messages"
 
 function send<T extends ExtensionRequest>(
@@ -43,6 +45,22 @@ export function captureFullPage(payload?: ImageOptions) {
   const req: CaptureFullPageRequest = {
     type: MessageType.CAPTURE_FULL_PAGE,
     payload
+  }
+  return send(req)
+}
+
+/** 手动选择并记忆当前站点的滚动区域 */
+export function selectScrollRegion() {
+  const req: SelectScrollRegionRequest = {
+    type: MessageType.SELECT_SCROLL_REGION
+  }
+  return send(req)
+}
+
+/** 清除当前站点记忆的滚动区域 */
+export function clearScrollRegion() {
+  const req: ClearScrollRegionRequest = {
+    type: MessageType.CLEAR_SCROLL_REGION
   }
   return send(req)
 }

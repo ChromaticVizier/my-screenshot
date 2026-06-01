@@ -26,7 +26,10 @@
  *    避免它们在每屏重复出现。该流程由 background/handlers/capture.ts 编排。
  */
 
-import type { FullPageRuleSet } from "~src/shared/settings"
+import type {
+  FullPageRuleSet,
+  SiteScrollRegionRule
+} from "~src/shared/settings"
 
 /** 由 preparePage 返回，传给 restorePage 用于还原 */
 export interface PreparePageSnapshot {
@@ -84,7 +87,10 @@ export interface PageMetrics {
  *      命中候选里取面积最大的；若 window 可滚则跳过此步
  *   3) 给命中的元素打 dataset `data-my-screenshot-scroller="1"`，后续注入函数靠这个标记同步
  */
-export function preparePage(rules?: FullPageRuleSet): PageMetrics & {
+export function preparePage(
+  rules?: FullPageRuleSet,
+  siteScrollRegion?: SiteScrollRegionRule | null
+): PageMetrics & {
   snapshot: PreparePageSnapshot
 } {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
@@ -111,10 +117,35 @@ export function preparePage(rules?: FullPageRuleSet): PageMetrics & {
   const windowScrollable = reachedY !== originalScrollY
 
   // 2) 找主滚动容器。
+  // 用户手动选择的站点规则最高优先级；若 selector 失效，再走自动评分。
+  let scrollerEl: HTMLElement | null = null
+  if (siteScrollRegion?.selector) {
+    try {
+      const el = document.querySelector<HTMLElement>(siteScrollRegion.selector)
+      if (el) {
+        const cs = getComputedStyle(el)
+        const oy = cs.overflowY
+        const rect = el.getBoundingClientRect()
+        const scrollable =
+          (oy === "auto" || oy === "scroll") &&
+          el.scrollHeight > el.clientHeight + 4 &&
+          rect.width > 0 &&
+          rect.height > 0 &&
+          cs.display !== "none" &&
+          cs.visibility !== "hidden"
+        if (scrollable) {
+          scrollerEl = el
+          scrollerEl.setAttribute(SCROLLER_ATTR, "1")
+        }
+      }
+    } catch {
+      // selector 失效则继续走自动检测
+    }
+  }
+
   // 不再只限「接近全屏」：三栏应用/知识库/IM 页面经常只有中间栏是主体可滚区。
   // 评分同时考虑：可滚动距离、视口面积、文本量、语义类名、居中程度。
-  let scrollerEl: HTMLElement | null = null
-  if (rules?.detectScrollContainer !== false) {
+  if (!scrollerEl && rules?.detectScrollContainer !== false) {
     const vw = html.clientWidth || window.innerWidth
     const vh = html.clientHeight || window.innerHeight
     const minRatio = rules?.scrollContainerMinRatio ?? 1.05

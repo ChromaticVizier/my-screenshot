@@ -10,6 +10,7 @@
  *     → 抓首帧 → 下载（唯一不依赖 captureVisibleTab 的模式）
  */
 import { showCountdown } from "~src/background/injected/countdown"
+import { pickScrollRegion } from "~src/background/injected/scrollRegionPicker"
 import {
   detectAndHidePseudoSticky,
   flattenOversizedModals,
@@ -41,17 +42,28 @@ import type {
   CaptureResponse,
   CaptureSelectionRequest,
   CaptureVisibleRequest,
+  ClearScrollRegionRequest,
   CloseRelayWindowRequest,
   DownloadDesktopImageRequest,
-  HideRelayWindowRequest
+  HideRelayWindowRequest,
+  SelectScrollRegionRequest
 } from "~src/shared/messages"
 import { MessageType } from "~src/shared/messages"
-import { getSettings } from "~src/shared/settings"
+import { getSettings, setSettings } from "~src/shared/settings"
 
 /** captureVisibleTab 限频间隔（ms），Chrome 限制约 2 次/秒，留一点裕量 */
 const CAPTURE_INTERVAL = 600
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+function hostnameFromUrl(url?: string): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).hostname
+  } catch {
+    return null
+  }
+}
 
 /**
  * captureVisibleTab 的限频包装
@@ -144,7 +156,7 @@ export async function handleCaptureFullPage(
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
       target: { tabId },
       func: preparePage,
-      args: [fullPageRules]
+      args: [fullPageRules, settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null]
     })
     if (!prepResult) return { ok: false, error: "页面准备失败" }
     const metrics: PageMetrics = prepResult
@@ -425,6 +437,65 @@ export async function handleCaptureFullPage(
         /* 标签可能已关闭，忽略 */
       }
     }
+  }
+}
+
+/* ============================================================
+ * 2.5 手动滚动区域选择
+ * ============================================================ */
+export async function handleSelectScrollRegion(
+  _request: SelectScrollRegionRequest
+): Promise<CaptureResponse> {
+  try {
+    const tabRes = await getCapturableActiveTab()
+    if (!tabRes.ok) return { ok: false, error: tabRes.error }
+    const tab = tabRes.tab
+    const tabId = tab.id!
+    const hostname = hostnameFromUrl(tab.url)
+    if (!hostname) return { ok: false, error: "当前页面不支持站点规则" }
+
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: pickScrollRegion
+    })
+
+    if (!result) return { ok: false, cancelled: true, error: "已取消" }
+
+    const settings = await getSettings()
+    await setSettings({
+      siteScrollRegions: {
+        ...settings.siteScrollRegions,
+        [hostname]: {
+          ...result,
+          hostname,
+          createdAt: Date.now()
+        }
+      }
+    })
+
+    return { ok: true }
+  } catch (err) {
+    return errorResponse(err)
+  }
+}
+
+export async function handleClearScrollRegion(
+  _request: ClearScrollRegionRequest
+): Promise<CaptureResponse> {
+  try {
+    const tabRes = await getCapturableActiveTab()
+    if (!tabRes.ok) return { ok: false, error: tabRes.error }
+    const hostname = hostnameFromUrl(tabRes.tab.url)
+    if (!hostname) return { ok: false, error: "当前页面不支持站点规则" }
+
+    const settings = await getSettings()
+    const next = { ...settings.siteScrollRegions }
+    delete next[hostname]
+    await setSettings({ siteScrollRegions: next })
+
+    return { ok: true }
+  } catch (err) {
+    return errorResponse(err)
   }
 }
 

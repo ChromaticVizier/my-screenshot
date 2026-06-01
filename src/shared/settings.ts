@@ -81,11 +81,30 @@ export interface FullPageRuleSet {
   hideAllFixedFallback: boolean
 }
 
+export interface SiteScrollRegionRule {
+  /** 目标元素 CSS selector */
+  selector: string
+  /** 记录时的 hostname，便于导出阅读 */
+  hostname: string
+  /** 记录时间 */
+  createdAt: number
+  /** 调试信息 */
+  label?: string
+  tag?: string
+  id?: string
+  className?: string
+  rect?: { top: number; left: number; width: number; height: number }
+  scrollHeight?: number
+  clientHeight?: number
+}
+
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */
   delaySeconds: number
   /** 整页截图判别规则 */
   fullPageRules: FullPageRuleSet
+  /** 按 hostname 记忆的手动滚动区域 */
+  siteScrollRegions: Record<string, SiteScrollRegionRule>
 }
 
 /** 整页规则默认值。也作为"恢复默认"按钮的回填来源 */
@@ -135,7 +154,8 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   delaySeconds: 3,
-  fullPageRules: DEFAULT_FULL_PAGE_RULES
+  fullPageRules: DEFAULT_FULL_PAGE_RULES,
+  siteScrollRegions: {}
 }
 
 const KEY = "settings"
@@ -154,7 +174,8 @@ export async function getSettings(): Promise<AppSettings> {
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
-    fullPageRules: mergeFullPageRules(stored.fullPageRules)
+    fullPageRules: mergeFullPageRules(stored.fullPageRules),
+    siteScrollRegions: stored.siteScrollRegions ?? {}
   }
 }
 
@@ -166,7 +187,8 @@ export async function setSettings(patch: Partial<AppSettings>): Promise<void> {
     ...patch,
     fullPageRules: patch.fullPageRules
       ? mergeFullPageRules({ ...current.fullPageRules, ...patch.fullPageRules })
-      : current.fullPageRules
+      : current.fullPageRules,
+    siteScrollRegions: patch.siteScrollRegions ?? current.siteScrollRegions
   }
   await chrome.storage.sync.set({ [KEY]: next })
 }
@@ -184,7 +206,8 @@ export function onSettingsChanged(
     cb({
       ...DEFAULT_SETTINGS,
       ...stored,
-      fullPageRules: mergeFullPageRules(stored.fullPageRules)
+      fullPageRules: mergeFullPageRules(stored.fullPageRules),
+      siteScrollRegions: stored.siteScrollRegions ?? {}
     })
   }
   chrome.storage.onChanged.addListener(listener)

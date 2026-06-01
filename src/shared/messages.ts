@@ -10,6 +10,10 @@ export const MessageType = {
   CAPTURE_SELECTION: "capture/selection",
   CAPTURE_DELAYED: "capture/delayed",
   CAPTURE_DESKTOP: "capture/desktop",
+  /** 选择并记忆当前站点的滚动区域 */
+  SELECT_SCROLL_REGION: "scrollRegion/select",
+  /** 清除当前站点记忆的滚动区域 */
+  CLEAR_SCROLL_REGION: "scrollRegion/clear",
   /** 中转窗口拿到屏幕截图 dataUrl 后，请求 background 下载 */
   DOWNLOAD_DESKTOP_IMAGE: "download/desktopImage",
   /** 中转窗口请求 background 把自己移到屏幕外（不能用 minimize，会冻结 JS） */
@@ -61,6 +65,15 @@ export interface CaptureVisibleRequest {
 export interface CaptureFullPageRequest {
   type: typeof MessageType.CAPTURE_FULL_PAGE
   payload?: ImageOptions
+}
+
+/* ---------- 滚动区域选择 ---------- */
+export interface SelectScrollRegionRequest {
+  type: typeof MessageType.SELECT_SCROLL_REGION
+}
+
+export interface ClearScrollRegionRequest {
+  type: typeof MessageType.CLEAR_SCROLL_REGION
 }
 
 /* ---------- 选区 ---------- */
@@ -165,6 +178,8 @@ export interface CaptureResponse {
 export type ExtensionRequest =
   | CaptureVisibleRequest
   | CaptureFullPageRequest
+  | SelectScrollRegionRequest
+  | ClearScrollRegionRequest
   | CaptureSelectionRequest
   | CaptureDelayedRequest
   | CaptureDesktopRequest
