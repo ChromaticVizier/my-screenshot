@@ -229,6 +229,14 @@ const RULE_GROUPS: Array<{
         label: "滚动容器语义正则",
         hint: "按 id/class 字符串匹配，命中会提高主体滚动容器评分。",
         control: "text"
+      },
+      {
+        key: "scrollerBottomSafetyPx",
+        label: "滚动容器底部安全裕量 (px)",
+        hint: "仅内部滚动容器模式下从底部多裁掉的像素，规避虚拟列表渲染溢出 / 邻近输入框 box-shadow 上溢导致的周期性白底条。代价是长图末尾会有等高的小空白。设为 0 关闭。",
+        min: 0,
+        max: 100,
+        step: 1
       }
     ]
   },

@@ -239,6 +239,23 @@ export function preparePage(
   }
 
   const scrollerRect = scrollerEl?.getBoundingClientRect()
+
+  // 内部滚动容器模式下,从 scroller 高度里扣掉一个底部安全裕量。
+  //
+  // 现实问题：vue-recycle-scroller 等虚拟列表在 chrome 合成层下,
+  // 内部 absolute/transform item 的渲染可能超出 scroller 自身 overflow:hidden
+  // 边界(getBoundingClientRect 报告的 bottom 比真实视觉裁切线更下)。
+  // 同时 SPA 里 scroller 紧邻输入框/状态栏,box-shadow 会从相邻元素向上溢出几像素。
+  //
+  // 在 IM/聊天类 SPA 长截图时,这两种溢出会让每帧底部出现一条白底圆角条,
+  // 拼接后表现为周期性遮挡文字。
+  //
+  // 直接从底部裁掉一个常数像素裕量即可避免,代价是长图末尾会出现等高的小空白条
+  // (远比"周期性遮挡正文"轻),且仅影响 scroller 模式,普通整页截图(window 滚动)
+  // 不受影响。具体值由 rules.scrollerBottomSafetyPx 提供,设为 0 即关闭该裕量。
+  const scrollerSafetyPx = scrollerEl
+    ? Math.max(0, rules?.scrollerBottomSafetyPx ?? 20)
+    : 0
   const snapshot: PreparePageSnapshot = {
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
@@ -251,7 +268,11 @@ export function preparePage(
       ? Math.min(scrollerRect.width, html.clientWidth - Math.max(0, scrollerRect.left))
       : html.clientWidth,
     scrollerViewportHeight: scrollerRect
-      ? Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top))
+      ? Math.max(
+          1,
+          Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top)) -
+            scrollerSafetyPx
+        )
       : html.clientHeight
   }
 

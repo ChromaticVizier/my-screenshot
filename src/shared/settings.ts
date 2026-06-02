@@ -76,6 +76,13 @@ export interface FullPageRuleSet {
   /** 识别候选容器的 id/class 正则 */
   scrollContainerRegex: string
 
+  /** 内部滚动容器底部安全裕量（px）。仅在选用内部滚动容器时生效，
+   *  普通整页（window 滚动）不受影响。
+   *  适配 vue-recycle-scroller 等虚拟列表内部 item 渲染溢出 overflow:hidden 边界、
+   *  以及紧邻 scroller 的输入框/工具栏 box-shadow 上溢导致每屏底部多切一条白底
+   *  的问题。代价是长图末尾会有等高的小空白条。 */
+  scrollerBottomSafetyPx: number
+
   /* ---- 8. 模式开关 ---- */
   /** 兜底：剩余跟随视口元素是否一律隐藏（关闭后只隐藏明确命中浮层规则的） */
   hideAllFixedFallback: boolean
@@ -148,6 +155,8 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
   scrollContainerSemanticWeight: 0.35,
   scrollContainerRegex:
     "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
+
+  scrollerBottomSafetyPx: 20,
 
   hideAllFixedFallback: true
 }
