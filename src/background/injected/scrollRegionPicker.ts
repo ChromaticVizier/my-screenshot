@@ -2,6 +2,9 @@
  * 手动选择整页截图的滚动区域。
  *
  * 该函数会被 chrome.scripting.executeScript 注入页面执行，必须自包含。
+ *
+ * 多 frame 场景: 上层先用 framePicker 让用户选好 frame,这里只在选定 frame 内
+ * 单独运行,无需跨 frame 协调。
  */
 export interface PickedScrollRegion {
   selector: string
@@ -12,6 +15,8 @@ export interface PickedScrollRegion {
   rect: { top: number; left: number; width: number; height: number }
   scrollHeight: number
   clientHeight: number
+  /** 选取时所在 frame 的 location.href;background 用它定位到对应 frameId */
+  frameUrl: string
 }
 
 export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
@@ -33,7 +38,11 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
           // ignore
         }
       })
-      root.remove()
+      try {
+        root.remove()
+      } catch {
+        // root 可能还没建好(early return 路径),忽略
+      }
       resolve(value)
     }
 
@@ -227,7 +236,8 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
           height: rect.height
         },
         scrollHeight: current.scrollHeight,
-        clientHeight: current.clientHeight
+        clientHeight: current.clientHeight,
+        frameUrl: location.href
       })
     }
     const onKey = (e: KeyboardEvent) => {
