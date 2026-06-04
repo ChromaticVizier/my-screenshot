@@ -16,6 +16,8 @@ import {
   flattenOversizedModals,
   freezeFlattenedModals,
   hideFixedElements,
+  kickScrollListeners,
+  measureScrollMetrics,
   preparePage,
   rehideFixedElements,
   restoreFixedElements,
@@ -23,6 +25,7 @@ import {
   restorePage,
   scrollToY,
   unfreezeFlattenedModals,
+  waitForDynamicContent,
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
@@ -281,6 +284,13 @@ export async function handleCaptureFullPage(
       let targetY = firstScrollY + stepHeight
       // 上一轮已经拍过的 scrollY（首帧），用于检测「无法再滚」
       let prevScrollY = firstScrollY
+      // 连续无法推进的次数：动态加载 / 虚拟列表页面经常出现
+      // "看似到底但内容还在异步加载"的瞬态。单次未推进就退出会丢后续内容，
+      // 改为连续 N 次 scrollY 不变 + scrollHeight 不变才退出。
+      let stallCount = 0
+      const MAX_STALL = 4
+      // 动态内容稳定等待上限。
+      const DYNAMIC_WAIT_MS = 1500
 
       while (true) {
         // 滚到目标位置（可能因为页面底部不足而被夹到 maxScrollY）
@@ -291,11 +301,40 @@ export async function handleCaptureFullPage(
         })
         const scrollY = actualY ?? targetY
 
-        // 滚动后留一帧时间让浏览器完成 layout/paint
-        await sleep(120)
+        // 4.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
+        let measuredHeight = totalHeight
+        try {
+          const [{ result: waitResult }] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: waitForDynamicContent,
+            args: [DYNAMIC_WAIT_MS]
+          })
+          if (waitResult && typeof waitResult.scrollHeight === "number") {
+            measuredHeight = waitResult.scrollHeight
+          }
+        } catch {
+          await sleep(120)
+        }
 
-        // 补隐藏 SPA（React/Vue）滚动回调里重新挂载的顶栏/侧栏 DOM。
-        // 旧节点已被 MARK，函数内部幂等跳过；仅对新增 fixed/sticky 节点生效。
+        // 4.2) 重新读 scrollHeight：动态加载页 totalHeight 会持续增长
+        try {
+          const [{ result: metricsNow }] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: measureScrollMetrics
+          })
+          if (metricsNow && metricsNow.scrollHeight > measuredHeight) {
+            measuredHeight = metricsNow.scrollHeight
+          }
+        } catch {
+          /* 忽略 */
+        }
+
+        if (measuredHeight > totalHeight) {
+          totalHeight = measuredHeight
+          effectiveHeight = Math.max(effectiveHeight, totalHeight)
+        }
+
+        // 补隐藏 SPA 滚动回调里重新挂载的顶栏/侧栏
         try {
           await chrome.scripting.executeScript({
             target: { tabId },
@@ -303,29 +342,47 @@ export async function handleCaptureFullPage(
             args: [fullPageRules]
           })
         } catch {
-          /* 隐藏失败不致命，继续截图 */
+          /* 不致命 */
         }
 
         const dataUrl = await safeCaptureVisibleTab(tab.windowId, {
-          format: "png" // 中间帧统一用 png 无损，最后再按目标格式编码
+          format: "png"
         })
         if (!dataUrl) throw new Error("截图失败：返回数据为空")
 
         const bitmap = await dataUrlToBitmap(dataUrl)
         slices.push(makeSlice(bitmap, scrollY))
 
-        // 终止条件 1：页面无法再滚（实际 scrollY 与上一轮相同）
-        // 这同时覆盖了：短页面无法滚动、totalHeight 高估、动态加载未触发等情况
+        // 终止条件 1：连续 MAX_STALL 轮无法再滚 → 真到底
         if (scrollY === prevScrollY) {
-          // 兜底：仍取已扩展的 totalHeight / effectiveHeight 较大值。
-          // 摊平弹窗时已通过 spacer 撑高文档，正常会先命中条件 2；
-          // 此处用 max 确保即使 spacer 失效，弹窗 maxBottom 也不会被回退覆盖。
-          effectiveHeight = Math.max(
-            scrollY + stepHeight,
-            totalHeight,
-            effectiveHeight
-          )
-          break
+          stallCount++
+
+          // stall 时主动派发滚动 / wheel 事件，戳醒只监听 wheel 的懒加载逻辑
+          // （某些站如知乎 / 网易系是这么实现 infinite scroll 的）
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              func: kickScrollListeners,
+              args: [stepHeight]
+            })
+          } catch {
+            /* 忽略 */
+          }
+          // 给页面一点时间继续加载
+          await sleep(600)
+
+          if (stallCount >= MAX_STALL) {
+            effectiveHeight = Math.max(
+              scrollY + stepHeight,
+              totalHeight,
+              effectiveHeight
+            )
+            break
+          }
+          targetY = scrollY + stepHeight
+          continue
+        } else {
+          stallCount = 0
         }
 
         // 终止条件 2：当前可视区已到达页面底部
@@ -335,9 +392,9 @@ export async function handleCaptureFullPage(
         }
 
         prevScrollY = scrollY
-        // 下一目标位置：步进一屏，但若下一步会超出页面，则改为对齐底部
-        const nextY = scrollY + stepHeight
-        targetY = Math.min(nextY, totalHeight - stepHeight)
+        // 下一目标：步进一屏；不再用陈旧 totalHeight 强制夹住
+        // （totalHeight 在动态页会持续增长，夹下来会让 targetY 倒退）
+        targetY = scrollY + stepHeight
       }
     }
 
