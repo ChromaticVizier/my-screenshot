@@ -308,6 +308,164 @@ export function preparePage(
 }
 
 /**
+ * 读取主滚动容器（或 window）当前的 scrollHeight / clientHeight。
+ *
+ * 动态加载页面（懒加载图片、虚拟列表、IntersectionObserver 触发的 fetch）在
+ * 滚动过程中 scrollHeight 持续增长，preparePage 抓到的初始 totalHeight 会偏小，
+ * 导致循环过早判定"已到底"。
+ *
+ * 调用方在每次截完一帧后重新调用此函数，把最新 scrollHeight 喂回循环上限。
+ */
+export function measureScrollMetrics(): {
+  scrollHeight: number
+  clientHeight: number
+  scrollTop: number
+} {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  if (scroller) {
+    return {
+      scrollHeight: Math.max(scroller.scrollHeight, scroller.clientHeight),
+      clientHeight: scroller.clientHeight,
+      scrollTop: scroller.scrollTop
+    }
+  }
+  const html = document.documentElement
+  const body = document.body
+  return {
+    scrollHeight: Math.max(
+      body.scrollHeight,
+      html.scrollHeight,
+      body.offsetHeight,
+      html.offsetHeight,
+      html.clientHeight
+    ),
+    clientHeight: html.clientHeight || window.innerHeight,
+    scrollTop: window.scrollY
+  }
+}
+
+/**
+ * 等待动态内容加载稳定。
+ *
+ * 在动态渲染 / DOM 回收页面（懒加载图片、IntersectionObserver、虚拟列表）里，
+ * 滚到新位置后内容不是立即出现的。固定 sleep 太短会拍到空白；太长又慢。
+ *
+ * 策略：
+ *  1. 轮询 scrollHeight + 视口内图片完成度，连续 STABLE_CHECKS 次结果一致即算稳定
+ *  2. 同时等待视口内 <img> 的 complete 标志（不阻塞，仅作为稳定判据之一）
+ *  3. 超过 maxWaitMs 强制返回，避免页面无限重排时永远不结束
+ *
+ * 返回最终 scrollHeight，便于调用方更新循环上限。
+ */
+export function waitForDynamicContent(maxWaitMs: number): Promise<{
+  scrollHeight: number
+  stable: boolean
+  iterations: number
+}> {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  const POLL_INTERVAL = 80
+  const STABLE_CHECKS = 3
+  const start = performance.now()
+
+  const measure = () => {
+    if (scroller) {
+      return Math.max(scroller.scrollHeight, scroller.clientHeight)
+    }
+    const html = document.documentElement
+    const body = document.body
+    return Math.max(
+      body.scrollHeight,
+      html.scrollHeight,
+      body.offsetHeight,
+      html.offsetHeight,
+      html.clientHeight
+    )
+  }
+
+  // 视口内 <img> 完成数：越多 image 还在加载，签名差异越大
+  const imageSignature = () => {
+    const vh = scroller ? scroller.clientHeight : window.innerHeight
+    const vw = scroller ? scroller.clientWidth : window.innerWidth
+    let total = 0
+    let complete = 0
+    document.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      const r = img.getBoundingClientRect()
+      if (r.bottom < 0 || r.top > vh) return
+      if (r.right < 0 || r.left > vw) return
+      total++
+      if (img.complete && img.naturalWidth > 0) complete++
+    })
+    return `${total}/${complete}`
+  }
+
+  return new Promise((resolve) => {
+    let lastH = measure()
+    let lastImg = imageSignature()
+    let stableCount = 0
+    let iters = 0
+
+    const tick = () => {
+      iters++
+      const h = measure()
+      const img = imageSignature()
+      if (h === lastH && img === lastImg) {
+        stableCount++
+      } else {
+        stableCount = 0
+        lastH = h
+        lastImg = img
+      }
+      if (stableCount >= STABLE_CHECKS) {
+        resolve({ scrollHeight: h, stable: true, iterations: iters })
+        return
+      }
+      if (performance.now() - start >= maxWaitMs) {
+        resolve({ scrollHeight: h, stable: false, iterations: iters })
+        return
+      }
+      setTimeout(tick, POLL_INTERVAL)
+    }
+    setTimeout(tick, POLL_INTERVAL)
+  })
+}
+
+/**
+ * 戳醒只监听 wheel/scroll 事件的懒加载逻辑。
+ * 直接修改 scrollTop 不会冒泡 wheel 事件；某些 infinite-scroll 站监听 wheel
+ * 触发下一页加载。stall 时调用此函数派发一组事件试图唤醒它们。
+ */
+export function kickScrollListeners(stepHeight: number): void {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  const target: EventTarget = scroller ?? window
+  try {
+    target.dispatchEvent(new Event("scroll", { bubbles: true }))
+  } catch {
+    /* 忽略 */
+  }
+  try {
+    const wheel = new WheelEvent("wheel", {
+      deltaY: Math.max(100, stepHeight),
+      bubbles: true,
+      cancelable: true
+    })
+    target.dispatchEvent(wheel)
+  } catch {
+    /* 忽略 */
+  }
+  // 强制一次 layout，让 IntersectionObserver 重新评估
+  void document.documentElement.offsetHeight
+}
+
+/**
  * 滚动到指定 Y 位置（同步：滚动后立即返回当前实际 scrollY）。
  * 若 preparePage 检测到主滚动容器在某个内部元素上，则用 element.scrollTo 替代
  * window.scrollTo，并返回 element.scrollTop。
@@ -397,6 +555,34 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
   })
 
   // 2) 所有 fixed/sticky 元素
+  const html = document.documentElement
+  const vw = html.clientWidth || window.innerWidth
+  const vh = html.clientHeight || window.innerHeight
+  const docHeight = Math.max(
+    document.body.scrollHeight,
+    html.scrollHeight,
+    vh
+  )
+  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
+  const contentTextThreshold = rules.contentText ?? 500
+  const contentRatio = rules.contentRatio ?? 0.45
+
+  // 大块 fixed 容器豁免：很多门户/SPA 把主内容包在 position:fixed 的全屏 wrapper 里
+  // （body 设 overflow:hidden，靠内部滚动）。如果一律 display:none 整个页面会变白。
+  // 判别：占视口面积 ≥ viewportSizedRatio 且（文本量大 / 子树高度占文档比大 / 含主滚动容器后代）
+  const isContentLikeFixed = (el: HTMLElement): boolean => {
+    const rect = el.getBoundingClientRect()
+    const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
+    if (areaRatio < viewportSizedRatio) return false
+    // 含主滚动容器后代 → 必然是内容容器祖先
+    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    const textLen = (el.innerText || "").trim().length
+    if (textLen >= contentTextThreshold) return true
+    const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
+    if (subtreeRatio >= contentRatio) return true
+    return false
+  }
+
   walk(document.documentElement).forEach((el) => {
     let cs: CSSStyleDeclaration
     try {
@@ -407,6 +593,8 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     // 主滚动容器本身不能隐藏，否则内部滚动截图会直接白屏/只剩背景。
     if (el.getAttribute("data-my-screenshot-scroller") === "1") return
     if (cs.position === "fixed" || cs.position === "sticky") {
+      // 大块内容容器豁免
+      if (isContentLikeFixed(el)) return
       hide(el)
     }
   })
@@ -477,6 +665,29 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
   })
 
   // 2) 当前所有 fixed/sticky 元素（含 open shadowRoot 子树）
+  const html = document.documentElement
+  const vw = html.clientWidth || window.innerWidth
+  const vh = html.clientHeight || window.innerHeight
+  const docHeight = Math.max(
+    document.body.scrollHeight,
+    html.scrollHeight,
+    vh
+  )
+  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
+  const contentTextThreshold = rules.contentText ?? 500
+  const contentRatio = rules.contentRatio ?? 0.45
+  const isContentLikeFixed = (el: HTMLElement): boolean => {
+    const rect = el.getBoundingClientRect()
+    const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
+    if (areaRatio < viewportSizedRatio) return false
+    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    const textLen = (el.innerText || "").trim().length
+    if (textLen >= contentTextThreshold) return true
+    const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
+    if (subtreeRatio >= contentRatio) return true
+    return false
+  }
+
   const visit = (root: ParentNode) => {
     root.querySelectorAll<HTMLElement>("*").forEach((el) => {
       let cs: CSSStyleDeclaration
@@ -488,6 +699,7 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
       // 主滚动容器本身不能隐藏，否则内部滚动截图会直接白屏/只剩背景。
       if (el.getAttribute("data-my-screenshot-scroller") === "1") return
       if (cs.position === "fixed" || cs.position === "sticky") {
+        if (isContentLikeFixed(el)) return
         hide(el)
       }
       if (el.shadowRoot) visit(el.shadowRoot)
