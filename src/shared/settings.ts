@@ -95,10 +95,6 @@ export interface SiteScrollRegionRule {
   hostname: string
   /** 记录时间 */
   createdAt: number
-  /** 选取时所在 frame 的 location.href。
-   *  undefined / 与 hostname 同源主 frame 一致时表示主 frame；
-   *  否则截图流程会用它定位到对应的子 frame 再注入逻辑。 */
-  frameUrl?: string
   /** 调试信息 */
   label?: string
   tag?: string
