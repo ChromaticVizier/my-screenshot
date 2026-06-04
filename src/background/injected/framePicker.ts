@@ -291,3 +291,153 @@ export function listFramesInPage(): Array<{
   }
   return result
 }
+
+/**
+ * 截图时隐藏所有"非滚动 frame"的 iframe 元素。
+ *
+ * 当用户已经手动选定滚动区在某个子 frame 内,主 frame / 中间 frame / 兄弟
+ * iframe 里的内容都属于干扰元素(典型: 流程图编辑器、视频播放器、悬浮工具栏
+ * 用 iframe 实现)。这些 iframe 在 captureVisibleTab 拍下来的 png 中会盖在
+ * 文档正文上,首屏尤其明显。
+ *
+ * 实现:
+ *  - 注入到主 frame,递归 same-origin 文档树寻找 iframe 元素
+ *  - 命中 keepFrameUrl 的 iframe 自身保留(不隐藏),但**它的祖先 iframe
+ *    一律保留**(因为隐藏祖先会把目标 iframe 也带走 → 截图区为空)
+ *  - 其余所有 iframe 用 display:none(让父容器回流,避免占位空白)
+ *
+ * 隐藏列表挂在 window.__myScreenshotHiddenIframes 上,restoreOtherIframesInPage
+ * 一并恢复。
+ *
+ * 该函数仅在 scroller 在子 frame 内时由 background 调用;主 frame scroller
+ * 的场景行为不变,iframe 保留。
+ */
+export function hideOtherIframesInPage(keepFrameUrl: string): {
+  hiddenCount: number
+  keepCount: number
+  visited: Array<{ src: string; loc: string | null; matchedKeep: boolean }>
+} {
+  const STORE = "__myScreenshotHiddenIframes"
+  const MARK = "__myScreenshotIframeHidden"
+
+  const matches = (a: string, b: string) => {
+    if (a === b) return true
+    try {
+      const ua = new URL(a)
+      const ub = new URL(b)
+      return (
+        ua.origin === ub.origin &&
+        ua.pathname.split("/")[1] === ub.pathname.split("/")[1]
+      )
+    } catch {
+      return false
+    }
+  }
+
+  type Rec = { el: HTMLIFrameElement; display: string }
+  const list: Rec[] = []
+  const visited: Array<{
+    src: string
+    loc: string | null
+    matchedKeep: boolean
+  }> = []
+
+  // 第一步:找出 keepFrameUrl 对应的 iframe 元素及其所有祖先 iframe(不能隐藏)
+  const keepSet = new Set<HTMLIFrameElement>()
+  const visitForKeep = (doc: Document, ancestors: HTMLIFrameElement[]) => {
+    let iframes: HTMLIFrameElement[]
+    try {
+      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+    } catch {
+      return
+    }
+    iframes.forEach((f) => {
+      let nestedDoc: Document | null = null
+      try {
+        nestedDoc = f.contentDocument
+      } catch {
+        nestedDoc = null
+      }
+      const candidates: string[] = []
+      const loc = nestedDoc?.location?.href ?? null
+      if (loc) candidates.push(loc)
+      if (f.src) candidates.push(f.src)
+      const matched = candidates.some((u) => matches(u, keepFrameUrl))
+      visited.push({ src: f.src, loc, matchedKeep: matched })
+      if (matched) {
+        // 命中:保留自己 + 所有祖先 iframe
+        keepSet.add(f)
+        ancestors.forEach((a) => keepSet.add(a))
+      }
+      if (nestedDoc) {
+        visitForKeep(nestedDoc, [...ancestors, f])
+      }
+    })
+  }
+
+  // 第二步:把不在 keepSet 中的 iframe 全部 display:none
+  const visitForHide = (doc: Document) => {
+    let iframes: HTMLIFrameElement[]
+    try {
+      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+    } catch {
+      return
+    }
+    iframes.forEach((f) => {
+      if (keepSet.has(f)) {
+        // keep:不隐藏自身,但仍然递归处理子树(可能有兄弟干扰 iframe 嵌在内)
+        let nestedDoc: Document | null = null
+        try {
+          nestedDoc = f.contentDocument
+        } catch {
+          nestedDoc = null
+        }
+        if (nestedDoc) visitForHide(nestedDoc)
+        return
+      }
+      // 已被前一轮标记
+      const ds = f.dataset as Record<string, string | undefined>
+      if (ds[MARK]) return
+      list.push({ el: f, display: f.style.display })
+      ds[MARK] = "1"
+      f.style.setProperty("display", "none", "important")
+    })
+  }
+
+  try {
+    visitForKeep(document, [])
+    visitForHide(document)
+  } catch {
+    // 任何 DOM 异常都可能让流程不一致,但已经写入的 list 仍可恢复
+  }
+
+  ;(window as unknown as Record<string, unknown>)[STORE] = list
+  return {
+    hiddenCount: list.length,
+    keepCount: keepSet.size,
+    visited
+  }
+}
+
+/**
+ * 恢复 hideOtherIframesInPage 隐藏的 iframe。注入到主 frame。
+ */
+export function restoreOtherIframesInPage(): void {
+  const STORE = "__myScreenshotHiddenIframes"
+  const MARK = "__myScreenshotIframeHidden"
+  const store = (window as unknown as Record<string, unknown>)[STORE]
+  if (!Array.isArray(store)) return
+  type Rec = { el: HTMLIFrameElement; display: string }
+  ;(store as Rec[]).forEach(({ el, display }) => {
+    try {
+      el.style.removeProperty("display")
+      if (display) el.style.display = display
+      const ds = el.dataset as Record<string, string | undefined>
+      delete ds[MARK]
+    } catch {
+      // ignore
+    }
+  })
+  delete (window as unknown as Record<string, unknown>)[STORE]
+}
+

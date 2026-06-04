@@ -11,8 +11,10 @@
  */
 import { showCountdown } from "~src/background/injected/countdown"
 import {
+  hideOtherIframesInPage,
   listFramesInPage,
   pickFrame,
+  restoreOtherIframesInPage,
   type FramePickerOption
 } from "~src/background/injected/framePicker"
 import { pickScrollRegion } from "~src/background/injected/scrollRegionPicker"
@@ -307,8 +309,51 @@ export async function handleCaptureFullPage(
   let snapshot: PreparePageSnapshot | null = null
   let hidingApplied = false
   let flattenApplied = false
+  let otherIframesHidden = false
 
   try {
+    // 0) 当 scroller 在子 frame 内时,先在主 frame 把所有"非滚动 frame"的 iframe
+    //    隐藏 (display:none)。否则首屏图里会闯入流程图 / 视频 / 其它 iframe 内容,
+    //    遮挡正文。主 frame scroller(siteRule.frameUrl 为空)的场景行为不变。
+    if (siteRule?.frameUrl) {
+      try {
+        const [{ result: hideRes }] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: hideOtherIframesInPage,
+          args: [siteRule.frameUrl]
+        })
+        console.log("[fullPage] hideOtherIframesInPage:", {
+          keepFrameUrl: siteRule.frameUrl,
+          ...hideRes
+        })
+        if (hideRes && hideRes.hiddenCount > 0 && hideRes.keepCount > 0) {
+          // 仅当 keep 命中至少一个 iframe(目标 frame)+ 至少隐了一个时才标记
+          // 已应用,避免 "全部 iframe 都被隐了" 这种异常情况下还试图恢复
+          otherIframesHidden = true
+          // 给一帧时间让浏览器完成 layout(display:none 触发回流)
+          await sleep(120)
+        } else if (hideRes && hideRes.keepCount === 0) {
+          // 没找到目标 frame —— 不要乱隐藏,立即恢复(防御已 hide 的元素)
+          console.warn(
+            "[fullPage] hideOtherIframesInPage: 未匹配到 keep frame, 跳过隐藏"
+          )
+          if (hideRes.hiddenCount > 0) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId },
+                func: restoreOtherIframesInPage
+              })
+            } catch {
+              /* 忽略 */
+            }
+          }
+        }
+      } catch (e) {
+        // 失败仅意味着首帧仍含其它 iframe,不致命
+        console.warn("[fullPage] hideOtherIframesInPage failed:", e)
+      }
+    }
+
     // 1) 准备：锁定滚动条 + 拿页面度量
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
       target: scrollerTarget,
@@ -534,6 +579,19 @@ export async function handleCaptureFullPage(
       }
     }
 
+    // 5.2) 恢复被隐藏的其它 iframe(注入主 frame)
+    if (otherIframesHidden) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: restoreOtherIframesInPage
+        })
+        otherIframesHidden = false
+      } catch {
+        /* tab 可能关闭，下面 finally 还会兜底 */
+      }
+    }
+
     // 6) 拼接
     const blob = await stitchToBlob({
       slices,
@@ -594,6 +652,17 @@ export async function handleCaptureFullPage(
         })
       } catch {
         /* 标签可能已关闭，忽略 */
+      }
+    }
+    // 兜底恢复其它 iframe
+    if (otherIframesHidden) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          func: restoreOtherIframesInPage
+        })
+      } catch {
+        /* 忽略 */
       }
     }
   }
