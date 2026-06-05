@@ -11,6 +11,9 @@
  * 和跨进程拷贝。
  */
 import { buildScreenshotFilename } from "~src/shared/filename"
+import { getSettings } from "~src/shared/settings"
+
+import { setPendingImage } from "./pendingImage"
 
 export interface DownloadImageOptions {
   /** 图片二进制 */
@@ -28,6 +31,14 @@ export async function downloadImageBlob(
   const { blob, tabTitle, ext } = options
   const dataUrl = await blobToDataUrl(blob)
   const filename = buildScreenshotFilename({ tabTitle, ext })
+
+  const settings = await getSettings()
+  if (settings.cropBeforeDownload) {
+    setPendingImage({ dataUrl, filename })
+    const editorUrl = chrome.runtime.getURL("popup.html") + "?action=editor"
+    await chrome.tabs.create({ url: editorUrl })
+    return -1
+  }
 
   return chrome.downloads.download({
     url: dataUrl,
