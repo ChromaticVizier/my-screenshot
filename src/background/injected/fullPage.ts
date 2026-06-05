@@ -291,7 +291,16 @@ export function preparePage(
   const captureX = snapshot.scrollerViewportLeft
   const captureY = snapshot.scrollerViewportTop
   const captureWidth = snapshot.scrollerViewportWidth
-  const captureHeight = snapshot.scrollerViewportHeight
+  // captureHeight 与 stepHeight (viewportHeight) 必须一致：
+  //   slice 源高度 = 滚动步长，长图衔接处才不会出现白条。
+  //   原本的 scrollerBottomSafetyPx 想避开底部 box-shadow，但任何 slice
+  //   矮于步长都会让两帧之间漏 safety 像素 → 长图缝隙。已废弃。
+  const captureHeight = scrollerRect
+    ? Math.max(
+        1,
+        Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top))
+      )
+    : html.clientHeight
 
   return {
     totalHeight,
@@ -600,6 +609,289 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
   })
 
   // 挂到 window 上方便 restoreFixedElements 取回；类型用 unknown 兼容
+  ;(window as unknown as Record<string, unknown>)[STORE] = list
+  return list.length
+}
+
+/**
+ * scroller 在子 frame 时主 frame 的清场逻辑（更激进的 hideFixedElementsExcludeFrame）。
+ *
+ * 背景：用户在子 iframe 里 picker 选了 scroller。主 frame 自身可能不滚动
+ *  （body 100vh），它上面的顶栏 / 侧栏 / 面包屑等元素 computed position 是
+ *  static/relative，并非 fixed/sticky——hideFixedElements 抓不到，每帧截图里
+ *  这些元素都贴在原位重复出现。
+ *
+ * 思路：从 documentElement 出发，定位承载目标 frame 的 iframe，把"通往该
+ * iframe 的祖先链"作为唯一可见路径；祖先链每一层上**不在链上的兄弟节点全部
+ * display:none**。这样主 frame 上只剩下"装着目标 iframe 的管道"。
+ *
+ * 复用 hideFixedElements 的 STORE / MARK，restoreFixedElements 一并恢复。
+ */
+export function hideOutsideFrameChain(keepFrameUrl: string): number {
+  const MARK = "__myScreenshotHidden"
+  const STORE = "__myScreenshotHiddenList"
+
+  const matches = (a: string, b: string): boolean => {
+    if (a === b) return true
+    try {
+      const ua = new URL(a)
+      const ub = new URL(b)
+      return (
+        ua.origin === ub.origin &&
+        ua.pathname.split("/")[1] === ub.pathname.split("/")[1]
+      )
+    } catch {
+      return false
+    }
+  }
+
+  // 递归同源文档树定位目标 iframe
+  const findIframe = (doc: Document): HTMLIFrameElement | null => {
+    let iframes: HTMLIFrameElement[]
+    try {
+      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+    } catch {
+      return null
+    }
+    for (const f of iframes) {
+      const candidates: string[] = []
+      let nestedDoc: Document | null = null
+      try {
+        nestedDoc = f.contentDocument
+      } catch {
+        nestedDoc = null
+      }
+      if (nestedDoc?.location?.href) candidates.push(nestedDoc.location.href)
+      if (f.src) candidates.push(f.src)
+      if (candidates.some((u) => matches(u, keepFrameUrl))) return f
+      if (nestedDoc) {
+        const nested = findIframe(nestedDoc)
+        if (nested) return f
+      }
+    }
+    return null
+  }
+
+  let targetIframe: HTMLIFrameElement | null = null
+  try {
+    targetIframe = findIframe(document)
+  } catch {
+    return 0
+  }
+  if (!targetIframe) return 0
+
+  // 收集祖先链
+  const chain = new Set<HTMLElement>()
+  let cur: HTMLElement | null = targetIframe
+  while (cur && cur !== document.documentElement) {
+    chain.add(cur)
+    cur = cur.parentElement
+  }
+
+  // 沿用 hideFixedElements 的 STORE
+  const existing = (window as unknown as Record<string, unknown>)[STORE]
+  const list: { el: HTMLElement; originalDisplay: string }[] = Array.isArray(
+    existing
+  )
+    ? (existing as { el: HTMLElement; originalDisplay: string }[])
+    : []
+  const hide = (el: HTMLElement) => {
+    const ds = el.dataset as Record<string, string | undefined>
+    if (MARK in ds) return
+    ;(el.dataset as Record<string, string>)[MARK] = "1"
+    list.push({ el, originalDisplay: el.style.display })
+    el.style.display = "none"
+  }
+
+  // 从根开始：祖先链上每个节点，把它的"非链上兄弟"全部 hide
+  // 注意：document.documentElement 是顶层，不能 hide 它本身；从它的子节点开始处理。
+  let cursor: HTMLElement | null = document.documentElement
+  while (cursor) {
+    const children = Array.from(cursor.children) as HTMLElement[]
+    let nextOnChain: HTMLElement | null = null
+    for (const child of children) {
+      if (chain.has(child)) {
+        nextOnChain = child
+      } else {
+        // body 之外的特殊节点（如 head / script）不处理；它们 display:none
+        // 浏览器会忽略，但避免破坏页面 head。head/script/style 跳过即可。
+        if (
+          child.tagName === "HEAD" ||
+          child.tagName === "SCRIPT" ||
+          child.tagName === "STYLE" ||
+          child.tagName === "META" ||
+          child.tagName === "LINK" ||
+          child.tagName === "TITLE"
+        ) {
+          continue
+        }
+        hide(child)
+      }
+    }
+    cursor = nextOnChain
+  }
+
+  ;(window as unknown as Record<string, unknown>)[STORE] = list
+  return list.length
+}
+
+
+/**
+ * 隐藏主 frame 上的 fixed/sticky 元素（含跨域 iframe 父级页面的顶栏 / 侧栏）。
+ *
+ * 调用时机：scroller 在子 iframe 内时——主 frame 上的 fixed 顶栏不会被
+ * scroller frame 内的 hideFixedElements 扫到，每帧都会重复出现。
+ * 解决方案：在主 frame 单独跑一份隐藏逻辑，但要保留承载 scroller 的 iframe 链。
+ *
+ * 输入 keepFrameUrl: scroller 所在 frame 的 location.href，递归 same-origin
+ * 文档树定位 iframe 元素，把它和它的祖先链全部加入 keepSet 不隐藏，
+ * 保证 iframe 容器不被一起 display:none。
+ *
+ * 复用 hideFixedElements 的 STORE / MARK，restoreFixedElements 一并恢复。
+ */
+export function hideFixedElementsExcludeFrame(
+  rules: FullPageRuleSet,
+  keepFrameUrl: string
+): number {
+  if (!rules || rules.enabled === false) return 0
+
+  const MARK = "__myScreenshotHidden"
+  const STORE = "__myScreenshotHiddenList"
+
+  // 找到承载目标 frame 的 iframe 元素 + 收集祖先链作为 keepSet
+  const keepSet = new Set<HTMLElement>()
+  const matches = (a: string, b: string): boolean => {
+    if (a === b) return true
+    try {
+      const ua = new URL(a)
+      const ub = new URL(b)
+      return (
+        ua.origin === ub.origin &&
+        ua.pathname.split("/")[1] === ub.pathname.split("/")[1]
+      )
+    } catch {
+      return false
+    }
+  }
+  const visitForIframe = (doc: Document): HTMLIFrameElement | null => {
+    let iframes: HTMLIFrameElement[]
+    try {
+      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+    } catch {
+      return null
+    }
+    for (const f of iframes) {
+      const candidates: string[] = []
+      let nestedDoc: Document | null = null
+      try {
+        nestedDoc = f.contentDocument
+      } catch {
+        nestedDoc = null
+      }
+      if (nestedDoc?.location?.href) candidates.push(nestedDoc.location.href)
+      if (f.src) candidates.push(f.src)
+      if (candidates.some((u) => matches(u, keepFrameUrl))) return f
+      if (nestedDoc) {
+        const nested = visitForIframe(nestedDoc)
+        if (nested) return f // 把外层 iframe 加 keepSet 即可
+      }
+    }
+    return null
+  }
+  try {
+    const targetIframe = visitForIframe(document)
+    if (targetIframe) {
+      let cur: HTMLElement | null = targetIframe
+      while (cur && cur !== document.documentElement) {
+        keepSet.add(cur)
+        cur = cur.parentElement
+      }
+    }
+  } catch {
+    /* 跨域兜底，没找到也没事，下面 isContentLikeFixed 还有面积豁免 */
+  }
+
+  // 再叠加用户 customKeepSelectors
+  ;(rules.customKeepSelectors || []).forEach((sel) => {
+    if (!sel) return
+    try {
+      document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        let cur: HTMLElement | null = el
+        while (cur && cur !== document.documentElement) {
+          keepSet.add(cur)
+          cur = cur.parentElement
+        }
+      })
+    } catch {
+      /* 忽略 */
+    }
+  })
+
+  // 沿用 hideFixedElements 的 STORE，方便统一 restore
+  const existing = (window as unknown as Record<string, unknown>)[STORE]
+  const list: { el: HTMLElement; originalDisplay: string }[] = Array.isArray(
+    existing
+  )
+    ? (existing as { el: HTMLElement; originalDisplay: string }[])
+    : []
+  const hide = (el: HTMLElement) => {
+    if (keepSet.has(el)) return
+    const ds = el.dataset as Record<string, string | undefined>
+    if (MARK in ds) return
+    ;(el.dataset as Record<string, string>)[MARK] = "1"
+    list.push({ el, originalDisplay: el.style.display })
+    el.style.display = "none"
+  }
+
+  const html = document.documentElement
+  const vw = html.clientWidth || window.innerWidth
+  const vh = html.clientHeight || window.innerHeight
+  const docHeight = Math.max(
+    document.body.scrollHeight,
+    html.scrollHeight,
+    vh
+  )
+  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
+  const contentTextThreshold = rules.contentText ?? 500
+  const contentRatio = rules.contentRatio ?? 0.45
+  const isContentLikeFixed = (el: HTMLElement): boolean => {
+    const rect = el.getBoundingClientRect()
+    const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
+    if (areaRatio < viewportSizedRatio) return false
+    const textLen = (el.innerText || "").trim().length
+    if (textLen >= contentTextThreshold) return true
+    const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
+    if (subtreeRatio >= contentRatio) return true
+    return false
+  }
+
+  // 用户 customHideSelectors 在主 frame 也走一次
+  ;(rules.customHideSelectors || []).forEach((sel) => {
+    if (!sel) return
+    try {
+      document.querySelectorAll<HTMLElement>(sel).forEach(hide)
+    } catch {
+      /* 忽略 */
+    }
+  })
+
+  const visit = (root: ParentNode) => {
+    root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      let cs: CSSStyleDeclaration
+      try {
+        cs = getComputedStyle(el)
+      } catch {
+        return
+      }
+      if (cs.position === "fixed" || cs.position === "sticky") {
+        if (isContentLikeFixed(el)) return
+        hide(el)
+      }
+      if (el.shadowRoot) visit(el.shadowRoot)
+    })
+  }
+  visit(document.documentElement)
+
   ;(window as unknown as Record<string, unknown>)[STORE] = list
   return list.length
 }
@@ -1098,7 +1390,68 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
         return
       }
 
+      // 当前不可见的浮层不得被摊平：典型是 popo 文档"流程图编辑器"这类
+      // 非活动抽屉，作者通过 visibility/display/opacity/transform 隐藏在视口外。
+      // 摊平流程会强行写 display:block/visibility:visible/opacity:1/transform:none，
+      // 把这些抽屉显形并定位到正文头部，第一帧就被拍进长截图。
+      //
+      // 判定:
+      //   - display:none / visibility:hidden / opacity ≤ 0.01 → 不可见
+      //   - 自身或祖先链命中 transform 把整体挪出视口（rect.right ≤ 0 / rect.bottom
+      //     ≤ 0 / rect.left ≥ vw / rect.top ≥ vh）→ 不可见
+      //   - 祖先链有 display:none / visibility:hidden → 不可见
+      if (cs.display === "none" || cs.visibility === "hidden") {
+        if (el.shadowRoot) visit(el.shadowRoot)
+        return
+      }
+      const opacityNum = parseFloat(cs.opacity || "1")
+      if (!isNaN(opacityNum) && opacityNum <= 0.01) {
+        if (el.shadowRoot) visit(el.shadowRoot)
+        return
+      }
+      // 祖先链可见性检查
+      let ancestor: HTMLElement | null = el.parentElement
+      let ancestorHidden = false
+      while (ancestor && ancestor !== document.documentElement) {
+        let acs: CSSStyleDeclaration
+        try {
+          acs = getComputedStyle(ancestor)
+        } catch {
+          ancestor = ancestor.parentElement
+          continue
+        }
+        if (acs.display === "none" || acs.visibility === "hidden") {
+          ancestorHidden = true
+          break
+        }
+        const ao = parseFloat(acs.opacity || "1")
+        if (!isNaN(ao) && ao <= 0.01) {
+          ancestorHidden = true
+          break
+        }
+        ancestor = ancestor.parentElement
+      }
+      if (ancestorHidden) {
+        if (el.shadowRoot) visit(el.shadowRoot)
+        return
+      }
+
       const rect = el.getBoundingClientRect()
+
+      // 完全在视口外的浮层不摊平：常见手法是 transform: translateX(100%) 或
+      // 直接把 left/top 设到视口外，这类「非活动抽屉」不应被显形。
+      // 注意 oversize 检测里 rect.bottom > vh 是对外溢的合法情况（弹窗超出底部
+      // 一截），这里只过滤"完全在视口外"。
+      if (
+        rect.right <= 0 ||
+        rect.bottom <= 0 ||
+        rect.left >= vw ||
+        rect.top >= vh
+      ) {
+        if (el.shadowRoot) visit(el.shadowRoot)
+        return
+      }
+
       // oversize 判定：仅对「自身 fixed/sticky」要求超出首屏（避免误摊平
       // 占满视口的 SPA 主壳）。
       // 对「absolute-under-sticky」不要求 oversize：典型场景是 fixed 头部下挂的

@@ -2,6 +2,11 @@
  * 手动选择整页截图的滚动区域。
  *
  * 该函数会被 chrome.scripting.executeScript 注入页面执行，必须自包含。
+ *
+ * 多 frame 场景：上层为每个可注入 frame 都调用一次此函数，谁先 mousedown 谁
+ * 胜出。胜出 frame 自身正常返回 PickedScrollRegion；其它 frame 通过 window
+ * 上挂的 `__myScreenshotScrollRegionAbort` 标记被 background 调用 abort 函数
+ * 拆掉遮罩并 resolve(null)。
  */
 export interface PickedScrollRegion {
   selector: string
@@ -12,6 +17,21 @@ export interface PickedScrollRegion {
   rect: { top: number; left: number; width: number; height: number }
   scrollHeight: number
   clientHeight: number
+  /** 选取时所在 frame 的 location.href；background 用它定位 frameId */
+  frameUrl: string
+}
+
+/**
+ * 让正在等待用户点击的 picker 主动结束（resolve(null)）。
+ * background 会在某个 frame 已胜出后，向其它 frame 注入此函数清场。
+ */
+export function abortScrollRegionPicker(): void {
+  const w = window as unknown as { __myScreenshotScrollRegionAbort?: () => void }
+  try {
+    w.__myScreenshotScrollRegionAbort?.()
+  } catch {
+    /* ignore */
+  }
 }
 
 export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
@@ -26,6 +46,13 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
     const finish = (value: PickedScrollRegion | null) => {
       if (done) return
       done = true
+      try {
+        delete (window as unknown as Record<string, unknown>)[
+          "__myScreenshotScrollRegionAbort"
+        ]
+      } catch {
+        /* ignore */
+      }
       cleanupFns.forEach((fn) => {
         try {
           fn()
@@ -33,9 +60,19 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
           // ignore
         }
       })
-      root.remove()
+      try {
+        root.remove()
+      } catch {
+        // root 可能还没建好（early return 路径），忽略
+      }
       resolve(value)
     }
+
+    // 暴露给 background：其它 frame 胜出时通过 abortScrollRegionPicker 调用，
+    // 让本 frame 的 picker 安静退场。
+    ;(window as unknown as Record<string, unknown>)[
+      "__myScreenshotScrollRegionAbort"
+    ] = () => finish(null)
 
     const cssEscape = (value: string) => {
       const css = (window as unknown as { CSS?: { escape?: (v: string) => string } }).CSS
@@ -103,8 +140,9 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
       })
 
     if (candidates.length === 0) {
-      alert("当前页面没有发现可滚动区域")
-      resolve(null)
+      // 多 frame 模式下不弹 alert（每个 frame 都注入了 picker，没有候选的 frame
+      // 直接安静返回 null，让用户在另一个 frame 里框选）。
+      finish(null)
       return
     }
 
@@ -227,7 +265,8 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
           height: rect.height
         },
         scrollHeight: current.scrollHeight,
-        clientHeight: current.clientHeight
+        clientHeight: current.clientHeight,
+        frameUrl: location.href
       })
     }
     const onKey = (e: KeyboardEvent) => {
