@@ -26,6 +26,7 @@
   "manifest": {
     "permissions": [
       "activeTab",
+      "debugger",
       "downloads",
       "scripting",
       "storage",

@@ -534,6 +534,26 @@ function Options() {
             </span>
           </div>
         </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>长截图 CDP 模式</label>
+          <div className={styles.control}>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={settings.useCdpForFullPage}
+                onChange={(e) => update({ useCdpForFullPage: e.target.checked })}
+              />
+              <span>{settings.useCdpForFullPage ? "已启用" : "已关闭"}</span>
+            </label>
+            <span className={styles.hint}>
+              开启后"整个页面"使用 Chrome DevTools Protocol 一次拍全，
+              天然支持懒加载和内嵌 iframe，无衔接缝隙；
+              代价是截图期间浏览器顶部会出现"正在调试此浏览器"提示条，
+              且 chrome:// / 扩展页 / devtools 页不可用。
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className={styles.section}>

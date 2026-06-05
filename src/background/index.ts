@@ -14,6 +14,7 @@ import {
   handleHideRelayWindow,
   handleSelectScrollRegion
 } from "~src/background/handlers/capture"
+import { handleCaptureFullPageCdp } from "~src/background/handlers/captureCdp"
 import {
   handleRecorderFinish,
   handleRecordStartCurrentTab,
@@ -25,6 +26,7 @@ import {
   getPendingImage
 } from "~src/background/utils/pendingImage"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
+import { getSettings } from "~src/shared/settings"
 
 chrome.runtime.onMessage.addListener(
   (request: ExtensionRequest, sender, sendResponse) => {
@@ -36,7 +38,13 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.CAPTURE_FULL_PAGE: {
-          sendResponse(await handleCaptureFullPage(request))
+          // 设置中开启 CDP 模式时走 captureCdp，否则走原有滚动拼接路径
+          const settings = await getSettings()
+          if (settings.useCdpForFullPage) {
+            sendResponse(await handleCaptureFullPageCdp(request))
+          } else {
+            sendResponse(await handleCaptureFullPage(request))
+          }
           break
         }
         case MessageType.SELECT_SCROLL_REGION: {
