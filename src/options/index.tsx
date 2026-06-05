@@ -237,6 +237,15 @@ const RULE_GROUPS: Array<{
         min: 0,
         max: 100,
         step: 1
+      },
+      {
+        key: "fullPageOverlapRatio",
+        label: "长截图相邻帧重叠比例",
+        hint: "0~0.5。相邻帧重叠比例越大，越能补全 scroller 底部 padding/box-shadow 不渲染区域，避免长图衔接处出现白条 / 截断文字；代价是截图次数增加。富文本编辑器（popo / 飞书文档等）建议 0.05~0.15；普通静态页可设 0 提速。",
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        control: "number"
       }
     ]
   },

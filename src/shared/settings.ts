@@ -83,6 +83,14 @@ export interface FullPageRuleSet {
    *  的问题。代价是长图末尾会有等高的小空白条。 */
   scrollerBottomSafetyPx: number
 
+  /** 长截图相邻帧重叠比例（0~0.5）。
+   *  scroller 底部常因 padding / box-shadow / mask 不渲染内容；按完整 viewport
+   *  推进会让这段在长图衔接处变成白条 / 截断文字。
+   *  本配置让滚动步长 = viewport × (1 - overlap)，相邻帧重叠该比例。
+   *  默认 0.05；遇到衔接错位严重的站点（编辑器类）调到 0.1~0.2；
+   *  普通静态页可调到 0 提速。 */
+  fullPageOverlapRatio: number
+
   /* ---- 8. 模式开关 ---- */
   /** 兜底：剩余跟随视口元素是否一律隐藏（关闭后只隐藏明确命中浮层规则的） */
   hideAllFixedFallback: boolean
@@ -95,6 +103,10 @@ export interface SiteScrollRegionRule {
   hostname: string
   /** 记录时间 */
   createdAt: number
+  /** 选取时所在 frame 的 location.href。
+   *  undefined 或与主 frame 一致时表示主 frame；
+   *  否则截图流程会用它定位到对应子 frame 再注入逻辑。 */
+  frameUrl?: string
   /** 调试信息 */
   label?: string
   tag?: string
@@ -158,7 +170,9 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
   scrollContainerRegex:
     "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
 
-  scrollerBottomSafetyPx: 20,
+  scrollerBottomSafetyPx: 0,
+
+  fullPageOverlapRatio: 0.05,
 
   hideAllFixedFallback: true
 }

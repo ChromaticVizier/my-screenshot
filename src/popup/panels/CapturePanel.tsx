@@ -13,16 +13,15 @@ import {
   CAPTURE_CARD_ACTIONS,
   CAPTURE_LIST_ACTIONS
 } from "~src/constants/captureActions"
-import { captureDesktopFrame } from "~src/popup/desktop/captureDesktop"
 import {
   captureDelayed,
+  captureDesktop,
   captureFullPage,
   captureSelection,
   captureVisibleArea,
   clearScrollRegion,
   selectScrollRegion
 } from "~src/services/capture"
-import { downloadDesktopImage } from "~src/services/desktopBridge"
 import type { CaptureAction, CaptureMode } from "~src/types/popup"
 
 import * as styles from "./CapturePanel.module.css"
@@ -97,42 +96,11 @@ function CapturePanel() {
       }
 
       case "desktop": {
-        // 直接在 popup 中调用 getDisplayMedia：
-        //   - popup 自身就持有用户手势
-        //   - getDisplayMedia 调出系统级共享选择器期间，popup 不会失焦关闭
-        //   - 选择器关闭后 popup 自动关掉（点击其他地方），但抓帧已经完成
-        // 不需要中转窗口，截图里也不会出现任何额外窗口。
-        setBusy(mode)
-        try {
-          const result = await captureDesktopFrame({ format: "png" })
-          if (!result.ok) {
-            if (!result.cancelled) {
-              setError(result.error ?? "屏幕截图失败")
-            }
-            setBusy(null)
-            if (result.cancelled) window.close()
-            break
-          }
-          if (!result.dataUrl) {
-            setError("屏幕截图失败：返回数据为空")
-            setBusy(null)
-            break
-          }
-          // popup 此时即将失焦，趁早把数据交给 background 下载
-          const res = await downloadDesktopImage({
-            dataUrl: result.dataUrl,
-            format: "png"
-          })
-          setBusy(null)
-          if (!res.ok) {
-            setError(res.error ?? "下载失败")
-          } else {
-            window.close()
-          }
-        } catch (err) {
-          setBusy(null)
-          setError(err instanceof Error ? err.message : String(err))
-        }
+        // 通过中转窗口调用 getDisplayMedia：直接在 popup 调会导致系统
+        // 选择器锚定在 popup 位置（extension icon 附近，偏右超出屏幕）。
+        // 中转窗口由 background 创建在屏幕居中位置，选择器锚定到它就不会溢出。
+        captureDesktop({ format: "png" }).catch(() => {})
+        window.close()
         break
       }
 

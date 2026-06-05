@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 截图相关的 background 处理逻辑
  *
  * 五种模式：
@@ -10,12 +10,16 @@
  *     → 抓首帧 → 下载（唯一不依赖 captureVisibleTab 的模式）
  */
 import { showCountdown } from "~src/background/injected/countdown"
-import { pickScrollRegion } from "~src/background/injected/scrollRegionPicker"
+import {
+  abortScrollRegionPicker,
+  pickScrollRegion
+} from "~src/background/injected/scrollRegionPicker"
 import {
   detectAndHidePseudoSticky,
   flattenOversizedModals,
   freezeFlattenedModals,
   hideFixedElements,
+  hideFixedElementsExcludeFrame,
   kickScrollListeners,
   measureScrollMetrics,
   preparePage,
@@ -59,6 +63,95 @@ const CAPTURE_INTERVAL = 600
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+/**
+ * 调试开关：每滚动一帧就下载一张原始帧（带 scrollY 文件名）+ 在 console
+ * 打印 slice 元数据。打开后会在「下载」目录看到一串 `_dbg_frameXX.png`，
+ * 帮助定位拼接错位 / 内容覆盖问题。生产时关掉。
+ */
+const DEBUG_DUMP_FRAMES = false
+
+async function dumpDebugFrame(
+  dataUrl: string,
+  index: number,
+  scrollY: number,
+  meta: Record<string, unknown>
+): Promise<void> {
+  if (!DEBUG_DUMP_FRAMES) return
+  try {
+    console.log(`[fullPage][dbg] frame ${index}`, { scrollY, ...meta })
+    const filename = `_dbg_frame${String(index).padStart(2, "0")}_y${Math.round(
+      scrollY
+    )}.png`
+    await chrome.downloads.download({
+      url: dataUrl,
+      filename,
+      saveAs: false,
+      conflictAction: "uniquify"
+    })
+  } catch (err) {
+    console.warn("[fullPage][dbg] dump failed", err)
+  }
+}
+
+/**
+ * 调试：把 slice 实际切片后的样子单独下载下来。
+ * 直接用 OffscreenCanvas 模拟 stitchToBlob 里的裁切逻辑，便于对比"原始整屏 png"
+ * 和"最终拼接长图"之间在哪一步出问题。
+ */
+async function dumpDebugSlice(
+  bitmap: ImageBitmap,
+  index: number,
+  slice: CaptureSlice,
+  dpr: number
+): Promise<void> {
+  if (!DEBUG_DUMP_FRAMES) return
+  try {
+    const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))
+    const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr))
+    const sw = Math.min(
+      bitmap.width - sx,
+      Math.round((slice.sourceWidth ?? bitmap.width / dpr) * dpr)
+    )
+    const sh = Math.min(
+      bitmap.height - sy,
+      Math.round((slice.sourceHeight ?? bitmap.height / dpr) * dpr)
+    )
+    console.log(`[fullPage][dbg] slice ${index} crop`, {
+      sx,
+      sy,
+      sw,
+      sh,
+      bitmapW: bitmap.width,
+      bitmapH: bitmap.height,
+      sliceScrollY: slice.scrollY,
+      sourceX: slice.sourceX,
+      sourceY: slice.sourceY,
+      sourceWidth: slice.sourceWidth,
+      sourceHeight: slice.sourceHeight
+    })
+    if (sw <= 0 || sh <= 0) return
+    const canvas = new OffscreenCanvas(sw, sh)
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh)
+    const blob = await canvas.convertToBlob({ type: "image/png" })
+    const reader = new FileReader()
+    const url = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+    await chrome.downloads.download({
+      url,
+      filename: `_dbg_slice${String(index).padStart(2, "0")}_y${Math.round(slice.scrollY)}.png`,
+      saveAs: false,
+      conflictAction: "uniquify"
+    })
+  } catch (err) {
+    console.warn("[fullPage][dbg] slice dump failed", err)
+  }
+}
+
 function hostnameFromUrl(url?: string): string | null {
   if (!url) return null
   try {
@@ -66,6 +159,165 @@ function hostnameFromUrl(url?: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * URL 宽松匹配。
+ * 用于把 SiteScrollRegionRule.frameUrl（用户选取时记下的 location.href）
+ * 与 chrome.webNavigation.getAllFrames 返回的当前 frame.url 对齐。
+ *
+ * 同时也用于在 DOM 树里递归查找 iframe 元素（src vs contentDocument.location.href
+ * 加载后可能略有差异，hash/query 也常变）。
+ *
+ * 策略：完全相等优先，否则 origin + 第一段 path 一致即视为同一 frame。
+ */
+function looseMatchUrl(a: string, b: string): boolean {
+  if (a === b) return true
+  try {
+    const ua = new URL(a)
+    const ub = new URL(b)
+    if (ua.origin !== ub.origin) return false
+    return ua.pathname.split("/")[1] === ub.pathname.split("/")[1]
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 把 SiteScrollRegionRule.frameUrl 解析到具体的 InjectionTarget。
+ *
+ * 用户可能在 iframe 内（如内嵌 SaaS 文档/编辑器）picker 选取了滚动区，
+ * 此时 frameUrl 记录该 iframe 的 location.href。截图流程的所有注入都要 target
+ * 到对应 frame，否则会在主 frame 找不到 selector / scroller。
+ *
+ * 匹配策略：完全相等优先 → 同 origin 模糊匹配 → 回退主 frame。
+ */
+async function resolveFrameTarget(
+  tabId: number,
+  frameUrl?: string
+): Promise<chrome.scripting.InjectionTarget> {
+  if (!frameUrl) return { tabId }
+  let frames: chrome.webNavigation.GetAllFrameResultDetails[] | null = null
+  try {
+    frames = await chrome.webNavigation.getAllFrames({ tabId })
+  } catch {
+    return { tabId }
+  }
+  if (!frames || frames.length === 0) return { tabId }
+  const exact = frames.find((f) => f.url === frameUrl)
+  if (exact) return { tabId, frameIds: [exact.frameId] }
+  const partial = frames.find((f) => looseMatchUrl(f.url, frameUrl))
+  if (partial) return { tabId, frameIds: [partial.frameId] }
+  return { tabId }
+}
+
+/**
+ * 注入到主 frame，递归 same-origin 文档树定位指定 frameUrl 的 iframe，
+ * 返回它在主 frame viewport 中的左上角 (x,y)。
+ *
+ * iframe 内的 preparePage 报告的 captureX/Y 是 iframe 局部坐标
+ * （以 iframe viewport 左上为原点）；captureVisibleTab 拍的是整个 tab viewport，
+ * 所以从全屏 png 切片时要把 iframe 在 tab viewport 中的偏移加上去。
+ *
+ * 跨域中间层 iframe 阻断递归：拿到中间层的偏移作为近似值（误差 = target 在
+ * 中间层内的局部位置）。仍是 best-effort，多数 SaaS 嵌套 iframe 是同源。
+ *
+ * 兜底：精确/模糊匹配都没命中（典型场景：iframe src 带每次刷新都变的 timestamp
+ * query 但 path 第一段也变），退而取主 frame 中"最大可见 iframe"。popo 文档
+ * 等富文本嵌入页一般主 iframe 占视口 ≥ 50%，远比侧边的小 iframe 大，区分度高。
+ */
+function locateFrameOffsetInPage(
+  frameUrl: string
+): { x: number; y: number; matchedBy: "exact" | "loose" | "largest" | "none" } {
+  const matches = (a: string, b: string): boolean => {
+    if (!a || !b) return false
+    if (a === b) return true
+    try {
+      const ua = new URL(a)
+      const ub = new URL(b)
+      return (
+        ua.origin === ub.origin &&
+        ua.pathname.split("/")[1] === ub.pathname.split("/")[1]
+      )
+    } catch {
+      return false
+    }
+  }
+
+  // 1) 同源递归精确/模糊查找
+  const visit = (
+    doc: Document,
+    offsetX: number,
+    offsetY: number
+  ): { x: number; y: number; matchedBy: "exact" | "loose" } | null => {
+    let iframes: HTMLIFrameElement[]
+    try {
+      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+    } catch {
+      return null
+    }
+    for (const f of iframes) {
+      let r: DOMRect
+      try {
+        r = f.getBoundingClientRect()
+      } catch {
+        continue
+      }
+      const localX = offsetX + r.left
+      const localY = offsetY + r.top
+
+      let nestedDoc: Document | null = null
+      try {
+        nestedDoc = f.contentDocument
+      } catch {
+        nestedDoc = null
+      }
+      if (f.src === frameUrl) return { x: localX, y: localY, matchedBy: "exact" }
+      if (nestedDoc?.location?.href === frameUrl) {
+        return { x: localX, y: localY, matchedBy: "exact" }
+      }
+      if (matches(f.src, frameUrl) || matches(nestedDoc?.location?.href ?? "", frameUrl)) {
+        return { x: localX, y: localY, matchedBy: "loose" }
+      }
+
+      if (nestedDoc) {
+        const found = visit(nestedDoc, localX, localY)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  try {
+    const found = visit(document, 0, 0)
+    if (found) return found
+  } catch {
+    /* 继续走兜底 */
+  }
+
+  // 2) 兜底：取「最大可见 iframe」。
+  //    popo 文档 iframe.src 带每次都变的 timestamp，path 第一段（"app"）
+  //    虽然稳定，但若将来 path 也变会同样失效。最大 iframe 兜底覆盖了
+  //    "页面只有一个主 iframe + 几个小 iframe（统计/分享）" 这类典型布局。
+  let best: { el: HTMLIFrameElement; area: number } | null = null
+  document.querySelectorAll<HTMLIFrameElement>("iframe").forEach((f) => {
+    let r: DOMRect
+    try {
+      r = f.getBoundingClientRect()
+    } catch {
+      return
+    }
+    if (r.width <= 0 || r.height <= 0) return
+    const cs = getComputedStyle(f)
+    if (cs.display === "none" || cs.visibility === "hidden") return
+    const area = r.width * r.height
+    if (!best || area > best.area) best = { el: f, area }
+  })
+  if (best) {
+    const r = best.el.getBoundingClientRect()
+    return { x: r.left, y: r.top, matchedBy: "largest" }
+  }
+  return { x: 0, y: 0, matchedBy: "none" }
 }
 
 /**
@@ -149,28 +401,104 @@ export async function handleCaptureFullPage(
   // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
   const settings = await getSettings()
   const fullPageRules = settings.fullPageRules
+  const siteRule =
+    settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
+
+  // 多 frame：用户在某个 iframe 内 picker 选过则 target 该 frame，否则注入主 frame
+  const scrollerTarget = await resolveFrameTarget(tabId, siteRule?.frameUrl)
+  // 同时拿 iframe 在主 frame viewport 中的偏移（slice sourceX/Y 用）
+  let frameOffsetX = 0
+  let frameOffsetY = 0
+  if (
+    siteRule?.frameUrl &&
+    scrollerTarget.frameIds &&
+    scrollerTarget.frameIds.length > 0
+  ) {
+    try {
+      const [{ result: offset }] = await chrome.scripting.executeScript({
+        target: { tabId }, // 必须在主 frame 取偏移
+        func: locateFrameOffsetInPage,
+        args: [siteRule.frameUrl]
+      })
+      if (offset && typeof offset === "object") {
+        frameOffsetX = offset.x ?? 0
+        frameOffsetY = offset.y ?? 0
+        console.log("[fullPage] frame offset", offset)
+      }
+    } catch (err) {
+      // 失败按 0 处理，等价于主 frame
+      console.warn("[fullPage] locateFrameOffsetInPage failed", err)
+    }
+  }
 
   let snapshot: PreparePageSnapshot | null = null
   let hidingApplied = false
   let flattenApplied = false
 
   try {
-    // 1) 准备：锁定滚动条 + 拿页面度量
+    // 1) 准备：锁定滚动条 + 拿页面度量（注入到 scroller 所在 frame）
     const [{ result: prepResult }] = await chrome.scripting.executeScript({
-      target: { tabId },
+      target: scrollerTarget,
       func: preparePage,
-      args: [fullPageRules, settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null]
+      args: [fullPageRules, siteRule]
     })
     if (!prepResult) return { ok: false, error: "页面准备失败" }
     const metrics: PageMetrics = prepResult
     snapshot = prepResult.snapshot
+
+    // captureHeight 校正：preparePage 在 iframe 内算出的高度可能超过 iframe 在
+    // 主 frame viewport 中的实际可见高度（例：iframe.clientHeight = 638 但 iframe
+    // 在 tab viewport 中只能露 636）。captureVisibleTab 拍的是 tab viewport，
+    // slice 源高度若大于"iframe 在 tab 内可见高度"，会被 bitmap 边界 clamp，
+    // 导致每帧实际绘出尺寸 < stepHeight → 长图衔接处出现白条 / 文字截断。
+    //
+    // 解法：从主 frame 读 tab viewport 高度，把 captureHeight 与 stepHeight 一起
+    // 夹紧到 (tabViewportHeight - frameOffsetY - captureY)。
+    if (metrics.scrollerIsElement && (frameOffsetY > 0 || frameOffsetX > 0)) {
+      try {
+        const [{ result: vp }] = await chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => ({
+            w: document.documentElement.clientWidth,
+            h: document.documentElement.clientHeight
+          })
+        })
+        if (vp && typeof vp === "object") {
+          const maxH = Math.max(
+            1,
+            (vp.h ?? metrics.captureHeight) - frameOffsetY - metrics.captureY
+          )
+          const maxW = Math.max(
+            1,
+            (vp.w ?? metrics.captureWidth) - frameOffsetX - metrics.captureX
+          )
+          if (metrics.captureHeight > maxH) {
+            console.log("[fullPage] clamp captureHeight", {
+              from: metrics.captureHeight,
+              to: maxH
+            })
+            metrics.captureHeight = maxH
+            metrics.viewportHeight = maxH
+          }
+          if (metrics.captureWidth > maxW) {
+            metrics.captureWidth = maxW
+            metrics.viewportWidth = maxW
+          }
+        }
+      } catch {
+        /* 校正失败保持原值，可能仍有衔接缝隙 */
+      }
+    }
+
     const makeSlice = (bitmap: ImageBitmap, scrollY: number): CaptureSlice => ({
       bitmap,
       scrollY,
       ...(metrics.scrollerIsElement
         ? {
-            sourceX: metrics.captureX,
-            sourceY: metrics.captureY,
+            // 把 iframe 在主 frame viewport 中的偏移叠加到 captureX/Y。
+            // 主 frame scroller 时 frameOffset=0，等价于原行为。
+            sourceX: metrics.captureX + frameOffsetX,
+            sourceY: metrics.captureY + frameOffsetY,
             sourceWidth: metrics.captureWidth,
             sourceHeight: metrics.captureHeight
           }
@@ -178,7 +506,17 @@ export async function handleCaptureFullPage(
     })
 
     const slices: CaptureSlice[] = []
-    const stepHeight = metrics.viewportHeight
+    // stepHeight 取 viewport × (1 - overlap)，让相邻帧重叠以补全 scroller 底部
+    // padding / box-shadow / mask 不渲染的那段内容（典型如富文本编辑器）。
+    // overlap 比例由用户在设置页可调（fullPageOverlapRatio，默认 0.05）。
+    const overlapRatio = Math.min(
+      0.5,
+      Math.max(0, fullPageRules.fullPageOverlapRatio ?? 0.05)
+    )
+    const stepHeight = Math.max(
+      1,
+      Math.floor(metrics.viewportHeight * (1 - overlapRatio))
+    )
     let totalHeight = metrics.totalHeight
     /**
      * 真实可达的页面总高度。
@@ -204,7 +542,7 @@ export async function handleCaptureFullPage(
     //      maxBottom 是摊平后弹窗最低的文档坐标，用来扩展 totalHeight。
     try {
       const [{ result: flattenResult }] = await chrome.scripting.executeScript({
-        target: { tabId },
+        target: scrollerTarget,
         func: flattenOversizedModals,
         args: [fullPageRules]
       })
@@ -223,7 +561,7 @@ export async function handleCaptureFullPage(
         // 阻止页面 JS 在截图过程中把弹窗收回。
         try {
           await chrome.scripting.executeScript({
-            target: { tabId },
+            target: scrollerTarget,
             func: freezeFlattenedModals
           })
         } catch {
@@ -242,7 +580,7 @@ export async function handleCaptureFullPage(
     //    此时即使 scroll 事件触发页面 JS 把弹窗 display:none，MutationObserver
     //    会同步回滚。
     const [{ result: firstScrollYRaw }] = await chrome.scripting.executeScript({
-      target: { tabId },
+      target: scrollerTarget,
       func: scrollToY,
       args: [0]
     })
@@ -255,18 +593,57 @@ export async function handleCaptureFullPage(
     if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
     const firstBitmap = await dataUrlToBitmap(firstDataUrl)
     slices.push(makeSlice(firstBitmap, firstScrollY))
+    await dumpDebugFrame(firstDataUrl, 0, firstScrollY, {
+      stepHeight,
+      totalHeight,
+      scrollerIsElement: metrics.scrollerIsElement,
+      captureX: metrics.captureX,
+      captureY: metrics.captureY,
+      captureWidth: metrics.captureWidth,
+      captureHeight: metrics.captureHeight,
+      frameOffsetX,
+      frameOffsetY,
+      bitmapW: firstBitmap.width,
+      bitmapH: firstBitmap.height
+    })
+    await dumpDebugSlice(
+      firstBitmap,
+      0,
+      slices[slices.length - 1],
+      metrics.devicePixelRatio
+    )
 
     // 首屏即覆盖整页（短页面，无需后续滚动拼接）
     if (firstScrollY + stepHeight >= totalHeight) {
       effectiveHeight = Math.max(firstScrollY + stepHeight, totalHeight)
     } else {
+      // scroller 在子 frame 时主 frame 的顶栏 / 侧栏不会被 scrollerTarget
+      // 注入的 hideFixedElements 扫到，每帧都会重复出现。这里用一个独立路径
+      // 同时对主 frame 跑一份隐藏，但保留承载 scroller 的 iframe 链。
+      const scrollerIsSubFrame =
+        !!siteRule?.frameUrl &&
+        !!scrollerTarget.frameIds &&
+        scrollerTarget.frameIds.length > 0 &&
+        scrollerTarget.frameIds[0] !== 0
+
       // 3) 一次性隐藏 fixed/sticky + 用户自定义隐藏元素
       //    KoalaSnap 风格：用 display:none 让父容器回流，确保子元素也不可见。
       await chrome.scripting.executeScript({
-        target: { tabId },
+        target: scrollerTarget,
         func: hideFixedElements,
         args: [fullPageRules]
       })
+      if (scrollerIsSubFrame && siteRule?.frameUrl) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            func: hideFixedElementsExcludeFrame,
+            args: [fullPageRules, siteRule.frameUrl]
+          })
+        } catch {
+          /* 主 frame 隐藏失败不致命 */
+        }
+      }
       hidingApplied = true
       await sleep(120)
 
@@ -274,7 +651,7 @@ export async function handleCaptureFullPage(
       //      不是 fixed/sticky 但靠 scroll 事件 + transform 跟随视口）。
       //      通过短距滚动探测漂移识别，再 display:none 加入恢复列表。
       await chrome.scripting.executeScript({
-        target: { tabId },
+        target: scrollerTarget,
         func: detectAndHidePseudoSticky,
         args: [fullPageRules]
       })
@@ -291,11 +668,12 @@ export async function handleCaptureFullPage(
       const MAX_STALL = 4
       // 动态内容稳定等待上限。
       const DYNAMIC_WAIT_MS = 1500
+      let frameIndex = 0
 
       while (true) {
         // 滚到目标位置（可能因为页面底部不足而被夹到 maxScrollY）
         const [{ result: actualY }] = await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: scrollToY,
           args: [targetY]
         })
@@ -305,7 +683,7 @@ export async function handleCaptureFullPage(
         let measuredHeight = totalHeight
         try {
           const [{ result: waitResult }] = await chrome.scripting.executeScript({
-            target: { tabId },
+            target: scrollerTarget,
             func: waitForDynamicContent,
             args: [DYNAMIC_WAIT_MS]
           })
@@ -319,7 +697,7 @@ export async function handleCaptureFullPage(
         // 4.2) 重新读 scrollHeight：动态加载页 totalHeight 会持续增长
         try {
           const [{ result: metricsNow }] = await chrome.scripting.executeScript({
-            target: { tabId },
+            target: scrollerTarget,
             func: measureScrollMetrics
           })
           if (metricsNow && metricsNow.scrollHeight > measuredHeight) {
@@ -337,10 +715,17 @@ export async function handleCaptureFullPage(
         // 补隐藏 SPA 滚动回调里重新挂载的顶栏/侧栏
         try {
           await chrome.scripting.executeScript({
-            target: { tabId },
+            target: scrollerTarget,
             func: rehideFixedElements,
             args: [fullPageRules]
           })
+          if (scrollerIsSubFrame && siteRule?.frameUrl) {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              func: hideFixedElementsExcludeFrame,
+              args: [fullPageRules, siteRule.frameUrl]
+            })
+          }
         } catch {
           /* 不致命 */
         }
@@ -353,6 +738,23 @@ export async function handleCaptureFullPage(
         const bitmap = await dataUrlToBitmap(dataUrl)
         slices.push(makeSlice(bitmap, scrollY))
 
+        frameIndex++
+        await dumpDebugFrame(dataUrl, frameIndex, scrollY, {
+          targetY,
+          totalHeight,
+          stallCount,
+          measuredHeight,
+          bitmapW: bitmap.width,
+          bitmapH: bitmap.height,
+          sliceCount: slices.length
+        })
+        await dumpDebugSlice(
+          bitmap,
+          frameIndex,
+          slices[slices.length - 1],
+          metrics.devicePixelRatio
+        )
+
         // 终止条件 1：连续 MAX_STALL 轮无法再滚 → 真到底
         if (scrollY === prevScrollY) {
           stallCount++
@@ -361,7 +763,7 @@ export async function handleCaptureFullPage(
           // （某些站如知乎 / 网易系是这么实现 infinite scroll 的）
           try {
             await chrome.scripting.executeScript({
-              target: { tabId },
+              target: scrollerTarget,
               func: kickScrollListeners,
               args: [stepHeight]
             })
@@ -402,9 +804,25 @@ export async function handleCaptureFullPage(
     if (hidingApplied) {
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: restoreFixedElements
         })
+        // 主 frame 上的 hideFixedElementsExcludeFrame 也复用同一 STORE，
+        // 必须独立再调一次 restore（注入函数靠 window.STORE，跨 frame 不共享）。
+        if (
+          scrollerTarget.frameIds &&
+          scrollerTarget.frameIds.length > 0 &&
+          scrollerTarget.frameIds[0] !== 0
+        ) {
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              func: restoreFixedElements
+            })
+          } catch {
+            /* 主 frame 恢复失败兜底由 finally 处理 */
+          }
+        }
         hidingApplied = false
       } catch {
         /* tab 可能关闭，下面 finally 还会兜底 */
@@ -415,7 +833,7 @@ export async function handleCaptureFullPage(
     if (flattenApplied) {
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: unfreezeFlattenedModals
         })
       } catch {
@@ -423,7 +841,7 @@ export async function handleCaptureFullPage(
       }
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: restoreFlattenedModals
         })
         flattenApplied = false
@@ -458,7 +876,7 @@ export async function handleCaptureFullPage(
     if (flattenApplied) {
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: unfreezeFlattenedModals
         })
       } catch {
@@ -466,7 +884,7 @@ export async function handleCaptureFullPage(
       }
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: restoreFlattenedModals
         })
       } catch {
@@ -476,7 +894,7 @@ export async function handleCaptureFullPage(
     if (snapshot || hidingApplied) {
       try {
         await chrome.scripting.executeScript({
-          target: { tabId },
+          target: scrollerTarget,
           func: restorePage,
           args: [snapshot ?? {
             htmlOverflow: "",
@@ -493,12 +911,35 @@ export async function handleCaptureFullPage(
       } catch {
         /* 标签可能已关闭，忽略 */
       }
+      // 子 frame 模式下主 frame 也调过 hideFixedElementsExcludeFrame，
+      // 必须在主 frame 单独恢复（restoreFixedElements 是幂等的，多调无害）。
+      if (
+        scrollerTarget.frameIds &&
+        scrollerTarget.frameIds.length > 0 &&
+        scrollerTarget.frameIds[0] !== 0
+      ) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            func: restoreFixedElements
+          })
+        } catch {
+          /* 忽略 */
+        }
+      }
     }
   }
 }
 
 /* ============================================================
  * 2.5 手动滚动区域选择
+ *
+ * 多 frame 流程：
+ *   - 枚举 tab 内所有 frame（chrome.webNavigation.getAllFrames）
+ *   - 给每个 frame 单独注入 picker（不用 allFrames，因为单个 Promise 会等
+ *     所有 frame 都返回才 resolve；用户只点一个 frame 的话其它永远不返回）
+ *   - 每个注入返回独立的 Promise，Promise.race 拿到第一个非 null 结果
+ *   - 胜出后向其它 frame 注入 abortScrollRegionPicker 拆遮罩
  * ============================================================ */
 export async function handleSelectScrollRegion(
   _request: SelectScrollRegionRequest
@@ -511,19 +952,100 @@ export async function handleSelectScrollRegion(
     const hostname = hostnameFromUrl(tab.url)
     if (!hostname) return { ok: false, error: "当前页面不支持站点规则" }
 
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: pickScrollRegion
+    // 拿到所有 frame；单 frame 页面退化成原来的单注入路径
+    let frames: chrome.webNavigation.GetAllFrameResultDetails[] = []
+    try {
+      frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? []
+    } catch {
+      frames = []
+    }
+    // 过滤掉非可注入的 schema（about:blank 偶尔出现，extension 注入会失败）
+    const candidateFrames = frames.filter(
+      (f) => f.url && /^https?:|^file:/.test(f.url)
+    )
+
+    // 没有任何子 frame，走老路（直接注入主 frame）
+    if (candidateFrames.length <= 1) {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: pickScrollRegion
+      })
+      if (!result) return { ok: false, cancelled: true, error: "已取消" }
+      const settings = await getSettings()
+      await setSettings({
+        siteScrollRegions: {
+          ...settings.siteScrollRegions,
+          [hostname]: {
+            ...result,
+            hostname,
+            createdAt: Date.now()
+          }
+        }
+      })
+      return { ok: true }
+    }
+
+    // 多 frame：每个 frame 各注入一份 picker，拿独立 Promise 后 race。
+    // 胜出方携带 frameUrl，败者返回 null（被 abort 或自然取消）。
+    type FrameAttempt = {
+      frameId: number
+      promise: Promise<ReturnType<typeof pickScrollRegion> extends Promise<infer R> ? R : never>
+    }
+    const attempts: FrameAttempt[] = candidateFrames.map((f) => ({
+      frameId: f.frameId,
+      promise: chrome.scripting
+        .executeScript({
+          target: { tabId, frameIds: [f.frameId] },
+          func: pickScrollRegion
+        })
+        .then((arr) => (arr?.[0]?.result ?? null) as Awaited<ReturnType<typeof pickScrollRegion>>)
+        .catch(() => null as Awaited<ReturnType<typeof pickScrollRegion>>)
+    }))
+
+    // 用 Promise.race 拿第一个 truthy 结果。null 视为该 frame 被取消，
+    // 仅当所有 frame 都 resolve 为 null 才算用户整体取消。
+    const winnerPromise = new Promise<{
+      result: Awaited<ReturnType<typeof pickScrollRegion>>
+      frameId: number
+    } | null>((resolve) => {
+      let pending = attempts.length
+      attempts.forEach(({ frameId, promise }) => {
+        promise.then((result) => {
+          if (result) {
+            resolve({ result, frameId })
+          } else {
+            pending--
+            if (pending === 0) resolve(null)
+          }
+        })
+      })
     })
 
-    if (!result) return { ok: false, cancelled: true, error: "已取消" }
+    const winner = await winnerPromise
+
+    // 不论胜负，向所有未胜出 frame 注入 abort 清场（胜者的 picker 已经 resolve
+    // 并自行清理，不必再 abort；但顺手 abort 也无副作用，幂等）。
+    await Promise.all(
+      candidateFrames
+        .filter((f) => !winner || f.frameId !== winner.frameId)
+        .map((f) =>
+          chrome.scripting
+            .executeScript({
+              target: { tabId, frameIds: [f.frameId] },
+              func: abortScrollRegionPicker
+            })
+            .catch(() => undefined)
+        )
+    )
+
+    if (!winner) return { ok: false, cancelled: true, error: "已取消" }
 
     const settings = await getSettings()
     await setSettings({
       siteScrollRegions: {
         ...settings.siteScrollRegions,
         [hostname]: {
-          ...result,
+          ...winner.result,
           hostname,
           createdAt: Date.now()
         }
@@ -687,11 +1209,32 @@ export async function handleCaptureDesktop(
 ): Promise<CaptureResponse> {
   try {
     const url = chrome.runtime.getURL("popup.html") + "?action=desktopCapture"
+    const W = 480
+    const H = 560
+    // getDisplayMedia 系统弹窗左边界与调用窗口左边界对齐。
+    // 中转窗口居中于浏览器窗口，系统弹窗从此向右展开不溢出。
+    let left: number | undefined
+    let top: number | undefined
+    try {
+      const cur = await chrome.windows.getCurrent()
+      if (
+        typeof cur.left === "number" &&
+        typeof cur.top === "number" &&
+        typeof cur.width === "number" &&
+        typeof cur.height === "number"
+      ) {
+        left = Math.max(cur.left, Math.round(cur.left + (cur.width - W) / 2))
+        top = Math.round(cur.top + (cur.height - H) / 2)
+      }
+    } catch {
+      /* 取不到就让浏览器自决定 */
+    }
     await chrome.windows.create({
       url,
       type: "popup",
-      width: 480,
-      height: 560,
+      width: W,
+      height: H,
+      ...(left != null && top != null ? { left, top } : {}),
       focused: true
     })
     // 中转窗口接管后续流程；这里直接返回 ok，popup 端只用于关闭自身。
