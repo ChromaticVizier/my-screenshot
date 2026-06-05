@@ -10,6 +10,7 @@ import { useState } from "react"
 
 import TabBar from "~src/components/TabBar"
 import { TAB_ITEMS } from "~src/constants/tabs"
+import Editor from "~src/editor"
 import DesktopCaptureWindow from "~src/popup/desktop"
 import OffscreenRecorder from "~src/popup/offscreenRecorder"
 import CapturePanel from "~src/popup/panels/CapturePanel"
@@ -25,6 +26,7 @@ function Popup() {
   const action = new URLSearchParams(window.location.search).get("action")
   if (action === "desktopCapture") return <DesktopCaptureWindow />
   if (action === "offscreenRecorder") return <OffscreenRecorder />
+  if (action === "editor") return <Editor />
   return <MainPopup />
 }
 

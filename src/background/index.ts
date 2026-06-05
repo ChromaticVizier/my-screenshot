@@ -20,6 +20,10 @@ import {
   handleRecordStartRegionTab,
   handleRecordStop
 } from "~src/background/handlers/record"
+import {
+  clearPendingImage,
+  getPendingImage
+} from "~src/background/utils/pendingImage"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
 
 chrome.runtime.onMessage.addListener(
@@ -67,6 +71,33 @@ chrome.runtime.onMessage.addListener(
           sendResponse(await handleCloseRelayWindow(request, sender))
           break
         }
+        case MessageType.GET_PENDING_IMAGE: {
+          const img = getPendingImage()
+          if (img) {
+            sendResponse({ ok: true, dataUrl: img.dataUrl, filename: img.filename })
+          } else {
+            sendResponse({ ok: false, error: "没有待编辑的图片" })
+          }
+          break
+        }
+        case MessageType.EDITOR_DOWNLOAD: {
+          try {
+            const { dataUrl, filename } = request.payload
+            await chrome.downloads.download({
+              url: dataUrl,
+              filename,
+              saveAs: false
+            })
+            clearPendingImage()
+            sendResponse({ ok: true })
+          } catch (err) {
+            sendResponse({
+              ok: false,
+              error: err instanceof Error ? err.message : String(err)
+            })
+          }
+          break
+        }
         case MessageType.RECORD_START_CURRENT_TAB: {
           sendResponse(await handleRecordStartCurrentTab(request))
           break
@@ -86,9 +117,6 @@ chrome.runtime.onMessage.addListener(
         case MessageType.RECORDER_STOP:
         case MessageType.RECORDER_PAUSE:
         case MessageType.RECORDER_RESUME: {
-          // 这些消息的最终接收方是控制栏注入脚本和中转窗口；service worker
-          // 只是消息总线，不做处理。回 ok 即可，让 sendMessage 不报 channel
-          // closed 错误。
           sendResponse({ ok: true })
           break
         }

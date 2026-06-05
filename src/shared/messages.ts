@@ -21,6 +21,11 @@ export const MessageType = {
   /** 中转窗口请求 background 销毁自己 */
   CLOSE_RELAY_WINDOW: "window/closeRelay",
 
+  /** 编辑器 tab 请求待裁剪的图片数据 */
+  GET_PENDING_IMAGE: "editor/getPendingImage",
+  /** 编辑器 tab 裁剪完成，请求下载 */
+  EDITOR_DOWNLOAD: "editor/download",
+
   /* ====== 录屏 ====== */
   /** popup → background：开始录制当前标签页（整页） */
   RECORD_START_CURRENT_TAB: "record/startCurrentTab",
@@ -116,6 +121,27 @@ export interface CloseRelayWindowRequest {
   type: typeof MessageType.CLOSE_RELAY_WINDOW
 }
 
+/* ---------- 编辑器 tab → background：获取待裁剪图片 ---------- */
+export interface GetPendingImageRequest {
+  type: typeof MessageType.GET_PENDING_IMAGE
+}
+
+export interface GetPendingImageResponse {
+  ok: boolean
+  dataUrl?: string
+  filename?: string
+  error?: string
+}
+
+/* ---------- 编辑器 tab → background：裁剪后下载 ---------- */
+export interface EditorDownloadRequest {
+  type: typeof MessageType.EDITOR_DOWNLOAD
+  payload: {
+    dataUrl: string
+    filename: string
+  }
+}
+
 /* ---------- 录屏：popup → background ---------- */
 export interface RecordStartCurrentTabRequest {
   type: typeof MessageType.RECORD_START_CURRENT_TAB
@@ -186,6 +212,8 @@ export type ExtensionRequest =
   | DownloadDesktopImageRequest
   | HideRelayWindowRequest
   | CloseRelayWindowRequest
+  | GetPendingImageRequest
+  | EditorDownloadRequest
   | RecordStartCurrentTabRequest
   | RecordStartRegionTabRequest
   | RecordStopRequest

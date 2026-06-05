@@ -508,6 +508,23 @@ function Options() {
             <span className={styles.hint}>1 ~ 60 秒；默认 3 秒</span>
           </div>
         </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>截图后裁剪</label>
+          <div className={styles.control}>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={settings.cropBeforeDownload}
+                onChange={(e) => update({ cropBeforeDownload: e.target.checked })}
+              />
+              <span>{settings.cropBeforeDownload ? "已启用" : "已关闭"}</span>
+            </label>
+            <span className={styles.hint}>
+              开启后截图完成会打开编辑器，可裁剪后再下载；关闭则直接下载。
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className={styles.section}>

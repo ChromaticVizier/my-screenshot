@@ -112,6 +112,8 @@ export interface AppSettings {
   fullPageRules: FullPageRuleSet
   /** 按 hostname 记忆的手动滚动区域 */
   siteScrollRegions: Record<string, SiteScrollRegionRule>
+  /** 截图后先打开裁剪编辑器，确认后再下载 */
+  cropBeforeDownload: boolean
 }
 
 /** 整页规则默认值。也作为"恢复默认"按钮的回填来源 */
@@ -164,7 +166,8 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
 export const DEFAULT_SETTINGS: AppSettings = {
   delaySeconds: 3,
   fullPageRules: DEFAULT_FULL_PAGE_RULES,
-  siteScrollRegions: {}
+  siteScrollRegions: {},
+  cropBeforeDownload: true
 }
 
 const KEY = "settings"
@@ -184,7 +187,8 @@ export async function getSettings(): Promise<AppSettings> {
     ...DEFAULT_SETTINGS,
     ...stored,
     fullPageRules: mergeFullPageRules(stored.fullPageRules),
-    siteScrollRegions: stored.siteScrollRegions ?? {}
+    siteScrollRegions: stored.siteScrollRegions ?? {},
+    cropBeforeDownload: stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload
   }
 }
 
