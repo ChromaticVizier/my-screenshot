@@ -311,10 +311,12 @@ function locateFrameOffsetInPage(
     const cs = getComputedStyle(f)
     if (cs.display === "none" || cs.visibility === "hidden") return
     const area = r.width * r.height
-    if (!best || area > best.area) best = { el: f, area }
+    const cur = best as { el: HTMLIFrameElement; area: number } | null
+    if (!cur || area > cur.area) best = { el: f, area }
   })
-  if (best) {
-    const r = best.el.getBoundingClientRect()
+  const winner = best as { el: HTMLIFrameElement; area: number } | null
+  if (winner) {
+    const r = winner.el.getBoundingClientRect()
     return { x: r.left, y: r.top, matchedBy: "largest" }
   }
   return { x: 0, y: 0, matchedBy: "none" }
@@ -1040,12 +1042,15 @@ export async function handleSelectScrollRegion(
 
     if (!winner) return { ok: false, cancelled: true, error: "已取消" }
 
+    // winnerPromise 仅在 result 真值时 resolve，这里非空
+    const picked = winner.result!
+
     const settings = await getSettings()
     await setSettings({
       siteScrollRegions: {
         ...settings.siteScrollRegions,
         [hostname]: {
-          ...winner.result,
+          ...picked,
           hostname,
           createdAt: Date.now()
         }

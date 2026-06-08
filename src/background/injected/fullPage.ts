@@ -232,8 +232,9 @@ export function preparePage(
 
     // 仅当 window 不可滚，或内部容器明显比 window 更像主体时才切换。
     // 避免普通页面里某个侧栏列表误夺主滚动权。
-    if (bestEl && (!windowCanCover || bestScore >= 0.55)) {
-      scrollerEl = bestEl
+    const winner = bestEl as HTMLElement | null
+    if (winner && (!windowCanCover || bestScore >= 0.55)) {
+      scrollerEl = winner
       scrollerEl.setAttribute(SCROLLER_ATTR, "1")
     }
   }
