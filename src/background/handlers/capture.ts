@@ -22,6 +22,7 @@ import {
   hideFixedElementsExcludeFrame,
   kickScrollListeners,
   measureScrollMetrics,
+  measureTopHeaderBottom,
   preparePage,
   rehideFixedElements,
   restoreFixedElements,
@@ -395,6 +396,7 @@ export async function handleCaptureFullPage(
   const format = request.payload?.format ?? "png"
   const quality = request.payload?.quality
 
+  /* 获取标签页询问是否允许截图 */
   const tabRes = await getCapturableActiveTab()
   if (!tabRes.ok) return { ok: false, error: tabRes.error }
   const tab = tabRes.tab
@@ -527,6 +529,14 @@ export async function handleCaptureFullPage(
      * 避免长图末尾出现空白条。
      */
     let effectiveHeight = Math.max(totalHeight, stepHeight)
+    // 长截图首帧保留 fixed/sticky（顶栏 / banner），但会带来两类遮挡：
+    //   1) 顶栏「下面」的正文（典型如标题）在首帧被顶栏盖住；
+    //   2) 底栏 / 浮动按钮 / 伪 sticky 盖住首帧底部正文。
+    // 统一解法：画布顶部保留 contentOffsetY（= 顶栏下沿 headerBottom）高的
+    // 顶栏带（取自第0帧 [0, headerBottom]），其余全部正文整体下移
+    // contentOffsetY 由「已隐藏」的干净帧从内容真正顶部开始铺满覆盖。
+    // 这样顶栏出现一次，正文（含原本被遮的标题）完整无遮挡接在其下。
+    let contentOffsetY = 0
 
     // 2) 首帧：不隐藏任何 fixed/sticky，让弹窗 / iframe / 顶部 banner
     //    原样进入第一张图。从第二屏才开始隐藏，避免它们重复出现。
@@ -586,8 +596,21 @@ export async function handleCaptureFullPage(
       func: scrollToY,
       args: [0]
     })
-    const firstScrollY = firstScrollYRaw ?? 0
+    let firstScrollY = firstScrollYRaw ?? 0
     await sleep(120)
+    // scroll-behavior:smooth 的 scroller 上 scrollToY 立即返回值可能未到位。
+    // sleep 后用 measureScrollMetrics 拿稳定 scrollTop，避免首帧位置错位。
+    try {
+      const [{ result: stableMetrics }] = await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: measureScrollMetrics
+      })
+      if (stableMetrics && typeof stableMetrics.scrollTop === "number") {
+        firstScrollY = stableMetrics.scrollTop
+      }
+    } catch {
+      /* 忽略 */
+    }
 
     const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
       format: "png"
@@ -595,6 +618,18 @@ export async function handleCaptureFullPage(
     if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
     const firstBitmap = await dataUrlToBitmap(firstDataUrl)
     slices.push(makeSlice(firstBitmap, firstScrollY))
+    // ===== DEBUG: dump frame 0 =====
+    try {
+      await chrome.downloads.download({
+        url: firstDataUrl,
+        filename: `_dbg_fullpage_frame00_y${Math.round(firstScrollY)}.png`,
+        saveAs: false,
+        conflictAction: "uniquify"
+      })
+    } catch (err) {
+      console.warn("[fullPage][dbg] frame0 dump failed", err)
+    }
+    // ===== /DEBUG =====
     await dumpDebugFrame(firstDataUrl, 0, firstScrollY, {
       stepHeight,
       totalHeight,
@@ -643,7 +678,8 @@ export async function handleCaptureFullPage(
             args: [fullPageRules, siteRule.frameUrl]
           })
         } catch {
-          /* 主 frame 隐藏失败不致命 */
+          console.log('Main frame failed to hide!');
+          
         }
       }
       hidingApplied = true
@@ -659,10 +695,51 @@ export async function handleCaptureFullPage(
       })
       await sleep(120)
 
-      // 4) 滚动 + 多次截图（从第二屏开始）
-      let targetY = firstScrollY + stepHeight
+      // 3.6) 量取「顶部锚定头部」下沿 headerBottom，作为画布顶部要保留的
+      //      顶栏带高度。正文整体下移该值，让被顶栏盖住的标题等内容露出来。
+      let headerBottom = 0
+      try {
+        const [{ result: hb }] = await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: measureTopHeaderBottom
+        })
+        if (typeof hb === "number" && hb > 0) headerBottom = hb
+      } catch {
+        /* 测不到按无顶栏处理（contentOffsetY=0，干净帧整屏覆盖第0帧） */
+      }
+      const HEADER_MIN = 4
+      contentOffsetY = headerBottom > HEADER_MIN ? headerBottom : 0
+
+      // 3.7) 隐藏完成后重测内容高度（新坐标系），作为后续帧滚动 / 终止判定基准。
+      //      sticky 等占位元素 display:none 后内容上移、文档变矮，旧的 totalHeight
+      //      不再适用；用新高度才能正确判定到底，并算准画布高度。
+      try {
+        const [{ result: afterMetrics }] =
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureScrollMetrics
+          })
+        if (afterMetrics && typeof afterMetrics.scrollHeight === "number") {
+          totalHeight = afterMetrics.scrollHeight
+        }
+      } catch {
+        /* 测不到沿用旧 totalHeight */
+      }
+      // 画布高度 = 顶栏带 + 正文（新坐标系）总高
+      effectiveHeight = Math.max(
+        effectiveHeight,
+        totalHeight + contentOffsetY,
+        stepHeight + contentOffsetY
+      )
+
+      // 4) 滚动 + 多次截图
+      // 第1帧回到内容真正顶部（scrollY=0，干净状态）拍出被顶栏遮住的标题；
+      // 其后每帧 slice.scrollY = 实测 scrollY + contentOffsetY，整体下移给顶栏让位。
+      let targetY = firstScrollY
       // 上一轮已经拍过的 scrollY（首帧），用于检测「无法再滚」
-      let prevScrollY = firstScrollY
+      // 第1帧目标是内容顶部（scrollY=0），与首帧 firstScrollY 相同，
+      // 用 -1 哨兵避免首轮被误判为「无法再滚」而提前退出。
+      let prevScrollY = -1
       // 连续无法推进的次数：动态加载 / 虚拟列表页面经常出现
       // "看似到底但内容还在异步加载"的瞬态。单次未推进就退出会丢后续内容，
       // 改为连续 N 次 scrollY 不变 + scrollHeight 不变才退出。
@@ -679,7 +756,9 @@ export async function handleCaptureFullPage(
           func: scrollToY,
           args: [targetY]
         })
-        const scrollY = actualY ?? targetY
+        // scrollToY 立即返回的 scrollTop 在 scroll-behavior:smooth 的容器上
+        // 处于动画初期（远小于目标）。后面用 measureScrollMetrics 重新拿稳定值。
+        let scrollY = actualY ?? targetY
 
         // 4.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
         let measuredHeight = totalHeight
@@ -696,14 +775,23 @@ export async function handleCaptureFullPage(
           await sleep(120)
         }
 
-        // 4.2) 重新读 scrollHeight：动态加载页 totalHeight 会持续增长
+        // 4.2) 重新读 scrollHeight + 真实 scrollTop：
+        //   - 动态加载页 totalHeight 会持续增长
+        //   - scroller 命中 CSS scroll-behavior:smooth 时，scrollToY 返回的
+        //     scrollTop 是动画初期值；等待稳定后这里才是真实落点。
+        //     若不更新 slice.scrollY，会把帧画到错误位置 → 长图前两帧错位。
         try {
           const [{ result: metricsNow }] = await chrome.scripting.executeScript({
             target: scrollerTarget,
             func: measureScrollMetrics
           })
-          if (metricsNow && metricsNow.scrollHeight > measuredHeight) {
-            measuredHeight = metricsNow.scrollHeight
+          if (metricsNow) {
+            if (metricsNow.scrollHeight > measuredHeight) {
+              measuredHeight = metricsNow.scrollHeight
+            }
+            if (typeof metricsNow.scrollTop === "number") {
+              scrollY = metricsNow.scrollTop
+            }
           }
         } catch {
           /* 忽略 */
@@ -711,7 +799,11 @@ export async function handleCaptureFullPage(
 
         if (measuredHeight > totalHeight) {
           totalHeight = measuredHeight
-          effectiveHeight = Math.max(effectiveHeight, totalHeight)
+          // totalHeight 是新坐标系正文高度，画布还要加上顶栏带 contentOffsetY
+          effectiveHeight = Math.max(
+            effectiveHeight,
+            totalHeight + contentOffsetY
+          )
         }
 
         // 补隐藏 SPA 滚动回调里重新挂载的顶栏/侧栏
@@ -732,13 +824,45 @@ export async function handleCaptureFullPage(
           /* 不致命 */
         }
 
+        // 最终落点：必须在 captureVisibleTab 紧前一刻重读 scrollTop。
+        // 中间 rehideFixedElements / 懒加载触发的 reflow 可能让 scroller
+        // 自身 scrollTop 漂移（如 sticky 元素回弹、虚拟列表项变更），
+        // 早期记录的 scrollY 会和 capture 内容偏离 → 长图错位。
+        try {
+          const [{ result: finalMetrics }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureScrollMetrics
+          })
+          if (finalMetrics && typeof finalMetrics.scrollTop === "number") {
+            scrollY = finalMetrics.scrollTop
+          }
+        } catch {
+          /* 忽略 */
+        }
+
         const dataUrl = await safeCaptureVisibleTab(tab.windowId, {
           format: "png"
         })
         if (!dataUrl) throw new Error("截图失败：返回数据为空")
 
         const bitmap = await dataUrlToBitmap(dataUrl)
-        slices.push(makeSlice(bitmap, scrollY))
+        // 干净帧整体下移 contentOffsetY，给画布顶部的顶栏带让位，
+        // 同时让原本被顶栏遮住的内容（标题等）从顶栏正下方完整露出。
+        slices.push(makeSlice(bitmap, scrollY + contentOffsetY))
+        // ===== DEBUG: dump frame 1 (only the second frame) =====
+        if (slices.length === 2) {
+          try {
+            await chrome.downloads.download({
+              url: dataUrl,
+              filename: `_dbg_fullpage_frame01_y${Math.round(scrollY)}.png`,
+              saveAs: false,
+              conflictAction: "uniquify"
+            })
+          } catch (err) {
+            console.warn("[fullPage][dbg] frame1 dump failed", err)
+          }
+        }
+        // ===== /DEBUG =====
 
         frameIndex++
         await dumpDebugFrame(dataUrl, frameIndex, scrollY, {
@@ -777,8 +901,8 @@ export async function handleCaptureFullPage(
 
           if (stallCount >= MAX_STALL) {
             effectiveHeight = Math.max(
-              scrollY + stepHeight,
-              totalHeight,
+              scrollY + stepHeight + contentOffsetY,
+              totalHeight + contentOffsetY,
               effectiveHeight
             )
             break
@@ -791,7 +915,11 @@ export async function handleCaptureFullPage(
 
         // 终止条件 2：当前可视区已到达页面底部
         if (scrollY + stepHeight >= totalHeight) {
-          effectiveHeight = Math.max(scrollY + stepHeight, totalHeight)
+          effectiveHeight = Math.max(
+            scrollY + stepHeight + contentOffsetY,
+            totalHeight + contentOffsetY,
+            effectiveHeight
+          )
           break
         }
 

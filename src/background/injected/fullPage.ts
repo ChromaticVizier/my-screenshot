@@ -477,8 +477,13 @@ export function kickScrollListeners(stepHeight: number): void {
 
 /**
  * 滚动到指定 Y 位置（同步：滚动后立即返回当前实际 scrollY）。
- * 若 preparePage 检测到主滚动容器在某个内部元素上，则用 element.scrollTo 替代
- * window.scrollTo，并返回 element.scrollTop。
+ * 若 preparePage 检测到主滚动容器在某个内部元素上，则用 element.scrollTop 直接赋值
+ * （而非 scrollTo），避免 CSS `scroll-behavior: smooth` 触发动画导致
+ * scrollToY 立即返回的 scrollTop 远小于目标 → 长截图前两帧错位。
+ * window 模式同理，先临时关闭 html/body 上的 scroll-behavior，赋值完恢复。
+ *
+ * 同时临时禁用 scroll-snap-type：很多 SPA 容器有 `scroll-snap-type: y mandatory`
+ * 会把 scrollTop=600 吸附到 0/800 这类离散点，造成长图中间真实空洞。
  */
 export function scrollToY(y: number): number {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
@@ -486,15 +491,33 @@ export function scrollToY(y: number): number {
     `[${SCROLLER_ATTR}="1"]`
   )
   if (scroller) {
-    scroller.scrollTo({
-      top: y,
-      left: 0,
-      behavior: "instant" as ScrollBehavior
-    })
-    return scroller.scrollTop
+    const prevBehavior = scroller.style.scrollBehavior
+    const prevSnap = scroller.style.scrollSnapType
+    scroller.style.scrollBehavior = "auto"
+    scroller.style.scrollSnapType = "none"
+    scroller.scrollTop = y
+    const got = scroller.scrollTop
+    scroller.style.scrollBehavior = prevBehavior
+    scroller.style.scrollSnapType = prevSnap
+    return got
   }
-  window.scrollTo({ top: y, left: 0, behavior: "instant" as ScrollBehavior })
-  return window.scrollY
+  const html = document.documentElement
+  const body = document.body
+  const prevHtmlBehavior = html.style.scrollBehavior
+  const prevBodyBehavior = body.style.scrollBehavior
+  const prevHtmlSnap = html.style.scrollSnapType
+  const prevBodySnap = body.style.scrollSnapType
+  html.style.scrollBehavior = "auto"
+  body.style.scrollBehavior = "auto"
+  html.style.scrollSnapType = "none"
+  body.style.scrollSnapType = "none"
+  window.scrollTo(0, y)
+  const got = window.scrollY
+  html.style.scrollBehavior = prevHtmlBehavior
+  body.style.scrollBehavior = prevBodyBehavior
+  html.style.scrollSnapType = prevHtmlSnap
+  body.style.scrollSnapType = prevBodySnap
+  return got
 }
 
 /**
@@ -544,13 +567,22 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     return out
   }
 
-  const list: { el: HTMLElement; originalDisplay: string }[] = []
+  const list: { el: HTMLElement; originalDisplay: string; rect?: DOMRect }[] =
+    []
   const hide = (el: HTMLElement) => {
     if (keepSet.has(el)) return
     const ds = el.dataset as Record<string, string | undefined>
     if (MARK in ds) return
+    // 隐藏前记录矩形：供 measureTopHeaderBottom 判定「顶部锚定头部」下沿，
+    // 长截图首帧只保留头部，其下整屏交给干净帧覆盖，避免底栏/伪 sticky 遮挡。
+    let rect: DOMRect | undefined
+    try {
+      rect = el.getBoundingClientRect()
+    } catch {
+      rect = undefined
+    }
     ;(el.dataset as Record<string, string>)[MARK] = "1"
-    list.push({ el, originalDisplay: el.style.display })
+    list.push({ el, originalDisplay: el.style.display, rect })
     el.style.display = "none"
   }
 
@@ -1196,18 +1228,66 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
   // 追加到 STORE 列表，与 hideFixedElements 一起被 restoreFixedElements 恢复
   const store = (window as unknown as Record<string, unknown>)[STORE]
   const list = Array.isArray(store)
-    ? (store as { el: HTMLElement; originalDisplay: string }[])
+    ? (store as {
+        el: HTMLElement
+        originalDisplay: string
+        rect?: DOMRect
+      }[])
     : []
   toHide.forEach((el) => {
     const ds = el.dataset as Record<string, string | undefined>
     if (MARK in ds) return
+    let rect: DOMRect | undefined
+    try {
+      rect = el.getBoundingClientRect()
+    } catch {
+      rect = undefined
+    }
     ;(el.dataset as Record<string, string>)[MARK] = "1"
-    list.push({ el, originalDisplay: el.style.display })
+    list.push({ el, originalDisplay: el.style.display, rect })
     el.style.display = "none"
   })
   ;(window as unknown as Record<string, unknown>)[STORE] = list
 
   return toHide.length
+}
+
+/**
+ * 读取 hideFixedElements / detectAndHidePseudoSticky 隐藏列表里记录的矩形，
+ * 算出「顶部锚定的横向头部」下沿（视口 CSS 像素）。
+ *
+ * 用途：长截图首帧保留 fixed/sticky（顶栏、banner），但底栏 / 浮动按钮 /
+ * 伪 sticky 会遮挡首帧正文。让首帧只保留 [0, headerBottom] 的头部，
+ * headerBottom 以下整屏由「已隐藏」的干净帧覆盖即可消除遮挡。
+ *
+ * 判定「顶部锚定头部」：贴视口顶（top≤2）、横向铺开（width≥视口宽 50%）、
+ * 且不超过视口高 60%（排除满屏遮罩 / 纵向侧栏）。取其最大 bottom。
+ * 调用时机：滚回顶部、隐藏完成后（rect 记录于隐藏前、滚动位置在顶部）。
+ */
+export function measureTopHeaderBottom(): number {
+  const STORE = "__myScreenshotHiddenList"
+  const store = (window as unknown as Record<string, unknown>)[STORE]
+  const list = Array.isArray(store)
+    ? (store as { rect?: DOMRect }[])
+    : []
+  const html = document.documentElement
+  const vpw = html.clientWidth || window.innerWidth
+  const vph = html.clientHeight || window.innerHeight
+  let bottom = 0
+  for (const item of list) {
+    const r = item.rect
+    if (!r) continue
+    if (
+      r.top <= 2 &&
+      r.bottom > 0 &&
+      r.bottom <= vph &&
+      r.width >= vpw * 0.5 &&
+      r.height <= vph * 0.6
+    ) {
+      if (r.bottom > bottom) bottom = r.bottom
+    }
+  }
+  return bottom
 }
 
 /** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理隐藏列表残留。 */
