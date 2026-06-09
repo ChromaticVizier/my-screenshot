@@ -554,6 +554,28 @@ function Options() {
             </span>
           </div>
         </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>激进隐藏模式</label>
+          <div className={styles.control}>
+            <label className={styles.toggle}>
+              <input
+                type="checkbox"
+                checked={settings.aggressiveHideMode}
+                onChange={(e) =>
+                  update({ aggressiveHideMode: e.target.checked })
+                }
+              />
+              <span>{settings.aggressiveHideMode ? "已启用" : "已关闭"}</span>
+            </label>
+            <span className={styles.hint}>
+              开启后长截图先"隔离主滚动容器"，把容器之外的所有元素隐藏，
+              彻底消除顶栏 / 侧栏 / 弹窗在每屏重复出现的问题；
+              代价是词典官网等"内容分散在多个并列容器"的页面可能漏截部分元素。
+              关闭则使用默认的首帧保留 + 逐帧补偿流程。CDP 模式开启时此项不生效。
+            </span>
+          </div>
+        </div>
       </section>
 
       <section className={styles.section}>
