@@ -22,6 +22,7 @@ import {
   hideFixedElementsExcludeFrame,
   kickScrollListeners,
   measureScrollMetrics,
+  measureContentTopReservedSpace,
   measureTopHeaderBottom,
   preparePage,
   rehideFixedElements,
@@ -695,8 +696,11 @@ export async function handleCaptureFullPage(
       })
       await sleep(120)
 
-      // 3.6) 量取「顶部锚定头部」下沿 headerBottom，作为画布顶部要保留的
-      //      顶栏带高度。正文整体下移该值，让被顶栏盖住的标题等内容露出来。
+      // 3.6) 量取「顶部锚定头部」下沿 headerBottom（画布顶部要保留的顶栏带高度），
+      //      以及正文顶部已预留的空白 P。正文整体下移量 = headerBottom - P：
+      //      - 无预留（P≈0，标题被顶栏直接盖住）：下移满 headerBottom，标题露出；
+      //      - 已预留满（P≈headerBottom，站点自带 padding-top）：下移 0，不叠加空白。
+      //      并让第1帧滚到 P，跳过预留空白、从正文真实顶部开始拍。
       let headerBottom = 0
       try {
         const [{ result: hb }] = await chrome.scripting.executeScript({
@@ -708,7 +712,26 @@ export async function handleCaptureFullPage(
         /* 测不到按无顶栏处理（contentOffsetY=0，干净帧整屏覆盖第0帧） */
       }
       const HEADER_MIN = 4
-      contentOffsetY = headerBottom > HEADER_MIN ? headerBottom : 0
+      let reservedTop = 0
+      if (headerBottom > HEADER_MIN) {
+        try {
+          const [{ result: p }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureContentTopReservedSpace
+          })
+          if (typeof p === "number" && p > 0) {
+            // 夹到 [0, headerBottom]：防止 P 过测导致跳过正文 / 下移量为负
+            reservedTop = Math.min(headerBottom, p)
+          }
+        } catch {
+          /* 测不到按无预留处理（下移满 headerBottom） */
+        }
+        contentOffsetY = Math.max(0, headerBottom - reservedTop)
+      } else {
+        contentOffsetY = 0
+      }
+      // 第1帧（首个干净帧）滚到正文真实顶部 P，跳过已预留空白
+      const firstCleanScroll = firstScrollY + reservedTop
 
       // 3.7) 隐藏完成后重测内容高度（新坐标系），作为后续帧滚动 / 终止判定基准。
       //      sticky 等占位元素 display:none 后内容上移、文档变矮，旧的 totalHeight
@@ -733,9 +756,9 @@ export async function handleCaptureFullPage(
       )
 
       // 4) 滚动 + 多次截图
-      // 第1帧回到内容真正顶部（scrollY=0，干净状态）拍出被顶栏遮住的标题；
+      // 第1帧滚到正文真实顶部 firstCleanScroll（干净状态）拍出被顶栏遮住的标题；
       // 其后每帧 slice.scrollY = 实测 scrollY + contentOffsetY，整体下移给顶栏让位。
-      let targetY = firstScrollY
+      let targetY = firstCleanScroll
       // 上一轮已经拍过的 scrollY（首帧），用于检测「无法再滚」
       // 第1帧目标是内容顶部（scrollY=0），与首帧 firstScrollY 相同，
       // 用 -1 哨兵避免首轮被误判为「无法再滚」而提前退出。

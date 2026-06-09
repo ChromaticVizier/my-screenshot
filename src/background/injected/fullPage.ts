@@ -1290,6 +1290,81 @@ export function measureTopHeaderBottom(): number {
   return bottom
 }
 
+/**
+ * 量取「正文真实顶部」距视口顶的距离（视口 CSS 像素），即顶部已为固定栏
+ * 预留的空白（padding/margin）。调用前提：已滚到顶部、顶栏已隐藏。
+ *
+ * 用途：长截图把正文整体下移给顶栏带让位时，需扣掉这段已预留空白，
+ * 否则会给「本就为固定栏留好 padding-top」的站点叠加一段多余空白。
+ *
+ * 取法：扫描 DOM，找最上沿的可见文本 / 图片 / 媒体（绕开「容器盒子从 0 起、
+ * 真实内容却在 padding 之下」的整页 wrapper 结构），返回其 rect.top。
+ */
+export function measureContentTopReservedSpace(): number {
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  const root: ParentNode =
+    scroller || document.body || document.documentElement
+  const vph = scroller
+    ? scroller.clientHeight
+    : document.documentElement.clientHeight || window.innerHeight
+
+  let minTop = Infinity
+  let scanned = 0
+  const SCAN_LIMIT = 4000
+
+  let walker: TreeWalker
+  try {
+    walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT
+    )
+  } catch {
+    return 0
+  }
+
+  let n: Node | null = walker.currentNode
+  while ((n = walker.nextNode()) && scanned < SCAN_LIMIT) {
+    scanned++
+    let rect: DOMRect | null = null
+
+    if (n.nodeType === Node.TEXT_NODE) {
+      if (!(n.textContent || "").trim()) continue
+      try {
+        const range = document.createRange()
+        range.selectNodeContents(n)
+        rect = range.getBoundingClientRect()
+      } catch {
+        continue
+      }
+    } else if (n instanceof HTMLElement) {
+      const tag = n.tagName
+      if (
+        tag === "IMG" ||
+        tag === "VIDEO" ||
+        tag === "CANVAS" ||
+        tag === "SVG"
+      ) {
+        try {
+          rect = n.getBoundingClientRect()
+        } catch {
+          continue
+        }
+      }
+    }
+
+    if (!rect || rect.width < 2 || rect.height < 2) continue
+    if (rect.top < 0 || rect.top > vph) continue
+    if (rect.top < minTop) minTop = rect.top
+    // 已贴近视口顶，不可能更小，提前结束扫描
+    if (minTop <= 2) break
+  }
+
+  return minTop === Infinity ? 0 : minTop
+}
+
 /** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理隐藏列表残留。 */
 export function restorePage(snapshot: PreparePageSnapshot): void {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
