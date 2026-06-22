@@ -14,7 +14,6 @@ import {
   handleHideRelayWindow,
   handleSelectScrollRegion
 } from "~src/background/handlers/capture"
-import { handleCaptureFullPageCdp } from "~src/background/handlers/captureCdp"
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
 import {
   handleRecorderFinish,
@@ -39,11 +38,9 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.CAPTURE_FULL_PAGE: {
-          // CDP 模式优先；其次「激进隐藏模式」；否则走原有滚动拼接路径
+          // 优先级：激进隐藏模式 > 默认滚动拼接
           const settings = await getSettings()
-          if (settings.useCdpForFullPage) {
-            sendResponse(await handleCaptureFullPageCdp(request))
-          } else if (settings.aggressiveHideMode) {
+          if (settings.aggressiveHideMode) {
             sendResponse(await handleCaptureFullPageAggressive(request))
           } else {
             sendResponse(await handleCaptureFullPage(request))

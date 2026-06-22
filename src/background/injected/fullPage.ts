@@ -89,7 +89,8 @@ export interface PageMetrics {
  */
 export function preparePage(
   rules?: FullPageRuleSet,
-  siteScrollRegion?: SiteScrollRegionRule | null
+  siteScrollRegion?: SiteScrollRegionRule | null,
+  options?: { preferWindowScroll?: boolean }
 ): PageMetrics & {
   snapshot: PreparePageSnapshot
 } {
@@ -101,6 +102,26 @@ export function preparePage(
   document
     .querySelectorAll(`[${SCROLLER_ATTR}="1"]`)
     .forEach((el) => el.removeAttribute(SCROLLER_ATTR))
+
+  // 注入全局「冻结样式」：截图全程关闭平滑滚动与所有过渡/动画。
+  // 参考 awesome-screenshot 逆向（docs/screenshot-flow-reference.md #4 #5）：
+  //   - scroll-behavior:auto → scrollTo / scrollTop 立即生效，不产生滚动动画帧；
+  //   - transition/animation:none → position 切换、懒加载图标、骨架屏等不会被截到
+  //     运动中间态（对方"待优化点 #2"里 SVG 图标 0×0 的根因）。
+  // 由 restorePage 按 id 移除。新旧两套模式都走 preparePage，因此统一受益。
+  const FREEZE_STYLE_ID = "__my_screenshot_freeze_style__"
+  if (!document.getElementById(FREEZE_STYLE_ID)) {
+    const freeze = document.createElement("style")
+    freeze.id = FREEZE_STYLE_ID
+    freeze.textContent =
+      "html{scroll-behavior:auto !important;}" +
+      "*,*::before,*::after{" +
+      "transition:none !important;" +
+      "animation:none !important;" +
+      "scroll-behavior:auto !important;" +
+      "}"
+    ;(document.head || document.documentElement).appendChild(freeze)
+  }
 
   const originalScrollY = window.scrollY
 
@@ -126,8 +147,10 @@ export function preparePage(
         const cs = getComputedStyle(el)
         const oy = cs.overflowY
         const rect = el.getBoundingClientRect()
+        // overflow:hidden/clip 的元素也能被 JS（scrollTop）滚动（网易系 div.g-body 即此类），
+        // 只要 scrollHeight 溢出即视为有效滚动容器；仅 visible 永不裁剪、不可滚。
         const scrollable =
-          (oy === "auto" || oy === "scroll") &&
+          oy !== "visible" &&
           el.scrollHeight > el.clientHeight + 4 &&
           rect.width > 0 &&
           rect.height > 0 &&
@@ -145,7 +168,19 @@ export function preparePage(
 
   // 不再只限「接近全屏」：三栏应用/知识库/IM 页面经常只有中间栏是主体可滚区。
   // 评分同时考虑：可滚动距离、视口面积、文本量、语义类名、居中程度。
-  if (!scrollerEl && rules?.detectScrollContainer !== false) {
+  //
+  // preferWindowScroll（逆向还原模式）：闭源插件实测 scroll target 几乎全是 window，
+  // 仅当 window 完全不可滚（如网易邮箱 html/body 都 overflow:hidden）才用内部容器。
+  // 慕课等 body.overflow=hidden|auto 的页面其实是 window 可滚的，自动评分却会把某个
+  // 内部 div 误判成主滚动容器 → scrollToY 设错对象 → 只出首帧、后续空白。
+  // 因此该模式下：window 可滚就直接用 window，跳过内部容器评分。
+  if (
+    !scrollerEl &&
+    options?.preferWindowScroll &&
+    windowScrollable
+  ) {
+    // 标记不命中任何内部 scroller，走 window 滚动路径
+  } else if (!scrollerEl && rules?.detectScrollContainer !== false) {
     const vw = html.clientWidth || window.innerWidth
     const vh = html.clientHeight || window.innerHeight
     const minRatio = rules?.scrollContainerMinRatio ?? 1.05
@@ -172,6 +207,9 @@ export function preparePage(
     let bestEl: HTMLElement | null = null
 
     document.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      // body/html 的滚动由 window.scrollTo 驱动，el.scrollTop 在标准模式下永远返回 0，
+      // 不能作为内部滚动容器（否则 scrollToY 设 body.scrollTop 无效，触发 stall 退出）。
+      if (el === body || el === html) return
       let cs: CSSStyleDeclaration
       try {
         cs = getComputedStyle(el)
@@ -179,7 +217,8 @@ export function preparePage(
         return
       }
       const oy = cs.overflowY
-      if (oy !== "auto" && oy !== "scroll") return
+      // 同 picker：overflow:hidden/clip 也可 JS 滚动，仅排除 visible
+      if (oy === "visible") return
       if (cs.display === "none" || cs.visibility === "hidden") return
       const scrollHeight = el.scrollHeight
       const clientHeight = el.clientHeight
@@ -233,9 +272,18 @@ export function preparePage(
     // 仅当 window 不可滚，或内部容器明显比 window 更像主体时才切换。
     // 避免普通页面里某个侧栏列表误夺主滚动权。
     const winner = bestEl as HTMLElement | null
-    if (winner && (!windowCanCover || bestScore >= 0.55)) {
-      scrollerEl = winner
-      scrollerEl.setAttribute(SCROLLER_ATTR, "1")
+    if (winner) {
+      // window 可覆盖全页时，内部容器还须足够宽（≥ 视口宽的 30%）才能抢主滚动权。
+      // 否则 Confluence 等左侧窄侧边栏因有大量文本且自身可滚，会错误地被选为主 scroller，
+      // 导致截图只滚侧边栏而非右侧主内容。
+      // window 不可滚时不加宽度限制（内部窄容器本就是唯一出口）。
+      const winnerWidthRatio =
+        winner.getBoundingClientRect().width / Math.max(1, vw)
+      const wideEnough = !windowCanCover || winnerWidthRatio >= 0.3
+      if (wideEnough && (!windowCanCover || bestScore >= 0.55)) {
+        scrollerEl = winner
+        scrollerEl.setAttribute(SCROLLER_ATTR, "1")
+      }
     }
   }
 
@@ -1370,6 +1418,10 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
   // 万一 restoreFixedElements 因异常没被调用，这里再兜底一遍
   restoreFixedElements()
+
+  // 移除 preparePage 注入的全局冻结样式，恢复页面原有的平滑滚动 / 过渡动画
+  const FREEZE_STYLE_ID = "__my_screenshot_freeze_style__"
+  document.getElementById(FREEZE_STYLE_ID)?.remove()
 
   document.documentElement.style.overflow = snapshot.htmlOverflow
   document.body.style.overflow = snapshot.bodyOverflow

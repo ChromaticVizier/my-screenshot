@@ -332,18 +332,6 @@ export async function handleCaptureFullPage(
     if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
     const firstBitmap = await dataUrlToBitmap(firstDataUrl)
     slices.push(makeSlice(firstBitmap, firstScrollY))
-    // ===== DEBUG: dump frame 0 =====
-    try {
-      await chrome.downloads.download({
-        url: firstDataUrl,
-        filename: `_dbg_fullpage_frame00_y${Math.round(firstScrollY)}.png`,
-        saveAs: false,
-        conflictAction: "uniquify"
-      })
-    } catch (err) {
-      console.warn("[fullPage][dbg] frame0 dump failed", err)
-    }
-    // ===== /DEBUG =====
     await dumpDebugFrame(firstDataUrl, 0, firstScrollY, {
       stepHeight,
       totalHeight,
@@ -585,20 +573,6 @@ export async function handleCaptureFullPage(
         // 干净帧整体下移 contentOffsetY，给画布顶部的顶栏带让位，
         // 同时让原本被顶栏遮住的内容（标题等）从顶栏正下方完整露出。
         slices.push(makeSlice(bitmap, scrollY + contentOffsetY))
-        // ===== DEBUG: dump frame 1 (only the second frame) =====
-        if (slices.length === 2) {
-          try {
-            await chrome.downloads.download({
-              url: dataUrl,
-              filename: `_dbg_fullpage_frame01_y${Math.round(scrollY)}.png`,
-              saveAs: false,
-              conflictAction: "uniquify"
-            })
-          } catch (err) {
-            console.warn("[fullPage][dbg] frame1 dump failed", err)
-          }
-        }
-        // ===== /DEBUG =====
 
         frameIndex++
         await dumpDebugFrame(dataUrl, frameIndex, scrollY, {

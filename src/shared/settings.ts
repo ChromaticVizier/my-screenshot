@@ -126,17 +126,11 @@ export interface AppSettings {
   siteScrollRegions: Record<string, SiteScrollRegionRule>
   /** 截图后先打开裁剪编辑器，确认后再下载 */
   cropBeforeDownload: boolean
-  /** 启用 CDP（Chrome DevTools Protocol）整页截图模式
-   *  打开后"整个页面"走 chrome.debugger + Page.captureScreenshot 一次拍全，
-   *  不再滚动拼接。优点：天然支持懒加载 / 虚拟列表 / 内嵌 iframe，无衔接缝隙。
-   *  缺点：截图期间浏览器顶部会显示"XXX 正在调试此浏览器"提示条；
-   *  chrome://、扩展页、devtools 页等不可用。默认关闭，保持原有滚动拼接行为。 */
-  useCdpForFullPage: boolean
   /** 长截图「激进隐藏模式」。
    *  开启后整页滚动拼接走「先隔离主滚动容器、把容器外所有元素隐藏」的流程，
    *  彻底消除顶栏 / 侧栏 / 弹窗逐帧重复；代价是词典官网等「内容分散在多个并列
    *  容器」的页面可能漏截非滚动容器内的元素。默认关闭，保留旧的首帧保留 +
-   *  逐帧补偿流程。与 useCdpForFullPage 互斥：CDP 模式优先。 */
+   *  逐帧补偿流程。 */
   aggressiveHideMode: boolean
 }
 
@@ -194,7 +188,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fullPageRules: DEFAULT_FULL_PAGE_RULES,
   siteScrollRegions: {},
   cropBeforeDownload: true,
-  useCdpForFullPage: false,
   aggressiveHideMode: false
 }
 
@@ -217,7 +210,6 @@ export async function getSettings(): Promise<AppSettings> {
     fullPageRules: mergeFullPageRules(stored.fullPageRules),
     siteScrollRegions: stored.siteScrollRegions ?? {},
     cropBeforeDownload: stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,
-    useCdpForFullPage: stored.useCdpForFullPage ?? DEFAULT_SETTINGS.useCdpForFullPage,
     aggressiveHideMode: stored.aggressiveHideMode ?? DEFAULT_SETTINGS.aggressiveHideMode
   }
 }

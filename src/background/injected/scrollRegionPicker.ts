@@ -125,8 +125,11 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
     const isScrollable = (el: HTMLElement) => {
       const cs = getComputedStyle(el)
       const oy = cs.overflowY
+      // 关键：overflow:hidden / clip 的元素同样能被 JS（scrollTop）滚动，只是没滚动条。
+      // 网易系页面（如慕课 div.g-body）常用「固定高度 + overflow:hidden」做主滚动视口，
+      // 真正可滚的是它而非 overflow:auto 的 body。只有 visible 永不裁剪、不可滚，需排除。
+      if (oy === "visible") return false
       return (
-        (oy === "auto" || oy === "scroll") &&
         el.scrollHeight > el.clientHeight + 4 &&
         el.clientHeight > 0
       )
@@ -234,8 +237,12 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
         return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
       })
       if (hits.length === 0) return null
-      // 取面积最小者，便于在嵌套滚动容器中选择更具体的主体区域
+      // 取面积最小者，便于在嵌套滚动容器中选择更具体的主体区域；
+      // 面积相等时优先「被包含者」（更内层、更具体），避免误选外层 body 等包裹元素
+      // （慕课 div.g-body 与 body 几乎等大，真正可滚的是内层 g-body）。
       hits.sort((a, b) => {
+        if (a !== b && a.contains(b)) return 1
+        if (a !== b && b.contains(a)) return -1
         const ar = a.getBoundingClientRect()
         const br = b.getBoundingClientRect()
         return ar.width * ar.height - br.width * br.height
