@@ -1,0 +1,437 @@
+{
+  "url": "https://mail.163.com/js6/main.jsp?sid=KLWCEwJsjYlfCfGXCfBbHMADhthVBLwV&df=mail163_letter#module=mbox.ListModule%7C%7B%22fid%22%3A1%2C%22order%22%3A%22date%22%2C%22desc%22%3Atrue%7D",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0",
+  "recordedAt": "2026-06-15T02:24:48.657Z",
+  "count": 58,
+  "records": [
+    {
+      "t": 0,
+      "kind": "note",
+      "detail": "START | html.overflow=hidden body.overflow=hidden scrollY=0 vp=1525x864"
+    },
+    {
+      "t": 3952,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3952,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3953,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "position: relative !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3953,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3953,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3954,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3954,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3954,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3954,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3954,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3954,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important; overflow: hidden;",
+      "newValue": "scroll-behavior: unset !important;",
+      "tag": "overflow"
+    },
+    {
+      "t": 3954,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3954,
+      "kind": "scroll",
+      "target": "div#1781490252153_ScrollDiv",
+      "detail": "scrollTop:1 scrollLeft:0"
+    },
+    {
+      "t": 3955,
+      "kind": "attr",
+      "target": "header#1781490252153_Header",
+      "attr": "class",
+      "oldValue": "frame-main-cont-head",
+      "newValue": "frame-main-cont-head frame-main-cont-head-shadow",
+      "tag": "class"
+    },
+    {
+      "t": 4110,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4111,
+      "kind": "scroll",
+      "target": "div#1781490252153_ScrollDiv",
+      "detail": "scrollTop:0 scrollLeft:0"
+    },
+    {
+      "t": 4111,
+      "kind": "attr",
+      "target": "header#1781490252153_Header",
+      "attr": "class",
+      "oldValue": "frame-main-cont-head frame-main-cont-head-shadow",
+      "newValue": "frame-main-cont-head",
+      "tag": "class"
+    },
+    {
+      "t": 4372,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4738,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4738,
+      "kind": "scroll",
+      "target": "div#1781490252153_ScrollDiv",
+      "detail": "scrollTop:169 scrollLeft:0"
+    },
+    {
+      "t": 4739,
+      "kind": "attr",
+      "target": "header#1781490252153_Header",
+      "attr": "class",
+      "oldValue": "frame-main-cont-head",
+      "newValue": "frame-main-cont-head frame-main-cont-head-shadow",
+      "tag": "class"
+    },
+    {
+      "t": 4852,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4852,
+      "kind": "attr",
+      "target": "div#1781490252155_dvZoom",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4852,
+      "kind": "attr",
+      "target": "div#1781490252155_dvReadZoom",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252155_dvReadZoom",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252155_dvZoom",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5476,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "div#1781490252153_ScrollDiv",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": "position: relative !important;",
+      "newValue": "",
+      "tag": "position"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 5477,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": ""
+    },
+    {
+      "t": 5489,
+      "kind": "scroll",
+      "target": "div#1781490252153_ScrollDiv",
+      "detail": "scrollTop:0 scrollLeft:0"
+    },
+    {
+      "t": 5490,
+      "kind": "attr",
+      "target": "header#1781490252153_Header",
+      "attr": "class",
+      "oldValue": "frame-main-cont-head frame-main-cont-head-shadow",
+      "newValue": "frame-main-cont-head",
+      "tag": "class"
+    },
+    {
+      "t": 8924,
+      "kind": "note",
+      "detail": "STOP"
+    }
+  ]
+}

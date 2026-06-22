@@ -1,0 +1,460 @@
+{
+  "url": "https://gitlab.corp.youdao.com/zhaoyp01",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0",
+  "recordedAt": "2026-06-15T02:18:08.127Z",
+  "count": 60,
+  "records": [
+    {
+      "t": 0,
+      "kind": "note",
+      "detail": "START | html.overflow=auto scroll body.overflow=visible scrollY=0 vp=1528x698"
+    },
+    {
+      "t": 565,
+      "kind": "attr",
+      "target": "div.header-content.js-header-content:nth-child(1) > div.navbar-collapse.gl-transition-medium:nth-child(3) > ul.nav.navbar-nav:nth-child(1) > li.user-counter.dropdown:nth-child(3) > a.dashboard-shortcuts-merge_requests.has-tooltip:nth-child(1)",
+      "attr": "title",
+      "oldValue": "Merge requests",
+      "newValue": ""
+    },
+    {
+      "t": 565,
+      "kind": "attr",
+      "target": "div.header-content.js-header-content:nth-child(1) > div.navbar-collapse.gl-transition-medium:nth-child(3) > ul.nav.navbar-nav:nth-child(1) > li.user-counter.dropdown:nth-child(3) > a.dashboard-shortcuts-merge_requests.has-tooltip:nth-child(1)",
+      "attr": "data-original-title",
+      "oldValue": null,
+      "newValue": "Merge requests"
+    },
+    {
+      "t": 577,
+      "kind": "attr",
+      "target": "div.header-content.js-header-content:nth-child(1) > div.navbar-collapse.gl-transition-medium:nth-child(3) > ul.nav.navbar-nav:nth-child(1) > li.user-counter.dropdown:nth-child(3) > a.dashboard-shortcuts-merge_requests.has-tooltip:nth-child(1)",
+      "attr": "data-original-title",
+      "oldValue": "Merge requests",
+      "newValue": null
+    },
+    {
+      "t": 577,
+      "kind": "attr",
+      "target": "div.header-content.js-header-content:nth-child(1) > div.navbar-collapse.gl-transition-medium:nth-child(3) > ul.nav.navbar-nav:nth-child(1) > li.user-counter.dropdown:nth-child(3) > a.dashboard-shortcuts-merge_requests.has-tooltip:nth-child(1)",
+      "attr": "title",
+      "oldValue": "",
+      "newValue": "Merge requests"
+    },
+    {
+      "t": 3590,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3591,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3591,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3592,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3592,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3592,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3592,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 3592,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "position: relative !important; min-width: 100vw !important; min-height: 100vh !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3592,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3592,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3592,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3592,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3757,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3919,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4294,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4295,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:498"
+    },
+    {
+      "t": 4413,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4413,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4413,
+      "kind": "attr",
+      "target": "main#content-body > div.flash-container.flash-container-page:nth-child(1)",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "position: relative !important; inset: auto !important;",
+      "tag": "position"
+    },
+    {
+      "t": 5025,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5025,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 5026,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:997"
+    },
+    {
+      "t": 5144,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 5144,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5621,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5622,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 5622,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:1145"
+    },
+    {
+      "t": 5726,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6357,
+      "kind": "attr",
+      "target": "body.gl-dark.tab-width-8:nth-child(2) > header.navbar.navbar-gitlab:nth-child(2)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "main#content-body > div.flash-container.flash-container-page:nth-child(1)",
+      "attr": "style",
+      "oldValue": "position: relative !important; inset: auto !important;",
+      "newValue": "",
+      "tag": "position"
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": "position: relative !important; min-width: 100vw !important; min-height: 100vh !important;",
+      "newValue": "",
+      "tag": "position"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 6358,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": ""
+    },
+    {
+      "t": 6372,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:0"
+    },
+    {
+      "t": 10548,
+      "kind": "note",
+      "detail": "STOP"
+    }
+  ]
+}

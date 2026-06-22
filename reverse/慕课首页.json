@@ -1,0 +1,4875 @@
+{
+  "url": "https://www.icourse163.org/",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+  "recordedAt": "2026-06-15T02:20:23.304Z",
+  "count": 614,
+  "records": [
+    {
+      "t": 0,
+      "kind": "note",
+      "detail": "START | html.overflow=visible body.overflow=hidden auto scrollY=0 vp=1528x698"
+    },
+    {
+      "t": 551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:07",
+      "newValue": "3天13:40:06"
+    },
+    {
+      "t": 553,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:07",
+      "newValue": "3天13:40:06"
+    },
+    {
+      "t": 915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:07",
+      "newValue": "01:40:06"
+    },
+    {
+      "t": 1552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:06",
+      "newValue": "3天13:40:05"
+    },
+    {
+      "t": 1552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:06",
+      "newValue": "3天13:40:05"
+    },
+    {
+      "t": 1912,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1913,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1913,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1914,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1914,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1914,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 1919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:06",
+      "newValue": "01:40:05"
+    },
+    {
+      "t": 2551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:05",
+      "newValue": "3天13:40:04"
+    },
+    {
+      "t": 2552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:05",
+      "newValue": "3天13:40:04"
+    },
+    {
+      "t": 2642,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2643,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2643,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2643,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2644,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2644,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2644,
+      "kind": "addNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos:static disp:none z:auto] {0x0}"
+    },
+    {
+      "t": 2644,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "position: relative !important; min-height: 100vh !important;",
+      "tag": "position"
+    },
+    {
+      "t": 2644,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2644,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2644,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2644,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2804,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 2804,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 2804,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 371px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7106.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 2804,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 371px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7106.6px !important;"
+    },
+    {
+      "t": 2804,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 2915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:05",
+      "newValue": "01:40:04"
+    },
+    {
+      "t": 2958,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3351,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7106.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 371px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 3351,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 371px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 371px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 3351,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3351,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3351,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3357,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:498"
+    },
+    {
+      "t": 3358,
+      "kind": "attr",
+      "target": "div#j-side-operation > div.line-wrap.j-wrap:nth-child(6)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: block;",
+      "tag": "display"
+    },
+    {
+      "t": 3358,
+      "kind": "attr",
+      "target": "div#j-side-operation > div.side-service-item.j-backToTop:nth-child(7)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: block;",
+      "tag": "display"
+    },
+    {
+      "t": 3358,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;"
+    },
+    {
+      "t": 3358,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 371px; display: inline-block;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;"
+    },
+    {
+      "t": 3479,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 3479,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#j-indexNav-bar",
+      "attr": "style",
+      "oldValue": null,
+      "newValue": "position: relative !important; inset: auto !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3480,
+      "kind": "attr",
+      "target": "div#web-nav-container",
+      "attr": "style",
+      "oldValue": "position:sticky;z-index:999;top:0; width:100%",
+      "newValue": "z-index: 999; width: 100%; position: relative !important; inset: auto !important;",
+      "tag": "position"
+    },
+    {
+      "t": 3552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:04",
+      "newValue": "3天13:40:03"
+    },
+    {
+      "t": 3552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:04",
+      "newValue": "3天13:40:03"
+    },
+    {
+      "t": 3916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 3922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:04",
+      "newValue": "01:40:03"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4072,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4073,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4073,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4073,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4073,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:997"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 4196,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 4551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:03",
+      "newValue": "3天13:40:02"
+    },
+    {
+      "t": 4554,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:03",
+      "newValue": "3天13:40:02"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4670,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 4670,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:1495"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 4801,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 4917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4924,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4924,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 4924,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:03",
+      "newValue": "01:40:02"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5394,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 5395,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:1994"
+    },
+    {
+      "t": 5515,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 5516,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 5551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:02",
+      "newValue": "3天13:40:01"
+    },
+    {
+      "t": 5552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:02",
+      "newValue": "3天13:40:01"
+    },
+    {
+      "t": 5916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:02",
+      "newValue": "01:40:01"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 5990,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 5990,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:2493"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 6109,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 6551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:01",
+      "newValue": "3天13:40:00"
+    },
+    {
+      "t": 6554,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:01",
+      "newValue": "3天13:40:00"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6719,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 6719,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:2991"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 6849,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 6915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 6922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:01",
+      "newValue": "01:40:00"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7304,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 7304,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:3490"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 7426,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 7551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:00",
+      "newValue": "3天13:39:59"
+    },
+    {
+      "t": 7555,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:40:00",
+      "newValue": "3天13:39:59"
+    },
+    {
+      "t": 7915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 7922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:40:00",
+      "newValue": "01:39:59"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8052,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 8053,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:3989"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 8177,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 8552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:59",
+      "newValue": "3天13:39:58"
+    },
+    {
+      "t": 8555,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:59",
+      "newValue": "3天13:39:58"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8622,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 8622,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:4487"
+    },
+    {
+      "t": 8742,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 8743,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 8915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 8921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:59",
+      "newValue": "01:39:58"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9368,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 9368,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:4986"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 9489,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 9552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:58",
+      "newValue": "3天13:39:57"
+    },
+    {
+      "t": 9553,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:58",
+      "newValue": "3天13:39:57"
+    },
+    {
+      "t": 9916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:58",
+      "newValue": "01:39:57"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 9939,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 9939,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:5485"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 10059,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 10552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:57",
+      "newValue": "3天13:39:56"
+    },
+    {
+      "t": 10554,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:57",
+      "newValue": "3天13:39:56"
+    },
+    {
+      "t": 10683,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 10683,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 10683,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10684,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 10684,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:5983"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 10805,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 10916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 10925,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:57",
+      "newValue": "01:39:56"
+    },
+    {
+      "t": 11252,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 11252,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 11252,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 11252,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 11252,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11253,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11253,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11253,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11253,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11253,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 11253,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:6482"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 11375,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 11551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:56",
+      "newValue": "3天13:39:55"
+    },
+    {
+      "t": 11555,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:56",
+      "newValue": "3天13:39:55"
+    },
+    {
+      "t": 11915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 11922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:56",
+      "newValue": "01:39:55"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12004,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 12018,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:6981"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 12124,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 12553,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:55",
+      "newValue": "3天13:39:54"
+    },
+    {
+      "t": 12553,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:55",
+      "newValue": "3天13:39:54"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12573,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": "scroll-behavior: unset !important;"
+    },
+    {
+      "t": 12584,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:7478"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none;",
+      "newValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "",
+      "newValue": "visibility: visible !important;",
+      "tag": "visibility"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "tag": "position"
+    },
+    {
+      "t": 12682,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;"
+    },
+    {
+      "t": 12915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 12921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:55",
+      "newValue": "01:39:54"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7273.6px !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "z-index: 300; text-align: right; right: 16px; bottom: 204px; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; display: inline-block; position: absolute !important; transition: none !important; right: 13px !important; bottom: -7045.6px !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "z-index: 300; right: 13px; bottom: 432px; display: inline-block; position: absolute !important; transition: none !important;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-side-operation",
+      "attr": "style",
+      "oldValue": "visibility: visible !important;",
+      "newValue": "",
+      "tag": "visibility"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-loading:nth-child(14)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.ux-notify.ux-notify-topcenter:nth-child(13)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "body#auto-id-1781489979579 > div.u-loading:nth-child(12)",
+      "attr": "style",
+      "oldValue": "display: none; visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "display: none;",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#g-container > div.privacy-info-container:nth-child(3)",
+      "attr": "style",
+      "oldValue": "visibility: hidden !important; overflow: hidden !important; opacity: 0 !important;",
+      "newValue": "",
+      "tag": "visibility,opacity,overflow"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#web-nav-container",
+      "attr": "style",
+      "oldValue": "z-index: 999; width: 100%; position: relative !important; inset: auto !important;",
+      "newValue": "position: sticky; z-index: 999; top: 0px; width: 100%;",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "div#j-indexNav-bar",
+      "attr": "style",
+      "oldValue": "position: relative !important; inset: auto !important;",
+      "newValue": "",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: unset !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "body",
+      "attr": "style",
+      "oldValue": "position: relative !important; min-height: 100vh !important;",
+      "newValue": "",
+      "tag": "position"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "removeNode",
+      "target": "head:nth-child(1)",
+      "detail": "style [pos: disp: z:] {0x0}"
+    },
+    {
+      "t": 13347,
+      "kind": "attr",
+      "target": "html",
+      "attr": "style",
+      "oldValue": "scroll-behavior: auto !important;",
+      "newValue": ""
+    },
+    {
+      "t": 13353,
+      "kind": "scroll",
+      "target": "window",
+      "detail": "x:0 y:0"
+    },
+    {
+      "t": 13551,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:54",
+      "newValue": "3天13:39:53"
+    },
+    {
+      "t": 13552,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:54",
+      "newValue": "3天13:39:53"
+    },
+    {
+      "t": 14331,
+      "kind": "attr",
+      "target": "div#j-side-operation > div.line-wrap.j-wrap:nth-child(6)",
+      "attr": "style",
+      "oldValue": "display: block;",
+      "newValue": "display: none;",
+      "tag": "display,HIDE"
+    },
+    {
+      "t": 14331,
+      "kind": "attr",
+      "target": "div#j-side-operation > div.side-service-item.j-backToTop:nth-child(7)",
+      "attr": "style",
+      "oldValue": "display: block;",
+      "newValue": "display: none;",
+      "tag": "display,HIDE"
+    },
+    {
+      "t": 14331,
+      "kind": "attr",
+      "target": "div#j-activityRightBanner",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 204px;",
+      "newValue": "position: fixed; z-index: 300; text-align: right; right: 16px; bottom: 143px;"
+    },
+    {
+      "t": 14331,
+      "kind": "attr",
+      "target": "div#j-reactInjectAiMoocEntry",
+      "attr": "style",
+      "oldValue": "position: fixed; z-index: 300; right: 13px; bottom: 432px; display: inline-block;",
+      "newValue": "position: fixed; z-index: 300; right: 13px; bottom: 371px; display: inline-block;"
+    },
+    {
+      "t": 14332,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14333,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14334,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14335,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14336,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14337,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14338,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14339,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14339,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14340,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14341,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14342,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 14342,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:54",
+      "newValue": "01:39:52"
+    },
+    {
+      "t": 15066,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:53",
+      "newValue": "3天13:39:51"
+    },
+    {
+      "t": 15072,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:53",
+      "newValue": "3天13:39:51"
+    },
+    {
+      "t": 15915,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15917,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15924,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 15924,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:52",
+      "newValue": "01:39:51"
+    },
+    {
+      "t": 16553,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:51",
+      "newValue": "3天13:39:50"
+    },
+    {
+      "t": 16555,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "3天13:39:51",
+      "newValue": "3天13:39:50"
+    },
+    {
+      "t": 16916,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16918,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16919,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16920,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16921,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16922,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 16923,
+      "kind": "text",
+      "target": "div:nth-child(2) > div._3AF9A:nth-child(1) > div.Ob_Gz:nth-child(2) > span._29udj:nth-child(1) > span.count-down:nth-child(1)",
+      "oldValue": "01:39:51",
+      "newValue": "01:39:50"
+    },
+    {
+      "t": 17176,
+      "kind": "note",
+      "detail": "STOP"
+    }
+  ]
+}
