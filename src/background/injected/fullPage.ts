@@ -280,7 +280,13 @@ export function preparePage(
       const winnerWidthRatio =
         winner.getBoundingClientRect().width / Math.max(1, vw)
       const wideEnough = !windowCanCover || winnerWidthRatio >= 0.3
-      if (wideEnough && (!windowCanCover || bestScore >= 0.55)) {
+      // window 可覆盖全页时，内部容器的 scrollHeight 必须足够大（≥ 文档高度 40%），
+      // 防止轮播卡片、产品列表等局部溢出容器（scrollHeight 远小于页面总高）
+      // 因大量文本/高评分被误判为主滚动容器（典型：阿里云首页产品区轮播 div）。
+      // window 不可滚时不加此限制（内部容器的 scrollHeight 就是内容总高）。
+      const tallEnough =
+        !windowCanCover || winner.scrollHeight >= windowDocHeight * 0.4
+      if (wideEnough && tallEnough && (!windowCanCover || bestScore >= 0.55)) {
         scrollerEl = winner
         scrollerEl.setAttribute(SCROLLER_ATTR, "1")
       }

@@ -19,6 +19,7 @@ import {
   downloadDesktopImage,
   hideRelayWindow
 } from "~src/services/desktopBridge"
+import { getSettings } from "~src/shared/settings"
 
 import * as styles from "./index.module.css"
 
@@ -41,8 +42,12 @@ function DesktopCaptureWindow() {
     async function run() {
       try {
         setPhase("sharing")
+        const settings = await getSettings()
+        const format = settings.imageFormat
+        const quality = settings.imageQuality
         const result = await captureDesktopFrame({
-          format: "png",
+          format,
+          quality,
           // 拿到流之后、抓帧之前，把本中转窗口移到屏幕外，
           // 避免在「整个屏幕」截图里把自己也截进去
           beforeCapture: () => hideRelayWindow()
@@ -61,7 +66,7 @@ function DesktopCaptureWindow() {
         setPhase("downloading")
         const res = await downloadDesktopImage({
           dataUrl: result.dataUrl,
-          format: "png"
+          format
         })
         if (!res.ok) throw new Error(res.error ?? "下载失败")
 

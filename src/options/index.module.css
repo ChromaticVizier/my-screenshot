@@ -283,3 +283,8 @@
 .saved {
   color: #2ea043;
 }
+
+.saveError {
+  color: #d1242f;
+  font-weight: 600;
+}

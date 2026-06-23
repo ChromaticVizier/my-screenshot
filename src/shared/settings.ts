@@ -1,8 +1,11 @@
 /**
- * 用户设置：基于 chrome.storage.sync 的轻量封装
+ * 用户设置：基于 chrome.storage.local 的轻量封装
  *
  * 设计：
  * - 单一 key "settings" 存储整个对象，避免逐字段 IO
+ * - 用 local 而非 sync：sync 有 8192B/item 单 key 上限，自定义选择器 / 站点滚动区域
+ *   累积后极易超限导致 set 静默失败、数据丢失；local 无单项上限、总额约 10MB
+ * - 旧用户数据在 sync，getSettings 首次读取时自动迁移到 local
  * - 提供 getSettings / setSettings / onSettingsChanged 三个原语
  * - 默认值集中维护，缺省字段自动补齐（向后兼容）
  */
@@ -91,6 +94,13 @@ export interface FullPageRuleSet {
    *  普通静态页可调到 0 提速。 */
   fullPageOverlapRatio: number
 
+  /** 长截图最终图片高度上限（CSS 像素，0 = 不限制）。
+   *  无限滚动页面（信息流 / 评论流）scrollHeight 会随滚动持续增长，
+   *  原有「滚到底」终止条件永远无法满足 → 长截图停不下来。
+   *  达到此高度后立即停止滚动并以该高度封顶拼接。
+   *  同时也规避超大画布（OffscreenCanvas 超过浏览器尺寸上限会静默失败）。 */
+  maxFullPageHeightPx: number
+
   /* ---- 8. 模式开关 ---- */
   /** 兜底：剩余跟随视口元素是否一律隐藏（关闭后只隐藏明确命中浮层规则的） */
   hideAllFixedFallback: boolean
@@ -120,6 +130,10 @@ export interface SiteScrollRegionRule {
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */
   delaySeconds: number
+  /** 截图保存格式：png（无损、体积大）/ jpeg（有损、可降质压缩）。默认 png */
+  imageFormat: "png" | "jpeg"
+  /** jpeg 质量（1~100），仅在 imageFormat=jpeg 时生效。默认 92 */
+  imageQuality: number
   /** 整页截图判别规则 */
   fullPageRules: FullPageRuleSet
   /** 按 hostname 记忆的手动滚动区域 */
@@ -180,11 +194,15 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
 
   fullPageOverlapRatio: 0.05,
 
+  maxFullPageHeightPx: 20000,
+
   hideAllFixedFallback: true
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   delaySeconds: 3,
+  imageFormat: "png",
+  imageQuality: 92,
   fullPageRules: DEFAULT_FULL_PAGE_RULES,
   siteScrollRegions: {},
   cropBeforeDownload: true,
@@ -200,21 +218,58 @@ function mergeFullPageRules(
   return { ...DEFAULT_FULL_PAGE_RULES, ...(stored ?? {}) }
 }
 
-/** 读取设置（自动用默认值补齐缺失字段） */
-export async function getSettings(): Promise<AppSettings> {
-  const raw = await chrome.storage.sync.get(KEY)
-  const stored = (raw[KEY] as Partial<AppSettings> | undefined) ?? {}
+/** 把存储里的原始对象补齐默认值，得到完整 AppSettings */
+function normalizeSettings(stored: Partial<AppSettings>): AppSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
     fullPageRules: mergeFullPageRules(stored.fullPageRules),
     siteScrollRegions: stored.siteScrollRegions ?? {},
-    cropBeforeDownload: stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,
-    aggressiveHideMode: stored.aggressiveHideMode ?? DEFAULT_SETTINGS.aggressiveHideMode
+    imageFormat: stored.imageFormat ?? DEFAULT_SETTINGS.imageFormat,
+    imageQuality: stored.imageQuality ?? DEFAULT_SETTINGS.imageQuality,
+    cropBeforeDownload:
+      stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,
+    aggressiveHideMode:
+      stored.aggressiveHideMode ?? DEFAULT_SETTINGS.aggressiveHideMode
   }
 }
 
-/** 部分更新设置 */
+/**
+ * 读取设置（自动用默认值补齐缺失字段）。
+ *
+ * 存储位置已从 chrome.storage.sync 迁移到 chrome.storage.local：
+ *   sync 有 QUOTA_BYTES_PER_ITEM=8192 的单 key 上限，所有设置塞进一个 key 时，
+ *   粘贴大量自定义选择器 / 长期累积很多站点滚动区域都会超限，set 静默失败、数据丢失。
+ *   local 无单项上限、总额约 10MB，足够容纳。
+ *
+ * 兼容旧用户：local 没数据但 sync 有时，一次性把 sync 的值搬到 local。
+ */
+export async function getSettings(): Promise<AppSettings> {
+  const localRaw = await chrome.storage.local.get(KEY)
+  let stored = localRaw[KEY] as Partial<AppSettings> | undefined
+
+  if (stored === undefined) {
+    // 一次性迁移：旧版本存于 storage.sync
+    try {
+      const syncRaw = await chrome.storage.sync.get(KEY)
+      const legacy = syncRaw[KEY] as Partial<AppSettings> | undefined
+      if (legacy !== undefined) {
+        stored = legacy
+        await chrome.storage.local.set({ [KEY]: legacy })
+      }
+    } catch {
+      /* 迁移失败则按默认值处理 */
+    }
+  }
+
+  return normalizeSettings(stored ?? {})
+}
+
+/**
+ * 部分更新设置。
+ * 写入失败（如超出 local 总配额）会抛出带可读信息的错误，调用方应捕获并提示用户，
+ * 避免「静默失败 + 数据丢失」。
+ */
 export async function setSettings(patch: Partial<AppSettings>): Promise<void> {
   const current = await getSettings()
   const next: AppSettings = {
@@ -225,7 +280,12 @@ export async function setSettings(patch: Partial<AppSettings>): Promise<void> {
       : current.fullPageRules,
     siteScrollRegions: patch.siteScrollRegions ?? current.siteScrollRegions
   }
-  await chrome.storage.sync.set({ [KEY]: next })
+  try {
+    await chrome.storage.local.set({ [KEY]: next })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    throw new Error(`设置保存失败：${msg}`)
+  }
 }
 
 /** 订阅设置变更（返回取消监听的函数） */
@@ -236,14 +296,9 @@ export function onSettingsChanged(
     changes: { [key: string]: chrome.storage.StorageChange },
     areaName: string
   ) => {
-    if (areaName !== "sync" || !changes[KEY]) return
+    if (areaName !== "local" || !changes[KEY]) return
     const stored = (changes[KEY].newValue as Partial<AppSettings>) ?? {}
-    cb({
-      ...DEFAULT_SETTINGS,
-      ...stored,
-      fullPageRules: mergeFullPageRules(stored.fullPageRules),
-      siteScrollRegions: stored.siteScrollRegions ?? {}
-    })
+    cb(normalizeSettings(stored))
   }
   chrome.storage.onChanged.addListener(listener)
   return () => chrome.storage.onChanged.removeListener(listener)

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import { MessageType } from "~src/shared/messages"
 import type { GetPendingImageResponse } from "~src/shared/messages"
+import { getSettings } from "~src/shared/settings"
 
 import "~src/styles/global.css"
 
@@ -29,6 +30,8 @@ function Editor() {
   const [error, setError] = useState<string | null>(null)
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 })
   const [crop, setCrop] = useState<CropRect | null>(null)
+  // JPEG 重编码质量（裁剪导出时用）；从用户设置读取，默认 92
+  const [quality, setQuality] = useState(92)
   const [dragging, setDragging] = useState<string | null>(null)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [cropStart, setCropStart] = useState<CropRect>({ x: 0, y: 0, w: 0, h: 0 })
@@ -47,6 +50,7 @@ function Editor() {
         }
       }
     )
+    getSettings().then((s) => setQuality(s.imageQuality))
   }, [])
 
   const onImgLoad = useCallback(() => {
@@ -131,7 +135,12 @@ function Editor() {
       Math.round(crop.w),
       Math.round(crop.h)
     )
-    const croppedUrl = canvas.toDataURL("image/png")
+    // 按文件名后缀决定重编码格式，与捕获时选定的格式保持一致；
+    // jpeg 时套用用户设置的质量，避免裁剪路径恒输出 png 让格式设置失效。
+    const isJpeg = /\.jpe?g$/i.test(filename)
+    const croppedUrl = isJpeg
+      ? canvas.toDataURL("image/jpeg", quality / 100)
+      : canvas.toDataURL("image/png")
     chrome.runtime.sendMessage(
       {
         type: MessageType.EDITOR_DOWNLOAD,
@@ -141,7 +150,7 @@ function Editor() {
         window.close()
       }
     )
-  }, [dataUrl, crop, filename])
+  }, [dataUrl, crop, filename, quality])
 
   const doDownloadOriginal = useCallback(() => {
     if (!dataUrl) return

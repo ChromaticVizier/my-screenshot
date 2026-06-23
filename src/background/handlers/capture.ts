@@ -76,8 +76,9 @@ import { getSettings, setSettings } from "~src/shared/settings"
 export async function handleCaptureVisible(
   request: CaptureVisibleRequest
 ): Promise<CaptureResponse> {
-  const format = request.payload?.format ?? "png"
-  const quality = request.payload?.quality
+  const settings = await getSettings()
+  const format = request.payload?.format ?? settings.imageFormat
+  const quality = request.payload?.quality ?? settings.imageQuality
 
   try {
     const tabRes = await getCapturableActiveTab()
@@ -107,8 +108,10 @@ export async function handleCaptureVisible(
 export async function handleCaptureFullPage(
   request: CaptureFullPageRequest
 ): Promise<CaptureResponse> {
-  const format = request.payload?.format ?? "png"
-  const quality = request.payload?.quality
+  // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
+  const settings = await getSettings()
+  const format = request.payload?.format ?? settings.imageFormat
+  const quality = request.payload?.quality ?? settings.imageQuality
 
   /* 获取标签页询问是否允许截图 */
   const tabRes = await getCapturableActiveTab()
@@ -116,8 +119,6 @@ export async function handleCaptureFullPage(
   const tab = tabRes.tab
   const tabId = tab.id!
 
-  // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
-  const settings = await getSettings()
   const fullPageRules = settings.fullPageRules
   const siteRule =
     settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
@@ -234,6 +235,11 @@ export async function handleCaptureFullPage(
     const stepHeight = Math.max(
       1,
       Math.floor(metrics.viewportHeight * (1 - overlapRatio))
+    )
+    // 图片高度上限（CSS 像素，0=不限）：无限滚动页面的硬性终止条件
+    const maxFullPageHeightPx = Math.max(
+      0,
+      Math.floor(fullPageRules.maxFullPageHeightPx ?? 0)
     )
     let totalHeight = metrics.totalHeight
     /**
@@ -623,6 +629,23 @@ export async function handleCaptureFullPage(
           stallCount = 0
         }
 
+        // 终止条件 0：达到图片高度上限（无限滚动页面保护）。
+        // 此处 slice 已 push，保留本帧后封顶，避免信息流 / 评论流截不完。
+        if (
+          maxFullPageHeightPx > 0 &&
+          scrollY + stepHeight + contentOffsetY >= maxFullPageHeightPx
+        ) {
+          effectiveHeight = Math.min(
+            maxFullPageHeightPx,
+            Math.max(
+              scrollY + stepHeight + contentOffsetY,
+              totalHeight + contentOffsetY,
+              effectiveHeight
+            )
+          )
+          break
+        }
+
         // 终止条件 2：当前可视区已到达页面底部
         if (scrollY + stepHeight >= totalHeight) {
           effectiveHeight = Math.max(
@@ -691,6 +714,10 @@ export async function handleCaptureFullPage(
     }
 
     // 6) 拼接
+    // 最终封顶：即便循环因其它条件退出，也不让画布超过用户设置的高度上限。
+    if (maxFullPageHeightPx > 0) {
+      effectiveHeight = Math.min(effectiveHeight, maxFullPageHeightPx)
+    }
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
@@ -927,8 +954,9 @@ export async function handleClearScrollRegion(
 export async function handleCaptureSelection(
   request: CaptureSelectionRequest
 ): Promise<CaptureResponse> {
-  const format = request.payload?.format ?? "png"
-  const quality = request.payload?.quality
+  const settings = await getSettings()
+  const format = request.payload?.format ?? settings.imageFormat
+  const quality = request.payload?.quality ?? settings.imageQuality
 
   try {
     const tabRes = await getCapturableActiveTab()

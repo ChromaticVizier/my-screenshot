@@ -1,5 +1,5 @@
 /**
- * 设置页：使用 chrome.storage.sync 持久化用户偏好
+ * 设置页：使用 chrome.storage.local 持久化用户偏好（见 shared/settings.ts）
  *
  * 支持：
  * - 延迟截图秒数（1 ~ 60）
@@ -22,7 +22,41 @@ import "~src/styles/global.css"
 
 import * as styles from "./index.module.css"
 
-type SaveState = "idle" | "saving" | "saved"
+type SaveState = "idle" | "saving" | "saved" | "error"
+
+/**
+ * 解析并校验数字输入：丢掉 NaN / 空 / ±Infinity，按 min/max 夹紧。
+ * 用于所有数值阈值字段（z-index、像素、比例、质量等），避免 Number(e.target.value)
+ * 把负数 / 空 / 非法字符直接落库导致后台判别逻辑失效。
+ *
+ * 返回 null 表示「应忽略本次更改」（典型场景：用户暂时清空输入框正在重新输入），
+ * 调用方据此跳过 updateXxx，输入框会在下一帧被受控值回填到旧值。
+ */
+function parseClampedNumber(
+  raw: string,
+  opts: { min?: number; max?: number }
+): number | null {
+  if (raw === "" || raw === "-" || raw === "+") return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return null
+  let v = n
+  if (typeof opts.min === "number" && v < opts.min) v = opts.min
+  if (typeof opts.max === "number" && v > opts.max) v = opts.max
+  return v
+}
+
+/** 受控数字输入框的展示值兜底：value 已被旧版坏数据污染（NaN/负数）时显示默认值 */
+function safeNumberValue(
+  value: unknown,
+  fallback: number,
+  opts: { min?: number; max?: number }
+): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  if (typeof opts.min === "number" && n < opts.min) return opts.min
+  if (typeof opts.max === "number" && n > opts.max) return opts.max
+  return n
+}
 
 /** 每个字段对应一段说明，便于用户调试时理解“调小/调大”的含义 */
 interface RuleFieldMeta<K extends keyof FullPageRuleSet> {
@@ -246,6 +280,14 @@ const RULE_GROUPS: Array<{
         max: 0.5,
         step: 0.01,
         control: "number"
+      },
+      {
+        key: "maxFullPageHeightPx",
+        label: "长截图图片高度上限 (px)",
+        hint: "无限滚动页面（信息流 / 评论流）会一直加载，长截图无法自动停止；达到此高度后立即停止并封顶。0 = 不限制（不建议，可能因画布过大失败）。默认 20000。",
+        min: 0,
+        max: 100000,
+        step: 1000
       }
     ]
   },
@@ -282,6 +324,7 @@ function Options() {
   const [settings, setLocal] = useState<AppSettings>(DEFAULT_SETTINGS)
   const [loaded, setLoaded] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>("idle")
+  const [saveError, setSaveError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -296,10 +339,17 @@ function Options() {
   const flushSave = (next: AppSettings) => {
     if (saveTimer.current) clearTimeout(saveTimer.current)
     setSaveState("saving")
+    setSaveError(null)
     saveTimer.current = setTimeout(async () => {
-      await setSettings(next)
-      setSaveState("saved")
-      setTimeout(() => setSaveState("idle"), 1200)
+      try {
+        await setSettings(next)
+        setSaveState("saved")
+        setTimeout(() => setSaveState("idle"), 1200)
+      } catch (err) {
+        // 暴露失败原因，避免「静默失败 + 数据丢失」
+        setSaveState("error")
+        setSaveError(err instanceof Error ? err.message : String(err))
+      }
     }, 200)
   }
 
@@ -390,6 +440,8 @@ function Options() {
         </label>
       )
     } else if (typeof defaultValue === "number") {
+      const numOpts = { min: meta.min, max: meta.max }
+      const safeValue = safeNumberValue(value, defaultValue, numOpts)
       if (meta.control === "slider") {
         control = (
           <div className={styles.sliderRow}>
@@ -399,12 +451,13 @@ function Options() {
               min={meta.min ?? 0}
               max={meta.max ?? 1}
               step={meta.step ?? 0.01}
-              value={Number(value)}
-              onChange={(e) =>
-                updateRule(meta.key, Number(e.target.value) as never)
-              }
+              value={safeValue}
+              onChange={(e) => {
+                const next = parseClampedNumber(e.target.value, numOpts)
+                if (next !== null) updateRule(meta.key, next as never)
+              }}
             />
-            <span className={styles.sliderValue}>{Number(value).toFixed(2)}</span>
+            <span className={styles.sliderValue}>{safeValue.toFixed(2)}</span>
           </div>
         )
       } else {
@@ -415,10 +468,11 @@ function Options() {
             min={meta.min}
             max={meta.max}
             step={meta.step ?? 1}
-            value={Number(value)}
-            onChange={(e) =>
-              updateRule(meta.key, Number(e.target.value) as never)
-            }
+            value={safeValue}
+            onChange={(e) => {
+              const next = parseClampedNumber(e.target.value, numOpts)
+              if (next !== null) updateRule(meta.key, next as never)
+            }}
           />
         )
       }
@@ -491,9 +545,7 @@ function Options() {
     <div className={styles.page}>
       <header className={styles.header}>
         <h1 className={styles.title}>My Screenshot 设置</h1>
-        <p className={styles.subtitle}>
-          所有变更会自动保存，并通过 Chrome 同步到登录的设备。
-        </p>
+        <p className={styles.subtitle}>所有变更会自动保存到本机浏览器。</p>
       </header>
 
       <section className={styles.section}>
@@ -517,6 +569,64 @@ function Options() {
             <span className={styles.hint}>1 ~ 60 秒；默认 3 秒</span>
           </div>
         </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="imageFormat">
+            图片格式
+          </label>
+          <div className={styles.control}>
+            <select
+              id="imageFormat"
+              className={styles.input}
+              value={settings.imageFormat}
+              onChange={(e) =>
+                update({ imageFormat: e.target.value as "png" | "jpeg" })
+              }>
+              <option value="png">PNG（无损，体积大）</option>
+              <option value="jpeg">JPEG（有损，可压缩，体积小）</option>
+            </select>
+            <span className={styles.hint}>
+              超大屏 / 超长页建议选 JPEG 以显著减小体积；默认 PNG。
+            </span>
+          </div>
+        </div>
+
+        {settings.imageFormat === "jpeg" && (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="imageQuality">
+              JPEG 质量
+            </label>
+            <div className={styles.control}>
+              <div className={styles.sliderRow}>
+                <input
+                  id="imageQuality"
+                  className={styles.slider}
+                  type="range"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={safeNumberValue(settings.imageQuality, 92, {
+                    min: 1,
+                    max: 100
+                  })}
+                  onChange={(e) => {
+                    const next = parseClampedNumber(e.target.value, {
+                      min: 1,
+                      max: 100
+                    })
+                    if (next !== null) update({ imageQuality: next })
+                  }}
+                />
+                <span className={styles.sliderValue}>
+                  {settings.imageQuality}
+                </span>
+              </div>
+              <span className={styles.hint}>
+                1 ~ 100，越高越清晰、体积越大；默认 92。仅 JPEG 生效。
+              </span>
+            </div>
+          </div>
+        )}
 
         <div className={styles.field}>
           <label className={styles.label}>截图后裁剪</label>
@@ -610,6 +720,11 @@ function Options() {
         {saveState === "saving" && <span>保存中…</span>}
         {saveState === "saved" && (
           <span className={styles.saved}>已保存 ✓</span>
+        )}
+        {saveState === "error" && (
+          <span className={styles.saveError} role="alert">
+            ⚠ 保存失败：{saveError ?? "未知错误"}
+          </span>
         )}
       </footer>
     </div>

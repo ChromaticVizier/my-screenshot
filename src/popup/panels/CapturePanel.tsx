@@ -8,6 +8,7 @@
  */
 import { useState } from "react"
 
+import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
 import { CloudIcon } from "~src/components/icons"
 import {
   CAPTURE_CARD_ACTIONS,
@@ -59,11 +60,23 @@ function CapturePanel() {
     setError(null)
     const rlog = (window as any)._rlog
 
+    // 关闭 popup 前先校验当前页是否可截图（chrome://、扩展页、商店页等不可）。
+    // selection/fullPage/delayed 会立即关闭 popup，若不在此拦截，background 返回的
+    // “不允许截图”错误将无处显示（popup 已销毁）→ 表现为点完按钮没反应直接消失。
+    // desktop 模式走 getDisplayMedia 截整屏 / 窗口，不依赖当前 tab，跳过该校验。
+    if (mode !== "desktop") {
+      const cap = await getCapturableActiveTab()
+      if (!cap.ok) {
+        setError(cap.error ?? "当前页面不允许截图")
+        return
+      }
+    }
+
     switch (mode) {
       case "visible": {
         rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_click'], ['from', 'capture_panel']]])
         setBusy(mode)
-        const res = await captureVisibleArea({ format: "png" })
+        const res = await captureVisibleArea()
         rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_result'], ['result', res.ok ? 'success' : 'fail'], ...(res.ok ? [] : [['error_code', String(res.error ?? 'unknown').slice(0, 50)]])]])
         setBusy(null)
         if (!res.ok) setError(res.error ?? "截图失败")
@@ -76,7 +89,7 @@ function CapturePanel() {
         // 整页截图要滚动拼接好几秒，若在此 await 期间保持 popup 打开，
         // popup 会作为一个独立窗口长期驻留在屏幕上。与 selection/delayed 一致：
         // 立即关闭 popup，由 background 独立完成后续截图与下载，不影响功能。
-        captureFullPage({ format: "png" }).catch(() => {
+        captureFullPage().catch(() => {
           /* popup 已关闭，错误由 background 控制台输出 */
         })
         window.close()
@@ -87,7 +100,7 @@ function CapturePanel() {
         rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_selection_click'], ['from', 'capture_panel']]])
         // 选区交互需要页面接收鼠标焦点，popup 必须先关闭。
         // background 会接管后续：注入遮罩 → 等待用户拖拽 → 截图裁剪下载。
-        captureSelection({ format: "png" }).catch(() => {
+        captureSelection().catch(() => {
           /* popup 已关闭，错误由 background 控制台输出 */
         })
         window.close()
@@ -98,7 +111,7 @@ function CapturePanel() {
         rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_delayed_click'], ['from', 'capture_panel']]])
         // 倒计时浮窗在页面上展示，popup 必须先关闭，否则用户看不到也点不到「Cancel」。
         // 倒计时秒数由 background 从 chrome.storage.sync 读取（默认 3 秒）。
-        captureDelayed({ format: "png" }).catch(() => {
+        captureDelayed().catch(() => {
           /* popup 已关闭，错误由 background 控制台输出 */
         })
         window.close()
@@ -110,7 +123,7 @@ function CapturePanel() {
         // 通过中转窗口调用 getDisplayMedia：直接在 popup 调会导致系统
         // 选择器锚定在 popup 位置（extension icon 附近，偏右超出屏幕）。
         // 中转窗口由 background 创建在屏幕居中位置，选择器锚定到它就不会溢出。
-        captureDesktop({ format: "png" }).catch(() => {})
+        captureDesktop().catch(() => {})
         window.close()
         break
       }

@@ -59,15 +59,14 @@ import { getSettings } from "~src/shared/settings"
 export async function handleCaptureFullPageAggressive(
   request: CaptureFullPageRequest
 ): Promise<CaptureResponse> {
-  const format = request.payload?.format ?? "png"
-  const quality = request.payload?.quality
-
   const tabRes = await getCapturableActiveTab()
   if (!tabRes.ok) return { ok: false, error: tabRes.error }
   const tab = tabRes.tab
   const tabId = tab.id!
 
   const settings = await getSettings()
+  const format = request.payload?.format ?? settings.imageFormat
+  const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
   const siteRule =
     settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
@@ -259,6 +258,11 @@ export async function handleCaptureFullPageAggressive(
       1,
       Math.floor(metrics.viewportHeight * (1 - overlapRatio))
     )
+    // 图片高度上限（CSS 像素，0=不限）：无限滚动页面的硬性终止条件
+    const maxFullPageHeightPx = Math.max(
+      0,
+      Math.floor(fullPageRules.maxFullPageHeightPx ?? 0)
+    )
     let totalHeight = metrics.totalHeight
     let effectiveHeight = Math.max(totalHeight, stepHeight)
 
@@ -406,6 +410,18 @@ export async function handleCaptureFullPageAggressive(
         stallCount = 0
       }
 
+      // 终止条件 0：达到图片高度上限（无限滚动页面保护）。本帧已 push，保留后封顶。
+      if (
+        maxFullPageHeightPx > 0 &&
+        scrollY + stepHeight >= maxFullPageHeightPx
+      ) {
+        effectiveHeight = Math.min(
+          maxFullPageHeightPx,
+          Math.max(scrollY + stepHeight, totalHeight, effectiveHeight)
+        )
+        break
+      }
+
       // 终止条件 2：当前可视区已到达页面底部
       if (scrollY + stepHeight >= totalHeight) {
         effectiveHeight = Math.max(
@@ -451,6 +467,10 @@ export async function handleCaptureFullPageAggressive(
     }
 
     // 5) 拼接
+    // 最终封顶：即便循环因其它条件退出也不让画布超过用户设置的高度上限。
+    if (maxFullPageHeightPx > 0) {
+      effectiveHeight = Math.min(effectiveHeight, maxFullPageHeightPx)
+    }
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
