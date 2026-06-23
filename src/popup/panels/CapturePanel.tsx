@@ -3,7 +3,7 @@
  *
  * 已接入：
  * - 可视区域（visible）：直接整屏截图后下载
- * - 整个页面（fullPage）：滚动拼接长截图，期间 popup 保持打开显示进度
+ * - 整个页面（fullPage）：popup 立即关闭以让出焦点，background 继续完成滚动拼接长截图
  * - 选择区域（selection）：popup 立刻关闭以让出焦点，背景脚本继续完成选区流程
  */
 import { useState } from "react"
@@ -67,11 +67,13 @@ function CapturePanel() {
       }
 
       case "fullPage": {
-        setBusy(mode)
-        const res = await captureFullPage({ format: "png" })
-        setBusy(null)
-        if (!res.ok) setError(res.error ?? "整页截图失败")
-        else window.close()
+        // 整页截图要滚动拼接好几秒，若在此 await 期间保持 popup 打开，
+        // popup 会作为一个独立窗口长期驻留在屏幕上。与 selection/delayed 一致：
+        // 立即关闭 popup，由 background 独立完成后续截图与下载，不影响功能。
+        captureFullPage({ format: "png" }).catch(() => {
+          /* popup 已关闭，错误由 background 控制台输出 */
+        })
+        window.close()
         break
       }
 
