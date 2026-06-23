@@ -1,0 +1,11 @@
+{
+  "project": "my-screenshot",
+  "created_at": "2026-06-23T00:00:00.000Z",
+  "current_phase": "initialized",
+  "phases": {
+    "init": {
+      "completed_at": "2026-06-23T00:00:00.000Z"
+    }
+  },
+  "requirement": ""
+}
