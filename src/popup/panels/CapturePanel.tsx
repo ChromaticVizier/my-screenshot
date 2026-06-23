@@ -33,6 +33,7 @@ function CapturePanel() {
   const handleSelectScrollRegion = async () => {
     if (busy) return
     setError(null)
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_scroll_region_select_click'], ['from', 'capture_panel']]])
     setBusy("scrollRegion")
     const res = await selectScrollRegion()
     setBusy(null)
@@ -46,6 +47,7 @@ function CapturePanel() {
   const handleClearScrollRegion = async () => {
     if (busy) return
     setError(null)
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_scroll_region_clear_click'], ['from', 'capture_panel']]])
     setBusy("scrollRegion")
     const res = await clearScrollRegion()
     setBusy(null)
@@ -55,11 +57,14 @@ function CapturePanel() {
   const handleAction = async (mode: CaptureMode) => {
     if (busy) return
     setError(null)
+    const rlog = (window as any)._rlog
 
     switch (mode) {
       case "visible": {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_click'], ['from', 'capture_panel']]])
         setBusy(mode)
         const res = await captureVisibleArea({ format: "png" })
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_result'], ['result', res.ok ? 'success' : 'fail'], ...(res.ok ? [] : [['error_code', String(res.error ?? 'unknown').slice(0, 50)]])]])
         setBusy(null)
         if (!res.ok) setError(res.error ?? "截图失败")
         else window.close()
@@ -67,6 +72,7 @@ function CapturePanel() {
       }
 
       case "fullPage": {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_fullpage_click'], ['from', 'capture_panel']]])
         // 整页截图要滚动拼接好几秒，若在此 await 期间保持 popup 打开，
         // popup 会作为一个独立窗口长期驻留在屏幕上。与 selection/delayed 一致：
         // 立即关闭 popup，由 background 独立完成后续截图与下载，不影响功能。
@@ -78,6 +84,7 @@ function CapturePanel() {
       }
 
       case "selection": {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_selection_click'], ['from', 'capture_panel']]])
         // 选区交互需要页面接收鼠标焦点，popup 必须先关闭。
         // background 会接管后续：注入遮罩 → 等待用户拖拽 → 截图裁剪下载。
         captureSelection({ format: "png" }).catch(() => {
@@ -88,6 +95,7 @@ function CapturePanel() {
       }
 
       case "delayed": {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_delayed_click'], ['from', 'capture_panel']]])
         // 倒计时浮窗在页面上展示，popup 必须先关闭，否则用户看不到也点不到「Cancel」。
         // 倒计时秒数由 background 从 chrome.storage.sync 读取（默认 3 秒）。
         captureDelayed({ format: "png" }).catch(() => {
@@ -98,6 +106,7 @@ function CapturePanel() {
       }
 
       case "desktop": {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_desktop_click'], ['from', 'capture_panel']]])
         // 通过中转窗口调用 getDisplayMedia：直接在 popup 调会导致系统
         // 选择器锚定在 popup 位置（extension icon 附近，偏右超出屏幕）。
         // 中转窗口由 background 创建在屏幕居中位置，选择器锚定到它就不会溢出。
@@ -107,6 +116,7 @@ function CapturePanel() {
       }
 
       default: {
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_annotate_click'], ['from', 'capture_panel']]])
         // TODO: 其他截图模式
         console.log("[capture] action not implemented:", mode)
       }

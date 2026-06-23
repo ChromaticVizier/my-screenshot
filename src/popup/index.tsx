@@ -6,7 +6,7 @@
  *   - ?action=desktopCapture：屏幕截图中转窗口
  *   - ?action=offscreenRecorder：录屏中转窗口（屏幕外，跑 MediaRecorder）
  */
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import TabBar from "~src/components/TabBar"
 import { TAB_ITEMS } from "~src/constants/tabs"
@@ -22,6 +22,15 @@ import "~src/styles/global.css"
 import * as styles from "./index.module.css"
 
 function Popup() {
+  // RLog SDK 初始化
+  useEffect(() => {
+    const w = window as Window & { _rlog?: unknown[] }
+    if (!w._rlog) {
+      w._rlog = []
+    }
+    ;(w._rlog as unknown[]).push(['_setAccount', 'screenshot'])
+  }, [])
+
   // 根据 query 参数决定渲染哪个界面
   const action = new URLSearchParams(window.location.search).get("action")
   if (action === "desktopCapture") return <DesktopCaptureWindow />
@@ -33,12 +42,20 @@ function Popup() {
 function MainPopup() {
   const [activeTab, setActiveTab] = useState<TabKey>("capture")
 
+  // popup show 埋点
+  useEffect(() => {
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['show', 'screenshot_popup_show'], ['from', 'toolbar_icon']]])
+  }, [])
+
   return (
     <div className={styles.popup}>
       <TabBar
         items={TAB_ITEMS}
         activeKey={activeTab}
-        onChange={(key) => setActiveTab(key as TabKey)}
+        onChange={(key) => {
+          ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_tab_switch'], ['tab', key]]])
+          setActiveTab(key as TabKey)
+        }}
       />
       <div className={styles.content}>
         {activeTab === "capture" ? <CapturePanel /> : <RecordPanel />}

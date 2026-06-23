@@ -83,6 +83,7 @@ function RecordPanel() {
 
     if (session.recording) {
       // 结束录制
+      ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_stop_click'], ['from', 'popup']]])
       const res = await stopRecording()
       setBusy(false)
       if (!res.ok) {
@@ -101,6 +102,7 @@ function RecordPanel() {
       return
     }
 
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_start_click'], ['mode', activeMode]]])
     const res =
       activeMode === "regionTab"
         ? await startRegionTabRecording()
@@ -127,7 +129,10 @@ function RecordPanel() {
               type="button"
               disabled={action.disabled || session.recording}
               className={`${styles.modeCard} ${active ? styles.modeActive : ""}`}
-              onClick={() => setActiveMode(action.key)}>
+              onClick={() => {
+                ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_mode_select'], ['mode', action.key]]])
+                setActiveMode(action.key)
+              }}>
               <span className={styles.modeIcon}>{action.icon}</span>
               <span className={styles.modeLabel}>{action.label}</span>
             </button>
