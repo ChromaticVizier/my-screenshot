@@ -24,6 +24,23 @@ interface CropRect {
   h: number
 }
 
+/** 关闭当前编辑器 tab。
+ *  编辑器通过 chrome.tabs.create 打开，window.close() 在这种 tab 上无效，
+ *  必须走 chrome.tabs.remove。 */
+function closeEditorTab(): void {
+  try {
+    chrome.tabs.getCurrent((tab) => {
+      if (tab?.id != null) {
+        chrome.tabs.remove(tab.id).catch(() => undefined)
+      } else {
+        window.close()
+      }
+    })
+  } catch {
+    window.close()
+  }
+}
+
 function Editor() {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [filename, setFilename] = useState("")
@@ -147,7 +164,7 @@ function Editor() {
         payload: { dataUrl: croppedUrl, filename }
       },
       () => {
-        window.close()
+        closeEditorTab()
       }
     )
   }, [dataUrl, crop, filename, quality])
@@ -160,15 +177,32 @@ function Editor() {
         payload: { dataUrl, filename }
       },
       () => {
-        window.close()
+        closeEditorTab()
       }
     )
   }, [dataUrl, filename])
+
+  const doDiscard = useCallback(() => {
+    chrome.runtime.sendMessage(
+      { type: MessageType.EDITOR_DISCARD },
+      () => {
+        closeEditorTab()
+      }
+    )
+  }, [])
 
   if (error) {
     return (
       <div className={styles.page}>
         <div className={styles.error}>{error}</div>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.btnDanger}
+            onClick={doDiscard}>
+            关闭
+          </button>
+        </div>
       </div>
     )
   }
@@ -198,6 +232,12 @@ function Editor() {
           {crop && ` → ${Math.round(crop.w)} x ${Math.round(crop.h)}`}
         </span>
         <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.btnDanger}
+            onClick={doDiscard}>
+            放弃本次截图
+          </button>
           <button
             type="button"
             className={styles.btnSecondary}

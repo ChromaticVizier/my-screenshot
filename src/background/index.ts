@@ -17,6 +17,7 @@ import {
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
 import {
   handleRecorderFinish,
+  handleRecorderStarted,
   handleRecordStartCurrentTab,
   handleRecordStartRegionTab,
   handleRecordStop
@@ -106,6 +107,11 @@ chrome.runtime.onMessage.addListener(
           }
           break
         }
+        case MessageType.EDITOR_DISCARD: {
+          clearPendingImage()
+          sendResponse({ ok: true })
+          break
+        }
         case MessageType.RECORD_START_CURRENT_TAB: {
           sendResponse(await handleRecordStartCurrentTab(request))
           break
@@ -120,6 +126,10 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.RECORDER_FINISH: {
           sendResponse(await handleRecorderFinish(request, sender))
+          break
+        }
+        case MessageType.RECORDER_STARTED: {
+          sendResponse(await handleRecorderStarted(request))
           break
         }
         case MessageType.RECORDER_STOP:

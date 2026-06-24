@@ -8,6 +8,18 @@
 export type RecordResolution = "720p" | "1080p" | "4k"
 export type RecordFileFormat = "webm" | "mp4"
 
+/** 分辨率档位 → 最大像素尺寸（保留源宽高比，仅作为上限）
+ *  Chrome tabCapture 使用 mandatory.maxWidth/maxHeight 约束，
+ *  实际输出 = min(源物理像素, 这里给的上限)，比例由源决定 */
+export const RESOLUTION_MAX_PIXELS: Record<
+  RecordResolution,
+  { width: number; height: number }
+> = {
+  "720p": { width: 1280, height: 720 },
+  "1080p": { width: 1920, height: 1080 },
+  "4k": { width: 3840, height: 2160 }
+}
+
 export interface RecordOptions {
   /** 录制清晰度 */
   resolution: RecordResolution

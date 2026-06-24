@@ -53,6 +53,20 @@
   cursor: pointer;
 }
 
+.btnDanger {
+  padding: 8px 20px;
+  border: 1px solid #cf3a3a;
+  border-radius: 6px;
+  background: transparent;
+  color: #e25c5c;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btnDanger:hover {
+  background: rgba(207, 58, 58, 0.12);
+}
+
 .btnSecondary:hover {
   background: #1e293b;
   color: #e2e8f0;

@@ -20,6 +20,11 @@
  */
 import { useEffect, useRef, useState } from "react"
 
+import {
+  RESOLUTION_MAX_PIXELS,
+  type RecordResolution
+} from "~src/shared/recordOptions"
+
 import * as styles from "./index.module.css"
 
 interface BootRegion {
@@ -36,6 +41,7 @@ interface BootConfig {
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  resolution?: RecordResolution
   filename: string
   /** 区域录制：裁剪矩形（CSS 像素 + dpr）。省略 = 录整个视口 */
   region?: BootRegion
@@ -103,6 +109,19 @@ function OffscreenRecorder() {
 
         // 2) 用 streamId 拿 MediaStream
         //    注：chromeMediaSource:"tab" 是 Chrome 私有约束，不走 getDisplayMedia
+        //    分辨率上限：仅整页录制时应用；区域录制会经 WebCodecs 裁剪，
+        //    源用原生分辨率以保证裁剪坐标精度
+        const videoMandatory: Record<string, string | number> = {
+          chromeMediaSource: "tab",
+          chromeMediaSourceId: boot.streamId
+        }
+        if (!boot.region && boot.resolution) {
+          const cap = RESOLUTION_MAX_PIXELS[boot.resolution]
+          if (cap) {
+            videoMandatory.maxWidth = cap.width
+            videoMandatory.maxHeight = cap.height
+          }
+        }
         const constraints = {
           audio: boot.systemAudio
             ? {
@@ -112,12 +131,7 @@ function OffscreenRecorder() {
                 }
               }
             : false,
-          video: {
-            mandatory: {
-              chromeMediaSource: "tab",
-              chromeMediaSourceId: boot.streamId
-            }
-          }
+          video: { mandatory: videoMandatory }
         } as unknown as MediaStreamConstraints
 
         const tabStream = await navigator.mediaDevices.getUserMedia(constraints)
@@ -232,6 +246,17 @@ function OffscreenRecorder() {
 
         // 不传 timeslice：让 MediaRecorder 在 stop() 时一次性产出完整 webm
         mediaRecorder.start()
+        // 把"真正的起点"回传 background，覆盖 bootstrap 时设的 startedAt
+        // （后者包含创建窗口+加载popup+getUserMedia 等约 1s 准备时间，
+        //  否则控制栏计时会比实际视频时长多约 1 秒）
+        try {
+          await chrome.runtime.sendMessage({
+            type: "recorder/started",
+            payload: { startedAt: Date.now() }
+          })
+        } catch {
+          /* 忽略 */
+        }
         setPhase("recording")
       } catch (err) {
         setErrMsg(err instanceof Error ? err.message : String(err))

@@ -28,6 +28,7 @@ import {
   detectAndHidePseudoSticky,
   flattenOversizedModals,
   freezeFlattenedModals,
+  freezeScrollModals,
   hideFixedElements,
   hideFixedElementsExcludeFrame,
   kickScrollListeners,
@@ -41,6 +42,7 @@ import {
   restorePage,
   scrollToY,
   unfreezeFlattenedModals,
+  unfreezeScrollModals,
   waitForDynamicContent,
   type PageMetrics,
   type PreparePageSnapshot
@@ -153,6 +155,7 @@ export async function handleCaptureFullPage(
   let snapshot: PreparePageSnapshot | null = null
   let hidingApplied = false
   let flattenApplied = false
+  let scrollModalFrozen = false
 
   try {
     // 1) 准备：锁定滚动条 + 拿页面度量（注入到 scroller 所在 frame）
@@ -311,6 +314,21 @@ export async function handleCaptureFullPage(
     //    flatten + freeze 完成后再滚回顶部（用户可能未在 scrollY=0 触发截图）。
     //    此时即使 scroll 事件触发页面 JS 把弹窗 display:none，MutationObserver
     //    会同步回滚。
+
+    // 2.2) 冻结可见的 fixed/sticky 弹窗，防止 scrollToY(0) 触发的 scroll 事件
+    //      把弹窗提前关闭（典型：有道翻译 VIP 购买弹窗监听 scroll → display:none）。
+    //      unfreezeScrollModals 在第一帧拍完后立即调用，让弹窗恢复正常关闭行为，
+    //      后续帧不再保留。
+    try {
+      const [{ result: sfCount }] = await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: freezeScrollModals
+      })
+      if (sfCount && sfCount > 0) scrollModalFrozen = true
+    } catch {
+      /* 冻结失败不致命，弹窗可能在第一帧中消失，但不影响后续截图流程 */
+    }
+
     const [{ result: firstScrollYRaw }] = await chrome.scripting.executeScript({
       target: scrollerTarget,
       func: scrollToY,
@@ -361,7 +379,31 @@ export async function handleCaptureFullPage(
     // 首屏即覆盖整页（短页面，无需后续滚动拼接）
     if (firstScrollY + stepHeight >= totalHeight) {
       effectiveHeight = Math.max(firstScrollY + stepHeight, totalHeight)
+      // 短页面也要解冻，避免 observer 一直驻留
+      if (scrollModalFrozen) {
+        try {
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: unfreezeScrollModals
+          })
+        } catch { /* 忽略 */ }
+      }
     } else {
+      // 2.3) 第一帧已拍完，立即解冻弹窗：断开 MutationObserver，让弹窗恢复
+      //      正常关闭行为（页面 JS 的 scroll-close 逻辑在此后可以生效）。
+      //      必须在 hideFixedElements 之前调用，否则 observer 会与 hideFixedElements
+      //      的 display:none 操作产生干扰。
+      if (scrollModalFrozen) {
+        try {
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: unfreezeScrollModals
+          })
+        } catch { /* 忽略 */ }
+        // 给页面 JS 80ms 处理弹窗的自然关闭（scroll-close handler 此时可以执行）
+        await sleep(80)
+      }
+
       // scroller 在子 frame 时主 frame 的顶栏 / 侧栏不会被 scrollerTarget
       // 注入的 hideFixedElements 扫到，每帧都会重复出现。这里用一个独立路径
       // 同时对主 frame 跑一份隐藏，但保留承载 scroller 的 iframe 链。
@@ -420,7 +462,19 @@ export async function handleCaptureFullPage(
       }
       const HEADER_MIN = 4
       let reservedTop = 0
-      if (headerBottom > HEADER_MIN) {
+      // 「弹窗主导」判定：headerBottom 显著大于普通顶栏（典型顶栏 60–150px）
+      // 则视为带遮罩弹窗。此时若仍按「保留顶栏带 + 正文从真实顶部铺满」逻辑，
+      // 干净帧会从页面 scrollY=reservedTop 起拍——把"位于第一帧弹窗下方但属于
+      // 页面流式内容（如顶部 banner / hero）"重复贴到弹窗下方，造成 banner 在
+      // 第二帧又出现。改为：让首个干净帧直接从 page[headerBottom] 起拍，
+      // 接在弹窗下沿之后，不再追加 contentOffsetY 偏移。代价：弹窗背后被遮挡
+      // 的页面内容会丢失，可接受。
+      const modalDominated = headerBottom > Math.min(stepHeight * 0.35, 300)
+      let firstCleanScroll = firstScrollY
+      if (modalDominated) {
+        contentOffsetY = 0
+        firstCleanScroll = firstScrollY + headerBottom
+      } else if (headerBottom > HEADER_MIN) {
         try {
           const [{ result: p }] = await chrome.scripting.executeScript({
             target: scrollerTarget,
@@ -434,11 +488,10 @@ export async function handleCaptureFullPage(
           /* 测不到按无预留处理（下移满 headerBottom） */
         }
         contentOffsetY = Math.max(0, headerBottom - reservedTop)
+        firstCleanScroll = firstScrollY + reservedTop
       } else {
         contentOffsetY = 0
       }
-      // 第1帧（首个干净帧）滚到正文真实顶部 P，跳过已预留空白
-      const firstCleanScroll = firstScrollY + reservedTop
 
       // 3.7) 隐藏完成后重测内容高度（新坐标系），作为后续帧滚动 / 终止判定基准。
       //      sticky 等占位元素 display:none 后内容上移、文档变矮，旧的 totalHeight
@@ -740,6 +793,15 @@ export async function handleCaptureFullPage(
     return errorResponse(err)
   } finally {
     // 6) 无论成功失败，恢复页面（restorePage 已包含 restoreFixedElements 兜底）
+    // 兜底：确保 scrollModal observer 已断开（正常路径应在第一帧后已断开）
+    if (scrollModalFrozen) {
+      try {
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: unfreezeScrollModals
+        })
+      } catch { /* 忽略 */ }
+    }
     if (flattenApplied) {
       try {
         await chrome.scripting.executeScript({
@@ -1080,8 +1142,10 @@ export async function handleCaptureDesktop(
 ): Promise<CaptureResponse> {
   try {
     const url = chrome.runtime.getURL("popup.html") + "?action=desktopCapture"
-    const W = 480
-    const H = 560
+    // 中转窗口尺寸 = Chrome getDisplayMedia 系统弹窗的可用尺寸（弹窗以窗口
+    // 客户区为画布，过窄会导致多屏选择器右侧屏幕缩略图被裁掉）。
+    const W = 960
+    const H = 640
     // getDisplayMedia 系统弹窗左边界与调用窗口左边界对齐。
     // 中转窗口居中于浏览器窗口，系统弹窗从此向右展开不溢出。
     let left: number | undefined

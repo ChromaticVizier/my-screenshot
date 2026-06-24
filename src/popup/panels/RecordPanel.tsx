@@ -8,7 +8,6 @@
  *
  * 未接入（后续支持）：
  *   - 「桌面」「摄像头」「区域录制」
- *   - 「控制栏」开关（图中右侧的悬浮控制条）
  *   - 「云端」存储位置切换
  */
 import { useEffect, useState } from "react"
@@ -19,9 +18,10 @@ import {
   CloudIcon,
   HDIcon,
   MicMutedIcon,
+  MicOnIcon,
   RecordDotIcon,
   SoundOffIcon,
-  ToolbarIcon
+  SoundOnIcon
 } from "~src/components/icons"
 import { RECORD_MODE_ACTIONS } from "~src/constants/recordActions"
 import {
@@ -46,7 +46,6 @@ import * as styles from "./RecordPanel.module.css"
 
 function RecordPanel() {
   const [activeMode, setActiveMode] = useState<RecordMode>("currentTab")
-  const [toolbar, setToolbar] = useState(true)
   const [options, setOptions] = useState<RecordOptions>(DEFAULT_RECORD_OPTIONS)
   const [session, setSession] = useState<RecordSession>({ recording: false })
   const [busy, setBusy] = useState(false)
@@ -140,25 +139,24 @@ function RecordPanel() {
         })}
       </div>
 
-      {/* 麦克风 / 系统声音 / 控制栏 */}
+      {/* 麦克风 / 系统声音 */}
       <div className={styles.controlsRow}>
         <ToggleIconButton
           on={options.systemAudio}
-          icon={<SoundOffIcon width={16} height={16} />}
+          iconOn={<SoundOnIcon width={16} height={16} />}
+          iconOff={<SoundOffIcon width={16} height={16} />}
+          label="系统声音"
           title={options.systemAudio ? "系统声音：开" : "系统声音：关"}
           onClick={() => updateOption("systemAudio", !options.systemAudio)}
         />
         <ToggleIconButton
           on={options.microphone}
-          icon={<MicMutedIcon width={16} height={16} />}
+          iconOn={<MicOnIcon width={16} height={16} />}
+          iconOff={<MicMutedIcon width={16} height={16} />}
+          label="麦克风"
           title={options.microphone ? "麦克风：开" : "麦克风：关"}
           onClick={() => updateOption("microphone", !options.microphone)}
         />
-        <div className={styles.toolbarToggle}>
-          <ToolbarIcon width={16} height={16} />
-          <span className={styles.toolbarLabel}>控制栏</span>
-          <Switch checked={toolbar} onChange={setToolbar} />
-        </div>
       </div>
 
       {/* 配置选项 */}
@@ -223,14 +221,18 @@ function RecordPanel() {
 /* ============== 子组件 ============== */
 
 interface ToggleIconButtonProps {
-  icon: React.ReactNode
+  iconOn: React.ReactNode
+  iconOff: React.ReactNode
+  label: string
   on: boolean
   title?: string
   onClick: () => void
 }
 
 function ToggleIconButton({
-  icon,
+  iconOn,
+  iconOff,
+  label,
   on,
   title,
   onClick
@@ -241,8 +243,9 @@ function ToggleIconButton({
       title={title}
       className={`${styles.iconBtn} ${on ? styles.iconBtnOn : styles.muted}`}
       onClick={onClick}>
-      {icon}
-      <ChevronDownIcon width={12} height={12} />
+      {on ? iconOn : iconOff}
+      <span className={styles.iconBtnLabel}>{label}</span>
+      {/* <ChevronDownIcon width={12} height={12} /> */}
     </button>
   )
 }
@@ -281,24 +284,6 @@ function SelectButton({ icon, value, options, onChange }: SelectButtonProps) {
         ))}
       </select>
     </label>
-  )
-}
-
-interface SwitchProps {
-  checked: boolean
-  onChange: (v: boolean) => void
-}
-
-function Switch({ checked, onChange }: SwitchProps) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      className={`${styles.switch} ${checked ? styles.switchOn : ""}`}
-      onClick={() => onChange(!checked)}>
-      <span className={styles.switchThumb} />
-    </button>
   )
 }
 

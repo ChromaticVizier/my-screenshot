@@ -660,20 +660,19 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     vh
   )
   const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentTextThreshold = rules.contentText ?? 500
   const contentRatio = rules.contentRatio ?? 0.45
 
-  // 大块 fixed 容器豁免：很多门户/SPA 把主内容包在 position:fixed 的全屏 wrapper 里
-  // （body 设 overflow:hidden，靠内部滚动）。如果一律 display:none 整个页面会变白。
-  // 判别：占视口面积 ≥ viewportSizedRatio 且（文本量大 / 子树高度占文档比大 / 含主滚动容器后代）
+  // 大块 fixed 容器豁免：真正的 SPA 主壳 scrollHeight 接近文档总高（subtreeRatio ≥ contentRatio），
+  // 弹窗覆盖层 scrollHeight ≈ 视口高（subtreeRatio 很低），不再用 textLen 判断以防误豁免。
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     if (areaRatio < viewportSizedRatio) return false
     // 含主滚动容器后代 → 必然是内容容器祖先
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
-    const textLen = (el.innerText || "").trim().length
-    if (textLen >= contentTextThreshold) return true
+    // scrollHeight 接近文档总高 → 真正的 SPA 主壳（body overflow:hidden 时文档高 ≈ 视口，
+    // 主壳 scrollHeight 是其内部滚动高度，通常远大于视口）。
+    // 仅靠 textLen 判断会把内容丰富的弹窗（VIP 购买对话框）误判为主壳。
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -939,14 +938,11 @@ export function hideFixedElementsExcludeFrame(
     vh
   )
   const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentTextThreshold = rules.contentText ?? 500
   const contentRatio = rules.contentRatio ?? 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     if (areaRatio < viewportSizedRatio) return false
-    const textLen = (el.innerText || "").trim().length
-    if (textLen >= contentTextThreshold) return true
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -1053,15 +1049,12 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
     vh
   )
   const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentTextThreshold = rules.contentText ?? 500
   const contentRatio = rules.contentRatio ?? 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     if (areaRatio < viewportSizedRatio) return false
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
-    const textLen = (el.innerText || "").trim().length
-    if (textLen >= contentTextThreshold) return true
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -1242,6 +1235,30 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
     if (heightRatio >= LARGE_AREA_RATIO) return
     if (subtreeRatio >= LARGE_SUBTREE_RATIO) return
 
+    // fixed/sticky 祖先容器内的元素不应视为「伪 sticky」：
+    // 它们跟随视口是因为祖先是 fixed，而非自身有伪 sticky 行为。
+    // 典型场景：全屏购买弹窗（position:fixed 的 .wrap）内的所有子元素都会被
+    // 探测到"跟随视口"，但它们只是普通的相对定位子元素，不应被 display:none。
+    let hasFixedAncestor = false
+    {
+      let cur: HTMLElement | null = el.parentElement
+      while (cur && cur !== document.documentElement) {
+        let pcs: CSSStyleDeclaration
+        try {
+          pcs = getComputedStyle(cur)
+        } catch {
+          cur = cur.parentElement
+          continue
+        }
+        if (pcs.position === "fixed" || pcs.position === "sticky") {
+          hasFixedAncestor = true
+          break
+        }
+        cur = cur.parentElement
+      }
+    }
+    if (hasFixedAncestor) return
+
     candidates.push({
       el,
       baselineAbsTop: rect.top + initialScrollY,
@@ -1335,8 +1352,13 @@ export function measureTopHeaderBottom(): number {
       r.top <= 2 &&
       r.bottom > 0 &&
       r.bottom <= vph &&
-      r.width >= vpw * 0.5 &&
-      r.height <= vph * 0.6
+      r.width >= vpw * 0.5
+      // 不再限制 height <= vph * 0.6：
+      // SPA 主壳（全屏 fixed）因 subtreeRatio 高被 hideFixedElements 豁免，
+      // 永远不进隐藏列表，无需此过滤。
+      // 去掉限制后，全屏弹窗（如 VIP 购买弹窗，height ≈ vph）可以正确贡献
+      // 到 headerBottom，使 contentOffsetY = 弹窗高 - reservedTop，
+      // 确保后续干净帧从弹窗结束处开始，不覆盖第一帧的弹窗内容。
     ) {
       if (r.bottom > bottom) bottom = r.bottom
     }
@@ -2103,4 +2125,100 @@ export function unfreezeFlattenedModals(): void {
     }
   })
   delete (window as unknown as Record<string, unknown>)[FREEZE_STORE]
+}
+
+/**
+ * 第一帧弹窗保全：scrollToY(0) 之前调用。
+ *
+ * 问题：很多 SPA 付费弹窗（如有道翻译 VIP 购买弹窗）监听 window scroll 事件，
+ * 一旦 scrollToY 触发，立刻把弹窗 display:none 或 visibility:hidden。
+ * 这导致第一帧截图拍不到弹窗——「第一帧保留弹窗，后续隐藏」的预期完全失效。
+ *
+ * 方案：对所有当前可见的 fixed/sticky 元素设置 MutationObserver，一旦检测到
+ * style/class/hidden 使其不可见，立刻还原 inline style。
+ * 等第一帧拍完后调用 unfreezeScrollModals 断开 observer，弹窗恢复正常关闭行为。
+ *
+ * 与 freezeFlattenedModals 的区别：
+ *  - freezeFlattenedModals 守护已被「摊平」的 iframe 弹窗（须含 iframe）
+ *  - 本函数守护普通非 iframe 弹窗（如付费对话框），仅保护至第一帧拍完为止
+ *  - 两者使用不同的 window key，互不干扰
+ */
+export function freezeScrollModals(): number {
+  const STORE = "__myScreenshotScrollModalFreeze"
+
+  type Target = { el: HTMLElement; display: string; visibility: string; opacity: string }
+  const targets: Target[] = []
+
+  document.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    let cs: CSSStyleDeclaration
+    try {
+      cs = getComputedStyle(el)
+    } catch {
+      return
+    }
+    if (cs.position !== "fixed" && cs.position !== "sticky") return
+    // 已不可见的不需要保护
+    if (cs.display === "none" || cs.visibility === "hidden") return
+    const op = parseFloat(cs.opacity || "1")
+    if (!isNaN(op) && op <= 0.01) return
+    targets.push({
+      el,
+      display: el.style.display,
+      visibility: el.style.visibility,
+      opacity: el.style.opacity
+    })
+  })
+
+  if (targets.length === 0) return 0
+
+  const byEl = new Map<HTMLElement, Target>(targets.map((t) => [t.el, t]))
+
+  const observer = new MutationObserver((records) => {
+    for (const rec of records) {
+      if (rec.type !== "attributes") continue
+      const el = rec.target as HTMLElement
+      const t = byEl.get(el)
+      if (!t) continue
+      let cs: CSSStyleDeclaration
+      try {
+        cs = getComputedStyle(el)
+      } catch {
+        continue
+      }
+      if (
+        cs.display === "none" ||
+        cs.visibility === "hidden" ||
+        parseFloat(cs.opacity || "1") <= 0.01
+      ) {
+        // 还原为截图前的 inline style 状态
+        el.style.display = t.display
+        el.style.visibility = t.visibility
+        el.style.opacity = t.opacity
+      }
+    }
+  })
+
+  observer.observe(document.documentElement, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["style", "class", "hidden"]
+  })
+
+  ;(window as unknown as Record<string, unknown>)[STORE] = { observer }
+  return targets.length
+}
+
+/** 配对 freezeScrollModals：断开 observer，让弹窗恢复正常关闭行为。 */
+export function unfreezeScrollModals(): void {
+  const STORE = "__myScreenshotScrollModalFreeze"
+  const state = (window as unknown as Record<string, unknown>)[STORE] as
+    | { observer: MutationObserver }
+    | undefined
+  if (!state) return
+  try {
+    state.observer.disconnect()
+  } catch {
+    // 忽略
+  }
+  delete (window as unknown as Record<string, unknown>)[STORE]
 }
