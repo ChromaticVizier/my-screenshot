@@ -608,6 +608,21 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     }
   })
 
+  // scroller 的祖先链（含弹窗容器）也无条件豁免。
+  // isContentLikeFixed 是启发式检测，面积/高度不足时会误判弹窗为「普通 fixed 元素」
+  // 而将其 display:none——用户已显式选定弹窗内的滚动区，必须保留整条祖先链。
+  const SCROLLER_ATTR_KEEP = "data-my-screenshot-scroller"
+  const scrollerElForKeep = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR_KEEP}="1"]`
+  )
+  if (scrollerElForKeep) {
+    let cur: HTMLElement | null = scrollerElForKeep.parentElement
+    while (cur && cur !== document.documentElement) {
+      keepSet.add(cur)
+      cur = cur.parentElement
+    }
+  }
+
   // 遍历范围：document.documentElement 下所有元素 + 进入 open shadowRoot
   const walk = (root: ParentNode): HTMLElement[] => {
     const out: HTMLElement[] = []
@@ -665,14 +680,20 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
   // 大块 fixed 容器豁免：真正的 SPA 主壳 scrollHeight 接近文档总高（subtreeRatio ≥ contentRatio），
   // 弹窗覆盖层 scrollHeight ≈ 视口高（subtreeRatio 很低），不再用 textLen 判断以防误豁免。
   const isContentLikeFixed = (el: HTMLElement): boolean => {
+    // 含主滚动容器后代 → 无条件豁免，必须放在所有面积/高度检查之前。
+    // 用户已选中该容器内的滚动区；若先做面积过滤，小弹窗（areaRatio < 0.5）会被
+    // 早返回拦截，导致弹窗被 display:none 后整个对话框从截图中消失。
+    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
-    if (areaRatio < viewportSizedRatio) return false
-    // 含主滚动容器后代 → 必然是内容容器祖先
-    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    const heightRatio = rect.height / Math.max(1, vh)
+    const widthRatio = rect.width / Math.max(1, vw)
+    // 不够大 → 直接隐藏（小浮窗/角落按钮/横向通知条等）
+    if (areaRatio < viewportSizedRatio && heightRatio < 0.9) return false
+    // 全高窄栏（侧边栏）：贯穿视口全高、宽度 < 30% → 结构性导航，无论页面高度如何均保留
+    if (heightRatio >= 0.9 && widthRatio < 0.3) return true
     // scrollHeight 接近文档总高 → 真正的 SPA 主壳（body overflow:hidden 时文档高 ≈ 视口，
     // 主壳 scrollHeight 是其内部滚动高度，通常远大于视口）。
-    // 仅靠 textLen 判断会把内容丰富的弹窗（VIP 购买对话框）误判为主壳。
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -942,7 +963,10 @@ export function hideFixedElementsExcludeFrame(
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
-    if (areaRatio < viewportSizedRatio) return false
+    const heightRatio = rect.height / Math.max(1, vh)
+    const widthRatio = rect.width / Math.max(1, vw)
+    if (areaRatio < viewportSizedRatio && heightRatio < 0.9) return false
+    if (heightRatio >= 0.9 && widthRatio < 0.3) return true
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -1013,6 +1037,20 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
     }
   })
 
+  // scroller 祖先链豁免（同 hideFixedElements）
+  {
+    const scrollerElRehide = document.querySelector<HTMLElement>(
+      `[data-my-screenshot-scroller="1"]`
+    )
+    if (scrollerElRehide) {
+      let cur: HTMLElement | null = scrollerElRehide.parentElement
+      while (cur && cur !== document.documentElement) {
+        keepSet.add(cur)
+        cur = cur.parentElement
+      }
+    }
+  }
+
   const store = (window as unknown as Record<string, unknown>)[STORE]
   const list = Array.isArray(store)
     ? (store as { el: HTMLElement; originalDisplay: string }[])
@@ -1051,10 +1089,13 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
   const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
   const contentRatio = rules.contentRatio ?? 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
+    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
-    if (areaRatio < viewportSizedRatio) return false
-    if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    const heightRatio = rect.height / Math.max(1, vh)
+    const widthRatio = rect.width / Math.max(1, vw)
+    if (areaRatio < viewportSizedRatio && heightRatio < 0.9) return false
+    if (heightRatio >= 0.9 && widthRatio < 0.3) return true
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= contentRatio) return true
     return false
@@ -1184,6 +1225,20 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
       // 忽略
     }
   })
+
+  // scroller 祖先链豁免（同 hideFixedElements）
+  {
+    const scrollerElDetect = document.querySelector<HTMLElement>(
+      `[data-my-screenshot-scroller="1"]`
+    )
+    if (scrollerElDetect) {
+      let cur: HTMLElement | null = scrollerElDetect.parentElement
+      while (cur && cur !== document.documentElement) {
+        keepSet.add(cur)
+        cur = cur.parentElement
+      }
+    }
+  }
 
   // 仅扫描视口内可见、未隐藏元素：跟随视口的元素首帧一定在视口内
   const walk = (root: ParentNode): HTMLElement[] => {
