@@ -1444,8 +1444,25 @@ export function measureContentTopReservedSpace(): number {
 /** 恢复页面原状（滚动条 + 滚动位置）。同时兜底清理隐藏列表残留。 */
 export function restorePage(snapshot: PreparePageSnapshot): void {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  // 万一 restoreFixedElements 因异常没被调用，这里再兜底一遍
-  restoreFixedElements()
+  // 兜底恢复 hideFixedElements 的隐藏列表。
+  // 这里**必须内联实现**，不能调 restoreFixedElements()：
+  // chrome.scripting.executeScript({ func }) 走的是 Function.prototype.toString
+  // 序列化函数体注入到页面执行；跨模块函数引用经 Parcel 压缩后变成单字母
+  // 标识符（如 `m()`），在页面 global 找不到 → ReferenceError。
+  {
+    const MARK = "__myScreenshotHidden"
+    const STORE = "__myScreenshotHiddenList"
+    const store = (window as unknown as Record<string, unknown>)[STORE]
+    const list = Array.isArray(store)
+      ? (store as { el: HTMLElement; originalDisplay: string }[])
+      : []
+    list.forEach(({ el, originalDisplay }) => {
+      el.style.display = originalDisplay
+      const ds = el.dataset as Record<string, string | undefined>
+      delete ds[MARK]
+    })
+    delete (window as unknown as Record<string, unknown>)[STORE]
+  }
 
   // 移除 preparePage 注入的全局冻结样式，恢复页面原有的平滑滚动 / 过渡动画
   const FREEZE_STYLE_ID = "__my_screenshot_freeze_style__"
