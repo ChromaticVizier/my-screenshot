@@ -84,6 +84,11 @@
   background: #f0f2f5;
 }
 
+.iconBtnLabel {
+  font-size: 12px;
+  margin: 0 2px;
+}
+
 .muted {
   color: #e25c5c;
 }

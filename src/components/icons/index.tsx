@@ -130,9 +130,23 @@ export const MicMutedIcon = (props: IconProps) => (
   </svg>
 )
 
+export const MicOnIcon = (props: IconProps) => (
+  <svg {...baseProps} {...props}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" />
+  </svg>
+)
+
 export const SoundOffIcon = (props: IconProps) => (
   <svg {...baseProps} {...props}>
     <path d="M4 9v6h4l5 4V5L8 9zM16 9l5 6M21 9l-5 6" />
+  </svg>
+)
+
+export const SoundOnIcon = (props: IconProps) => (
+  <svg {...baseProps} {...props}>
+    <path d="M4 9v6h4l5 4V5L8 9z" />
+    <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8 8 0 0 1 0 12" />
   </svg>
 )
 

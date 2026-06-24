@@ -25,6 +25,8 @@ export const MessageType = {
   GET_PENDING_IMAGE: "editor/getPendingImage",
   /** 编辑器 tab 裁剪完成，请求下载 */
   EDITOR_DOWNLOAD: "editor/download",
+  /** 编辑器 tab 放弃本次截图，请求清理待编辑图片 */
+  EDITOR_DISCARD: "editor/discard",
 
   /* ====== 录屏 ====== */
   /** popup → background：开始录制当前标签页（整页） */
@@ -39,6 +41,10 @@ export const MessageType = {
   RECORDER_PAUSE: "recorder/pause",
   /** 控制栏 → 中转窗口（经 background 转发）：继续 */
   RECORDER_RESUME: "recorder/resume",
+  /** 中转窗口 → background：MediaRecorder 真正开始录制，回传精确起点
+   *  （bootstrap 时设的 startedAt 包含创建窗口+加载popup+getUserMedia等准备时间，
+   *  控制栏计时与实际视频时长会差约 1 秒；以此消息为准重置起点） */
+  RECORDER_STARTED: "recorder/started",
   /** 中转窗口 → background：录制完成（已自行下载） */
   RECORDER_FINISH: "recorder/finish"
 } as const
@@ -142,6 +148,11 @@ export interface EditorDownloadRequest {
   }
 }
 
+/* ---------- 编辑器 tab → background：放弃本次截图 ---------- */
+export interface EditorDiscardRequest {
+  type: typeof MessageType.EDITOR_DISCARD
+}
+
 /* ---------- 录屏：popup → background ---------- */
 export interface RecordStartCurrentTabRequest {
   type: typeof MessageType.RECORD_START_CURRENT_TAB
@@ -179,6 +190,14 @@ export interface RecorderResumeRequest {
 }
 
 /* ---------- 录屏：中转窗口 → background ---------- */
+export interface RecorderStartedRequest {
+  type: typeof MessageType.RECORDER_STARTED
+  payload: {
+    /** MediaRecorder.start() 调用瞬间的 Date.now() */
+    startedAt: number
+  }
+}
+
 export interface RecorderFinishRequest {
   type: typeof MessageType.RECORDER_FINISH
   payload: {
@@ -214,10 +233,12 @@ export type ExtensionRequest =
   | CloseRelayWindowRequest
   | GetPendingImageRequest
   | EditorDownloadRequest
+  | EditorDiscardRequest
   | RecordStartCurrentTabRequest
   | RecordStartRegionTabRequest
   | RecordStopRequest
   | RecorderStopRequest
   | RecorderPauseRequest
   | RecorderResumeRequest
+  | RecorderStartedRequest
   | RecorderFinishRequest

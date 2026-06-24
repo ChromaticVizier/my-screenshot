@@ -43,6 +43,7 @@ import {
 import {
   MessageType,
   type RecorderFinishRequest,
+  type RecorderStartedRequest,
   type RecorderStopRequest,
   type RecordStartCurrentTabRequest,
   type RecordStartRegionTabRequest,
@@ -53,7 +54,8 @@ import {
   clearRecordSession,
   getRecordOptions,
   getRecordSession,
-  setRecordSession
+  setRecordSession,
+  type RecordResolution
 } from "~src/shared/recordOptions"
 
 interface SimpleResponse {
@@ -73,6 +75,8 @@ interface RecorderBootConfig {
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  /** 录制分辨率档位（影响 getUserMedia 的 maxWidth/maxHeight 约束） */
+  resolution: RecordResolution
   filename: string
   /** 区域录制：裁剪矩形（CSS 像素 + dpr）；省略 = 录整个视口 */
   region?: SelectionResult
@@ -200,9 +204,18 @@ async function bootstrapRecorder(params: {
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  resolution: RecordResolution
   region: SelectionResult | null
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const { streamId, tabId, tabTitle, microphone, systemAudio, region } = params
+  const {
+    streamId,
+    tabId,
+    tabTitle,
+    microphone,
+    systemAudio,
+    resolution,
+    region
+  } = params
 
   const startedAt = Date.now()
 
@@ -221,6 +234,7 @@ async function bootstrapRecorder(params: {
     tabTitle,
     microphone,
     systemAudio,
+    resolution,
     filename: buildRecordingFilename({ tabTitle, ext: "webm" }),
     ...(region ? { region } : {})
   }
@@ -285,6 +299,7 @@ export async function handleRecordStartCurrentTab(
       tabTitle: v.tabTitle,
       microphone: opts.microphone,
       systemAudio: opts.systemAudio,
+      resolution: opts.resolution,
       region: null
     })
   } catch (err) {
@@ -342,6 +357,7 @@ export async function handleRecordStartRegionTab(
       tabTitle: v.tabTitle,
       microphone: opts.microphone,
       systemAudio: opts.systemAudio,
+      resolution: opts.resolution,
       region: selection
     })
   } catch (err) {
@@ -422,6 +438,39 @@ async function cleanupTargetTab(tabId: number): Promise<void> {
     })
   } catch {
     /* 忽略 */
+  }
+}
+
+/* ============================================================
+ * 2.5) 中转窗口回传：MediaRecorder 真正 start 的瞬间
+ *
+ * 用这个时间覆盖 bootstrap 时设的 startedAt（后者包含约 1s 准备时间），
+ * 然后用新起点重注控制栏，让计时与实际视频时长对齐。
+ * ============================================================ */
+export async function handleRecorderStarted(
+  request: RecorderStartedRequest
+): Promise<SimpleResponse> {
+  try {
+    const { startedAt } = request.payload
+    if (!Number.isFinite(startedAt) || startedAt <= 0) {
+      return { ok: false, error: "invalid startedAt" }
+    }
+
+    const session = await getRecordSession()
+    if (!session.recording) return { ok: true }
+
+    recordingStartTime = startedAt
+    await setRecordSession({ startedAt })
+
+    if (activeTargetTabId != null) {
+      await reinjectControlBar(activeTargetTabId)
+    }
+    return { ok: true }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err)
+    }
   }
 }
 
