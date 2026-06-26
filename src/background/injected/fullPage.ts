@@ -1469,16 +1469,18 @@ export function hideFrameChrome(rules: FullPageRuleSet): number {
     }
   }
 
-  // 内容容器 / 主滚动容器豁免（不该被当 chrome 隐藏）
+  // 内容容器 / 主滚动容器豁免（不该被当 chrome 隐藏）。
+  // 注意：这里**不**豁免「全高窄栏」——对逐帧 chrome 隐藏而言，吸顶 / 固定的左右
+  // 副栏（如微博三栏布局的左导航 / 右热搜）正是要在首帧后隐藏的目标；它们只在
+  // 第一帧（整窗保留）出现。仅豁免「真正承载主体内容的大块」（subtreeRatio 高）
+  // 与主滚动容器链。
   const isContentLike = (el: HTMLElement, rect: DOMRect): boolean => {
     if (el.querySelector(`[${SCROLLER_ATTR}="1"]`)) return true
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
-    const widthRatio = rect.width / Math.max(1, vw)
     if (areaRatio < 0.5 && heightRatio < 0.9) return false
-    if (heightRatio >= 0.9 && widthRatio < 0.3) return true
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
-    if (subtreeRatio >= 0.45) return true
+    if (subtreeRatio >= 0.6) return true
     return false
   }
 

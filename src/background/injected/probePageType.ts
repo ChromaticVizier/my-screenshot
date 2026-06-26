@@ -144,15 +144,19 @@ export function probePageType(): PageTypeProbe {
         const r = el.getBoundingClientRect()
         const heightRatio = r.height / Math.max(1, vh)
         const widthRatio = r.width / Math.max(1, vw)
+        // 贴左/右视口边（gitlab / confluence 等贴边导航）
         const nearLeft = r.left <= vw * 0.02
         const nearRight = r.right >= vw * 0.98
-        // 大侧边栏：贯穿大半视口高、较窄、贴左/右边（任意定位）
+        // 或明显偏左 / 偏右（居中三栏布局的左右副栏，如微博——不贴边但整列在左/右侧）
+        const leftOfCenter = r.right <= vw * 0.45
+        const rightOfCenter = r.left >= vw * 0.55
+        // 大侧边栏：贯穿大半视口高、较窄、位于左/右侧（任意定位）
         if (
           !hasSidebar &&
-          heightRatio >= 0.7 &&
+          heightRatio >= 0.55 &&
           widthRatio >= 0.06 &&
-          widthRatio <= 0.35 &&
-          (nearLeft || nearRight)
+          widthRatio <= 0.4 &&
+          (nearLeft || nearRight || leftOfCenter || rightOfCenter)
         ) {
           hasSidebar = true
         }
