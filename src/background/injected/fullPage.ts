@@ -1479,14 +1479,20 @@ export function hideFrameChrome(
 
   // 内容容器 / 主滚动容器豁免（不该被当 chrome 隐藏）。
   // 注意：这里**不**豁免「全高窄栏」——对逐帧 chrome 隐藏而言，吸顶 / 固定的左右
-  // 副栏（如微博三栏布局的左导航 / 右热搜）正是要在首帧后隐藏的目标；它们只在
-  // 第一帧（整窗保留）出现。仅豁免「真正承载主体内容的大块」（subtreeRatio 高）
-  // 与主滚动容器链。
+  // 副栏（如微博三栏布局的左导航 / 右热搜、VuePress / Chakra 文档站的固定左侧导航）
+  // 正是要在首帧后隐藏的目标；它们只在第一帧（整窗保留）出现。仅豁免「真正承载主体
+  // 内容的宽大块」与主滚动容器链。
   const isContentLike = (el: HTMLElement, rect: DOMRect): boolean => {
     if (el.querySelector(`[${SCROLLER_ATTR}="1"]`)) return true
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
+    const widthRatio = rect.width / Math.max(1, vw)
+    // 窄元素（侧栏 / 导航 / 工具条，宽度占比 < 0.5）一律视为 chrome、可隐藏。
+    // 关键：固定侧栏常因导航项多而内部 scrollHeight 巨大（subtreeRatio 很高），
+    // 若仅按 subtreeRatio 豁免会把它误当主内容保留——故先按「窄」判定，绕过 subtreeRatio。
+    if (widthRatio < 0.5) return false
     if (areaRatio < 0.5 && heightRatio < 0.9) return false
+    // 宽且承载大量内容 → 真正的主内容容器，豁免
     const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
     if (subtreeRatio >= 0.6) return true
     return false
