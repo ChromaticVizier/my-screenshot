@@ -488,6 +488,9 @@ function Options() {
               <option value="standard">标准（首帧保留 + 逐帧补偿）</option>
               <option value="isolate">隔离（隔离主滚动容器）</option>
               <option value="spa-like">类 SPA（首帧保留 + 隐藏顶栏/侧边栏）</option>
+              <option value="embedded-doc">
+                内嵌文档/表格（canvas 自定义滚动，如灵犀）
+              </option>
             </select>
             <span className={styles.hint}>
               「自动」会在截图前探测页面类型（纯内容 / SPA 单容器 / 内嵌 iframe），
@@ -497,6 +500,33 @@ function Options() {
               隔离会先隔离主滚动容器、隐藏容器外所有元素，
               对顶栏 / 侧栏 / 弹窗逐屏重复的 SPA 效果最好，
               但「内容分散在多个并列容器」的页面可能漏截部分元素。
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label}>长截图帧间隔（秒）</label>
+          <div className={styles.control}>
+            <input
+              className={styles.input}
+              type="number"
+              min={0}
+              max={10}
+              step={0.1}
+              value={safeNumberValue(settings.fullPageFrameDelayMs / 1000, 1.5, {
+                min: 0,
+                max: 10
+              })}
+              onChange={(e) => {
+                const n = parseClampedNumber(e.target.value, { min: 0, max: 10 })
+                if (n !== null) {
+                  update({ fullPageFrameDelayMs: Math.round(n * 1000) })
+                }
+              }}
+            />
+            <span className={styles.hint}>
+              长截图每滚动到新一帧后等待的时间，给页面渲染 / 懒加载 / 动画留出稳定时间。
+              默认 1.5 秒；动态内容多的页面可调大，纯静态页可调小提速。
             </span>
           </div>
         </div>

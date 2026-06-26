@@ -48,7 +48,6 @@ import {
   measureScrollMetrics,
   preparePage,
   rehideFixedElements,
-  relocateFrameChrome,
   restoreFixedElements,
   restorePage,
   scrollToY,
@@ -82,6 +81,8 @@ export async function handleCaptureFullPageAggressive(
   const format = request.payload?.format ?? settings.imageFormat
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
+  // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
+  const frameDelayMs = Math.max(0, Math.round(settings.fullPageFrameDelayMs ?? 1500))
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
     routing?.siteRuleOverride !== undefined
@@ -231,21 +232,12 @@ export async function handleCaptureFullPageAggressive(
         /* 取不到整窗尺寸则退化为 scroller 尺寸 */
       }
 
-      // window 模式（无内部滚动容器）改用「重定位」：把 fixed/sticky 顶栏/侧栏转成
-      // absolute 钉住，正文回填其横向占位 → 长图无侧栏留白、chrome 只出现在首帧。
-      // 必须在截首帧之前重定位，使首帧与后续帧布局一致（正文已回填、无接缝跳变）。
+      // window 模式（无内部滚动容器）：首帧整窗保留副栏（在流中、主区自然宽度）；
+      // 后续帧用「visibility:hidden 保留占位」隐藏副栏 —— 不脱流、不回流，主滚动区
+      // 宽度全程不变（避免之前 relocate 转 absolute 把主区撑宽的问题）。
       relocateMode = !metrics.scrollerIsElement
-      if (relocateMode) {
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: relocateFrameChrome,
-          args: [fullPageRules]
-        })
-        hidingApplied = true
-        await sleep(120)
-      }
 
-      // 首帧整窗截图（scroller 模式原样保留 chrome；relocate 模式 chrome 已钉在首帧位置）
+      // 首帧整窗截图（scroller 模式 / 类 SPA window 模式均原样保留 chrome 在流中）
       const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
         format: "png"
       })
@@ -312,18 +304,46 @@ export async function handleCaptureFullPageAggressive(
         })
         hidingApplied = true
         await sleep(150)
-        const cropLeft = Math.max(Math.round(metrics.captureX), insetLeft)
-        const cropRight = Math.min(
-          Math.round(metrics.captureX + metrics.captureWidth),
-          insetRight
-        )
+
+        // 关键：首帧是在「隐藏 chrome 之前」截的（scroller 在原始位置 captureY）；
+        // 隐藏可能让 scroller 上方的占位元素消失、scroller 回流上移，使其真实位置变成
+        // captureY'。若后续帧仍按原 captureY 裁切，就会裁到错位内容 → 首帧↔次帧接缝处
+        // 半行重叠 / 遮挡。对策：用「重测后的矩形」做裁切源，用「原始 captureY」做画布
+        // 对齐（与首帧一致）。重测失败则沿用原值。
+        let srcX = metrics.captureX
+        let srcY = metrics.captureY
+        let srcW = metrics.captureWidth
+        let srcH = metrics.captureHeight
+        try {
+          const [{ result: m }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureScrollerRect
+          })
+          if (m) {
+            srcX = m.captureX
+            srcY = m.captureY
+            srcW = m.captureWidth
+            srcH = m.captureHeight
+            if (typeof m.totalHeight === "number") {
+              metrics.totalHeight = m.totalHeight
+            }
+            // 后续帧步长以「隐藏后」可见高度为准
+            metrics.viewportHeight = m.captureHeight
+          }
+        } catch {
+          /* 重测失败沿用 preparePage 旧值 */
+        }
+
+        const cropLeft = Math.max(Math.round(srcX), insetLeft)
+        const cropRight = Math.min(Math.round(srcX + srcW), insetRight)
+        // 画布对齐用「原始」captureY / captureHeight（首帧坐标系）
         contentOffsetY = Math.max(0, Math.round(metrics.captureY))
         framesDestX = cropLeft
         frameCrop = {
           x: cropLeft,
-          y: metrics.captureY,
+          y: srcY,
           w: Math.max(1, cropRight - cropLeft),
-          h: metrics.captureHeight
+          h: srcH
         }
         // 首帧已展示 scroller 顶部 captureHeight 高内容；后续帧从其后接着拍，减重叠避缝隙
         const seamOverlap = Math.round(metrics.captureHeight * seamOverlapRatio)
@@ -513,6 +533,9 @@ export async function handleCaptureFullPageAggressive(
       })
       let scrollY = actualY ?? targetY
 
+      // 帧间等待：每滚到新一帧后等待用户设定的时长，给页面留出渲染/懒加载/动画稳定的时间
+      if (frameDelayMs > 0) await sleep(frameDelayMs)
+
       // 3.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
       let measuredHeight = totalHeight
       try {
@@ -552,16 +575,20 @@ export async function handleCaptureFullPageAggressive(
         effectiveHeight = Math.max(effectiveHeight, totalHeight)
       }
 
-      // 3.3) 逐帧兜住本帧的 chrome：
-      //   两种模式都用 hideFrameChrome（属性 + 全局 !important 样式表锁定，斗得过站点
-      //   把 inline position/display 改回去）来处理「后续帧里出现/复活的 fixed/sticky」：
-      //   - 重定位模式（window）：首帧前已把 chrome 重定位（脱流、正文回填、首帧出现）；
-      //     若站点 JS 在滚动中把它重置回 sticky 或重新渲染出新侧栏节点，会逐帧重复，
-      //     这里用 hideFrameChrome 锁死它们，保证只在首帧出现、后续帧不复现。
-      //   - 隐藏模式（scroller / 子 frame）：另需补隐藏 SPA 重挂载的 fixed/sticky 及
-      //     子 frame 链。
+      // 3.3) 逐帧处理本帧的 chrome：
+      //   - 类 SPA（window）模式：用 hideFrameChrome(keepSpace=true) —— 把副栏 / 顶栏
+      //     以 visibility:hidden 隐藏（**保留布局占位、不脱流、不回流**），首帧后副栏
+      //     不再出现、但主滚动区宽度全程不变（不被撑宽）。
+      //   - 隐藏模式（scroller / 子 frame）：补隐藏 SPA 重挂载的 fixed/sticky + 子 frame
+      //     链，再 hideFrameChrome（display:none）锁死跟随视口的 chrome。
       try {
-        if (!relocateMode) {
+        if (relocateMode) {
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: hideFrameChrome,
+            args: [fullPageRules, true]
+          })
+        } else {
           await chrome.scripting.executeScript({
             target: scrollerTarget,
             func: rehideFixedElements,
@@ -574,12 +601,12 @@ export async function handleCaptureFullPageAggressive(
               args: [siteRule.frameUrl]
             })
           }
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: hideFrameChrome,
+            args: [fullPageRules]
+          })
         }
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: hideFrameChrome,
-          args: [fullPageRules]
-        })
       } catch {
         /* 不致命 */
       }

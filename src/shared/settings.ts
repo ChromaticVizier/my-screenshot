@@ -87,7 +87,12 @@ export interface SiteScrollRegionRule {
  *     首帧保留 chrome，后续帧把顶栏 + 侧边栏一并隐藏）
  * 详见 src/background/handlers/fullPageRouter.ts。
  */
-export type FullPageMode = "auto" | "standard" | "isolate" | "spa-like"
+export type FullPageMode =
+  | "auto"
+  | "standard"
+  | "isolate"
+  | "spa-like"
+  | "embedded-doc"
 
 /**
  * 长截图「专家」标识（MoE 路由的输出）：
@@ -95,9 +100,15 @@ export type FullPageMode = "auto" | "standard" | "isolate" | "spa-like"
  *  - "isolate"：隔离主滚动容器流程
  *  - "iframe"：内容主体在某大 iframe 内
  *  - "spa-like"：window 可滚但带固定顶栏 / 大侧边栏的「类 SPA」页面
+ *  - "embedded-doc"：网页内嵌、canvas 渲染、自定义滚动的表格 / 文档（如网易灵犀）
  * 与 fullPageRouter / routeLog 共用。
  */
-export type FullPageExpert = "standard" | "isolate" | "iframe" | "spa-like"
+export type FullPageExpert =
+  | "standard"
+  | "isolate"
+  | "iframe"
+  | "spa-like"
+  | "embedded-doc"
 
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */
@@ -118,6 +129,9 @@ export interface AppSettings {
   /** 调试：整页截图前在页面上短暂弹出 MoE 判定的页面类型（展示后立即移除，
    *  不会进入截图）。feat/MoE 调试阶段默认开启，便于核对路由；可在设置页关闭。 */
   showPageTypeToast: boolean
+  /** 长截图相邻两帧之间的等待时长（毫秒）。每滚动到新一帧后等待这么久再截图，
+   *  给页面留出渲染 / 懒加载 / 动画稳定的时间。默认 1500。调大更稳但更慢。 */
+  fullPageFrameDelayMs: number
 }
 
 /** 整页规则默认值。也作为"恢复默认"按钮的回填来源 */
@@ -140,7 +154,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   siteScrollRegions: {},
   cropBeforeDownload: true,
   fullPageMode: "auto",
-  showPageTypeToast: true
+  showPageTypeToast: true,
+  fullPageFrameDelayMs: 1000
 }
 
 const KEY = "settings"
@@ -173,7 +188,11 @@ function normalizeSettings(stored: Partial<AppSettings>): AppSettings {
       stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,
     fullPageMode,
     showPageTypeToast:
-      stored.showPageTypeToast ?? DEFAULT_SETTINGS.showPageTypeToast
+      stored.showPageTypeToast ?? DEFAULT_SETTINGS.showPageTypeToast,
+    fullPageFrameDelayMs:
+      typeof stored.fullPageFrameDelayMs === "number"
+        ? stored.fullPageFrameDelayMs
+        : DEFAULT_SETTINGS.fullPageFrameDelayMs
   }
 }
 

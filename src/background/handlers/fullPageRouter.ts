@@ -18,6 +18,7 @@
  */
 import { handleCaptureFullPage } from "~src/background/handlers/capture"
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageEmbeddedDoc } from "~src/background/handlers/captureFullPageEmbeddedDoc"
 import {
   errorResponse,
   hostnameFromUrl,
@@ -52,7 +53,8 @@ const EXPERT_LABELS: Record<FullPageExpert, string> = {
   standard: "标准（纯内容 / window 滚动）",
   isolate: "隔离（SPA 单主滚动容器）",
   iframe: "内嵌 iframe（内容主体在 iframe 内）",
-  "spa-like": "类 SPA（window 可滚 + 固定顶栏 / 大侧边栏）"
+  "spa-like": "类 SPA（window 可滚 + 固定顶栏 / 大侧边栏）",
+  "embedded-doc": "内嵌文档/表格（canvas 自定义滚动，如网易灵犀）"
 }
 
 export interface RouteDecision {
@@ -195,35 +197,59 @@ export async function handleCaptureFullPageRouted(
   } else if (mode === "spa-like") {
     decision = { expert: "spa-like", reason: "手动指定模式 = spa-like" }
     routing = { hideStructuralChrome: true }
+  } else if (mode === "embedded-doc") {
+    // 手动：探测主体 iframe 作为内嵌文档目标，交给 embedded-doc 专家（内部再判是否
+    // 自定义滚动文档，不是则回退）。
+    decision = { expert: "embedded-doc", reason: "手动指定模式 = embedded-doc" }
+    signals = await probe(tabId)
+    if (signals?.dominantIframe && /^https?:/i.test(signals.dominantIframe.src)) {
+      routing = {
+        siteRuleOverride: {
+          selector: "",
+          hostname,
+          createdAt: Date.now(),
+          frameUrl: signals.dominantIframe.src,
+          label: "manual embedded-doc iframe"
+        }
+      }
+    }
   } else {
-    // auto：用户手动选过的站点滚动区优先级最高，沿用标准流程不再自动判别
+    // auto：先探测页面特征
+    signals = await probe(tabId)
     const manualSiteRule = settings.siteScrollRegions[hostname]
-    if (manualSiteRule) {
+    if (DEBUG_ROUTE) {
+      console.log("[fullPage][router] signals", { hostname, signals })
+    }
+    if (
+      signals?.dominantIframe &&
+      signals.dominantIframe.areaRatio >= 0.6 &&
+      /^https?:/i.test(signals.dominantIframe.src)
+    ) {
+      // 主体 iframe（如内嵌灵犀表格 / 文档）→ embedded-doc 专家（内部判 canvas
+      // 自定义滚动，不是则回退 iframe 隔离）。无论是否有手动选区都优先——内容在
+      // iframe 内，手动选区在主 frame 只能选到 iframe 本身。
+      decision = {
+        expert: "embedded-doc",
+        reason: `dominant iframe ${signals.dominantIframe.areaRatio.toFixed(2)}`
+      }
+      routing = {
+        siteRuleOverride: {
+          selector: "",
+          hostname,
+          createdAt: Date.now(),
+          frameUrl: signals.dominantIframe.src,
+          label: "auto dominant iframe"
+        }
+      }
+    } else if (manualSiteRule) {
       decision = { expert: "standard", reason: "站点手动滚动区，沿用标准流程" }
+    } else if (!signals) {
+      decision = { expert: "standard", reason: "页面探测失败，兜底标准流程" }
     } else {
-      signals = await probe(tabId)
-      if (!signals) {
-        decision = { expert: "standard", reason: "页面探测失败，兜底标准流程" }
-      } else {
-        decision = classifyPageType(signals)
-        if (DEBUG_ROUTE) {
-          console.log("[fullPage][router] signals", { hostname, signals })
-        }
-        if (decision.expert === "iframe" && signals.dominantIframe) {
-          // 合成一条只含 frameUrl 的站点规则：preparePage 在该 frame 内自动选
-          // scroller，主 frame 用 hideOutsideFrameChain 只保留承载 iframe 的链路。
-          const synthetic: SiteScrollRegionRule = {
-            selector: "",
-            hostname,
-            createdAt: Date.now(),
-            frameUrl: signals.dominantIframe.src,
-            label: "auto-detected dominant iframe"
-          }
-          routing = { siteRuleOverride: synthetic }
-        } else if (decision.expert === "spa-like") {
-          // 走标准首帧保留流程，但激进隐藏结构性 chrome（顶栏 + 大侧边栏）
-          routing = { hideStructuralChrome: true }
-        }
+      decision = classifyPageType(signals)
+      if (decision.expert === "spa-like") {
+        // 走隔离 handler 的「首帧保留」流程，激进隐藏结构性 chrome（顶栏 + 大侧边栏）
+        routing = { hideStructuralChrome: true }
       }
     }
   }
@@ -261,7 +287,11 @@ export async function handleCaptureFullPageRouted(
       case "isolate":
         return await handleCaptureFullPageAggressive(request)
       case "iframe":
-        return await handleCaptureFullPageAggressive(request, routing)
+        // 内嵌 iframe：先交 embedded-doc 专家（它会判定是否 canvas 自定义滚动文档，
+        // 如网易灵犀表格；不是则内部回退到隔离/iframe 处理）。
+        return await handleCaptureFullPageEmbeddedDoc(request, routing)
+      case "embedded-doc":
+        return await handleCaptureFullPageEmbeddedDoc(request, routing)
       case "spa-like":
         // 类 SPA：走隔离 handler 的「首帧整窗保留」流程——首帧含顶栏/侧栏，
         // 后续帧裁切主滚动容器（侧栏在裁切区外自动排除）或整窗 + 激进隐藏 chrome。

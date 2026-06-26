@@ -125,6 +125,8 @@ export async function handleCaptureFullPage(
   const tabId = tab.id!
 
   const fullPageRules = settings.fullPageRules
+  // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
+  const frameDelayMs = Math.max(0, Math.round(settings.fullPageFrameDelayMs ?? 1500))
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
     routing?.siteRuleOverride !== undefined
@@ -548,6 +550,9 @@ export async function handleCaptureFullPage(
         // scrollToY 立即返回的 scrollTop 在 scroll-behavior:smooth 的容器上
         // 处于动画初期（远小于目标）。后面用 measureScrollMetrics 重新拿稳定值。
         let scrollY = actualY ?? targetY
+
+        // 帧间等待：每滚到新一帧后等待用户设定的时长，给页面留出渲染/懒加载/动画稳定的时间
+        if (frameDelayMs > 0) await sleep(frameDelayMs)
 
         // 4.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
         let measuredHeight = totalHeight

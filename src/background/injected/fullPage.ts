@@ -1412,7 +1412,10 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
  *
  * 标记的元素记于 window[ATTR_STORE]，由 restorePage 统一移除属性 + 删样式表 + 清状态。
  */
-export function hideFrameChrome(rules: FullPageRuleSet): number {
+export function hideFrameChrome(
+  rules: FullPageRuleSet,
+  keepSpace = false
+): number {
   if (!rules || rules.enabled === false) return 0
 
   const ATTR = "data-my-ss-frame-hide"
@@ -1437,11 +1440,16 @@ export function hideFrameChrome(rules: FullPageRuleSet): number {
     ? Math.max(scroller.scrollHeight, scroller.clientHeight)
     : Math.max(document.body.scrollHeight, html.scrollHeight, vh)
 
-  // 全局 !important 隐藏样式表（只注入一次）：胜过站点 JS 设回的内联 display
+  // 全局 !important 隐藏样式表（只注入一次）：胜过站点 JS 设回的内联 display。
+  //  - 属性值 "1"：display:none（彻底移除，会回流——scroller / iframe 模式用）；
+  //  - 属性值 "2"：仅 visibility:hidden（**保留布局占位、不回流**——类 SPA 副栏用，
+  //    避免主滚动区因副栏脱流而被撑宽）。
   if (!document.getElementById(STYLE_ID)) {
     const st = document.createElement("style")
     st.id = STYLE_ID
-    st.textContent = `[${ATTR}="1"]{display:none!important;visibility:hidden!important}`
+    st.textContent =
+      `[${ATTR}="1"]{display:none!important;visibility:hidden!important}` +
+      `[${ATTR}="2"]{visibility:hidden!important}`
     ;(document.head || html).appendChild(st)
   }
 
@@ -1496,7 +1504,7 @@ export function hideFrameChrome(rules: FullPageRuleSet): number {
   const store = Array.isArray(storeRaw) ? (storeRaw as HTMLElement[]) : []
 
   const tag = (el: HTMLElement) => {
-    el.setAttribute(ATTR, "1")
+    el.setAttribute(ATTR, keepSpace ? "2" : "1")
     store.push(el)
   }
 
@@ -1511,7 +1519,7 @@ export function hideFrameChrome(rules: FullPageRuleSet): number {
   visit(html)
 
   for (const el of all) {
-    if (el.getAttribute(ATTR) === "1") continue
+    if (el.getAttribute(ATTR)) continue
     if (el.getAttribute(SCROLLER_ATTR) === "1") continue
     if (keepSet.has(el)) continue
 
@@ -1681,8 +1689,38 @@ export function relocateFrameChrome(rules: FullPageRuleSet): number {
 
   const storeRaw = w[STORE]
   const store = Array.isArray(storeRaw)
-    ? (storeRaw as { el: HTMLElement; cssText: string }[])
+    ? (storeRaw as {
+        el: HTMLElement
+        cssText: string
+        pinTop: number
+        pinLeft: number
+        w: number
+        h: number
+      }[])
     : []
+
+  const pin = (el: HTMLElement, t: number, l: number, wpx: number, hpx: number) => {
+    el.style.setProperty("position", "absolute", "important")
+    el.style.setProperty("top", `${t}px`, "important")
+    el.style.setProperty("left", `${l}px`, "important")
+    el.style.setProperty("right", "auto", "important")
+    el.style.setProperty("bottom", "auto", "important")
+    el.style.setProperty("margin", "0", "important")
+    el.style.setProperty("width", `${wpx}px`, "important")
+    el.style.setProperty("height", `${hpx}px`, "important")
+    el.style.setProperty("transition", "none", "important")
+  }
+
+  // 1) 复钉已重定位元素：每帧重新强制 absolute + 固定文档位。
+  //    防止站点 JS 把它改回 sticky/fixed 重新跟随视口（→ 逐帧重复）；
+  //    钉在「首次重定位时的文档位」→ 全程只出现在那一屏一次。
+  const already = new Set<HTMLElement>()
+  for (const rec of store) {
+    const el = rec.el
+    if (!el || !el.isConnected) continue
+    already.add(el)
+    pin(el, rec.pinTop, rec.pinLeft, rec.w, rec.h)
+  }
 
   let count = 0
   const all: HTMLElement[] = []
@@ -1694,8 +1732,9 @@ export function relocateFrameChrome(rules: FullPageRuleSet): number {
   }
   visit(html)
 
+  // 2) 扫描本帧新出现的 fixed/sticky chrome → 重定位
   for (const el of all) {
-    if (el.getAttribute(RELOC_ATTR) === "1") continue
+    if (already.has(el)) continue
     if (el.getAttribute(SCROLLER_ATTR) === "1") continue
     if (keepSet.has(el)) continue
     let cs: CSSStyleDeclaration
@@ -1731,18 +1770,13 @@ export function relocateFrameChrome(rules: FullPageRuleSet): number {
     } catch {
       /* 退化为以视口为基准 */
     }
-    const top = rect.top - opRect.top - opBT
-    const left = rect.left - opRect.left - opBL
-    el.style.setProperty("top", `${Math.round(top)}px`, "important")
-    el.style.setProperty("left", `${Math.round(left)}px`, "important")
-    el.style.setProperty("right", "auto", "important")
-    el.style.setProperty("bottom", "auto", "important")
-    el.style.setProperty("margin", "0", "important")
-    el.style.setProperty("width", `${Math.round(rect.width)}px`, "important")
-    el.style.setProperty("height", `${Math.round(rect.height)}px`, "important")
-    el.style.setProperty("transition", "none", "important")
+    const pinTop = Math.round(rect.top - opRect.top - opBT)
+    const pinLeft = Math.round(rect.left - opRect.left - opBL)
+    const wpx = Math.round(rect.width)
+    const hpx = Math.round(rect.height)
+    pin(el, pinTop, pinLeft, wpx, hpx)
     el.setAttribute(RELOC_ATTR, "1")
-    store.push({ el, cssText: savedCss })
+    store.push({ el, cssText: savedCss, pinTop, pinLeft, w: wpx, h: hpx })
     count++
   }
 
