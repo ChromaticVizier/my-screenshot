@@ -1487,6 +1487,36 @@ export function measureContentInsets(): { left: number; right: number } {
 }
 
 /**
+ * 量取网页有效背景色（CSS 颜色串）。用于长图画布底色，使后续帧未绘制的
+ * 侧栏槽等留白与网页背景一致，而非默认白色。
+ * 取 body → documentElement 的第一个不透明 background-color；都透明则回退白色。
+ */
+export function measurePageBackground(): string {
+  const isOpaque = (c: string): boolean => {
+    if (!c || c === "transparent") return false
+    const m = c.match(/rgba?\(([^)]+)\)/i)
+    if (m) {
+      const parts = m[1].split(",").map((s) => parseFloat(s))
+      if (parts.length >= 4 && parts[3] === 0) return false
+    }
+    return true
+  }
+  try {
+    const b = getComputedStyle(document.body).backgroundColor
+    if (isOpaque(b)) return b
+  } catch {
+    /* 忽略 */
+  }
+  try {
+    const h = getComputedStyle(document.documentElement).backgroundColor
+    if (isOpaque(h)) return h
+  } catch {
+    /* 忽略 */
+  }
+  return "#ffffff"
+}
+
+/**
  * 量取「正文真实顶部」距视口顶的距离（视口 CSS 像素），即顶部已为固定栏
  * 预留的空白（padding/margin）。调用前提：已滚到顶部、顶栏已隐藏。
  *

@@ -43,6 +43,7 @@ import {
   hideOutsideFrameChain,
   kickScrollListeners,
   measureContentInsets,
+  measurePageBackground,
   measureScrollMetrics,
   preparePage,
   rehideFixedElements,
@@ -159,6 +160,18 @@ export async function handleCaptureFullPageAggressive(
     }
 
     const slices: CaptureSlice[] = []
+
+    // 网页背景色：用作长图画布底色，使后续帧未绘制的侧栏槽留白与网页背景一致。
+    let pageBackground = "#ffffff"
+    try {
+      const [{ result: bg }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: measurePageBackground
+      })
+      if (typeof bg === "string" && bg) pageBackground = bg
+    } catch {
+      /* 取不到沿用白色 */
+    }
 
     // scroller 在子 iframe 内：主 frame 上的顶栏 / 侧栏需在主 frame 单独隔离
     // （只保留承载 scroller 的 iframe 链）。
@@ -688,7 +701,8 @@ export async function handleCaptureFullPageAggressive(
       totalHeight: canvasHeight,
       devicePixelRatio: metrics.devicePixelRatio,
       format,
-      quality
+      quality,
+      backgroundColor: pageBackground
     })
 
     // 释放 bitmap
