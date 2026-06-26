@@ -1397,6 +1397,212 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
 }
 
 /**
+ * 逐帧隐藏「会跟随视口的 chrome」（顶栏 / 频道导航 / 侧栏 / 底栏等），每帧调用。
+ *
+ * 解决两类既往漏网：
+ *  1) 常态 display:none、滚动时才由 JS 临时 display:block 的固定头部（如今日头条的
+ *     .fix-header）。它 computed position 始终是 fixed，但：
+ *       - 扫描可见元素会漏（探测时它是 none）；
+ *       - 内联 display:none 会被站点 JS 重新设回 block 覆盖。
+ *     对策：连 display:none 的 fixed/sticky 也一并标记；用「属性 + 全局 !important
+ *     样式表」锁定隐藏——`[attr]{display:none!important}` 胜过站点的内联 display:block。
+ *  2) 滚过阈值后才由 JS（transform）变吸顶、computed 非 fixed 的伪 sticky：用循环
+ *     每帧之间的真实滚动位移做参照，比较元素「文档绝对位置」是否随 scrollTop 同步
+ *     漂移（跟随视口）来判定。
+ *
+ * 标记的元素记于 window[ATTR_STORE]，由 restorePage 统一移除属性 + 删样式表 + 清状态。
+ */
+export function hideFrameChrome(rules: FullPageRuleSet): number {
+  if (!rules || rules.enabled === false) return 0
+
+  const ATTR = "data-my-ss-frame-hide"
+  const STYLE_ID = "__my_ss_frame_hide_style"
+  const ATTR_STORE = "__myScreenshotFrameHideList"
+  const STATE = "__myScreenshotFollowState"
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+  const FOLLOW_RATIO = 0.7
+  const MIN_DELTA = 24
+  const LARGE_AREA_RATIO = 0.85
+  const LARGE_SUBTREE_RATIO = 0.9
+
+  const html = document.documentElement
+  const scroller = document.querySelector<HTMLElement>(
+    `[${SCROLLER_ATTR}="1"]`
+  )
+  const scrollTop = scroller ? scroller.scrollTop : window.scrollY
+  const scrollLeft = scroller ? scroller.scrollLeft : window.scrollX
+  const vw = scroller ? scroller.clientWidth : html.clientWidth
+  const vh = scroller ? scroller.clientHeight : html.clientHeight
+  const docHeight = scroller
+    ? Math.max(scroller.scrollHeight, scroller.clientHeight)
+    : Math.max(document.body.scrollHeight, html.scrollHeight, vh)
+
+  // 全局 !important 隐藏样式表（只注入一次）：胜过站点 JS 设回的内联 display
+  if (!document.getElementById(STYLE_ID)) {
+    const st = document.createElement("style")
+    st.id = STYLE_ID
+    st.textContent = `[${ATTR}="1"]{display:none!important;visibility:hidden!important}`
+    ;(document.head || html).appendChild(st)
+  }
+
+  // 豁免名单：customKeepSelectors（含祖先链）+ 主滚动容器祖先链
+  const keepSet = new Set<HTMLElement>()
+  ;(rules.customKeepSelectors || []).forEach((sel) => {
+    if (!sel) return
+    try {
+      document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        let cur: HTMLElement | null = el
+        while (cur && cur !== html) {
+          keepSet.add(cur)
+          cur = cur.parentElement
+        }
+      })
+    } catch {
+      /* 忽略非法选择器 */
+    }
+  })
+  if (scroller) {
+    let cur: HTMLElement | null = scroller.parentElement
+    while (cur && cur !== html) {
+      keepSet.add(cur)
+      cur = cur.parentElement
+    }
+  }
+
+  // 内容容器 / 主滚动容器豁免（不该被当 chrome 隐藏）
+  const isContentLike = (el: HTMLElement, rect: DOMRect): boolean => {
+    if (el.querySelector(`[${SCROLLER_ATTR}="1"]`)) return true
+    const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
+    const heightRatio = rect.height / Math.max(1, vh)
+    const widthRatio = rect.width / Math.max(1, vw)
+    if (areaRatio < 0.5 && heightRatio < 0.9) return false
+    if (heightRatio >= 0.9 && widthRatio < 0.3) return true
+    const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
+    if (subtreeRatio >= 0.45) return true
+    return false
+  }
+
+  const w = window as unknown as Record<string, unknown>
+  let state = w[STATE] as
+    | Map<HTMLElement, { t: number; l: number; s: number; sl: number }>
+    | undefined
+  if (!(state instanceof Map)) {
+    state = new Map()
+    w[STATE] = state
+  }
+  const storeRaw = w[ATTR_STORE]
+  const store = Array.isArray(storeRaw) ? (storeRaw as HTMLElement[]) : []
+
+  const tag = (el: HTMLElement) => {
+    el.setAttribute(ATTR, "1")
+    store.push(el)
+  }
+
+  let count = 0
+  const all: HTMLElement[] = []
+  const visit = (node: ParentNode) => {
+    node.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      all.push(el)
+      if (el.shadowRoot) visit(el.shadowRoot)
+    })
+  }
+  visit(html)
+
+  for (const el of all) {
+    if (el.getAttribute(ATTR) === "1") continue
+    if (el.getAttribute(SCROLLER_ATTR) === "1") continue
+    if (keepSet.has(el)) continue
+
+    let cs: CSSStyleDeclaration
+    try {
+      cs = getComputedStyle(el)
+    } catch {
+      continue
+    }
+    const pos = cs.position
+
+    // 分支 A：computed fixed/sticky —— 即使当前 display:none 也标记（如 .fix-header
+    // 常态隐藏、滚动时才 display:block）。标记后样式表 !important 持续压制。
+    if (pos === "fixed" || pos === "sticky") {
+      let rect: DOMRect
+      try {
+        rect = el.getBoundingClientRect()
+      } catch {
+        rect = { width: 0, height: 0 } as DOMRect
+      }
+      if (isContentLike(el, rect)) continue
+      tag(el)
+      count++
+      continue
+    }
+
+    // 分支 B：computed 非 fixed/sticky 的伪 sticky（JS transform 跟随）。
+    // 只看当前可见、贴顶/贴底带内的元素，用跨帧位移参照判定是否跟随视口。
+    if (cs.visibility === "hidden" || cs.display === "none") continue
+    let rect: DOMRect
+    try {
+      rect = el.getBoundingClientRect()
+    } catch {
+      continue
+    }
+    if (rect.width < 1 || rect.height < 1) continue
+    if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) {
+      continue
+    }
+    const inTopBand = rect.top <= vh * 0.3
+    const inBottomBand = rect.bottom >= vh * 0.7
+    if (!inTopBand && !inBottomBand) continue
+    const heightRatio = vh > 0 ? rect.height / vh : 0
+    const subtreeRatio = docHeight > 0 ? el.scrollHeight / docHeight : 0
+    if (heightRatio >= LARGE_AREA_RATIO) continue
+    if (subtreeRatio >= LARGE_SUBTREE_RATIO) continue
+    // fixed/sticky 祖先内的子元素跟随是因为祖先，不单独处理
+    let hasFixedAncestor = false
+    {
+      let cur: HTMLElement | null = el.parentElement
+      while (cur && cur !== html) {
+        let pcs: CSSStyleDeclaration
+        try {
+          pcs = getComputedStyle(cur)
+        } catch {
+          cur = cur.parentElement
+          continue
+        }
+        if (pcs.position === "fixed" || pcs.position === "sticky") {
+          hasFixedAncestor = true
+          break
+        }
+        cur = cur.parentElement
+      }
+    }
+    if (hasFixedAncestor) continue
+
+    const absTop = rect.top + scrollTop
+    const absLeft = rect.left + scrollLeft
+    const prev = state.get(el)
+    if (prev) {
+      const dS = scrollTop - prev.s
+      const dL = scrollLeft - prev.sl
+      const followsY =
+        Math.abs(dS) >= MIN_DELTA &&
+        Math.abs(absTop - prev.t) >= Math.abs(dS) * FOLLOW_RATIO
+      const followsX =
+        Math.abs(dL) >= MIN_DELTA &&
+        Math.abs(absLeft - prev.l) >= Math.abs(dL) * FOLLOW_RATIO
+      if (followsY || followsX) {
+        tag(el)
+        count++
+        continue
+      }
+    }
+    state.set(el, { t: absTop, l: absLeft, s: scrollTop, sl: scrollLeft })
+  }
+
+  w[ATTR_STORE] = store
+  return count
+}
+
+/**
  * 读取 hideFixedElements / detectAndHidePseudoSticky 隐藏列表里记录的矩形，
  * 算出「顶部锚定的横向头部」下沿（视口 CSS 像素）。
  *
@@ -1612,6 +1818,17 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
       delete ds[MARK]
     })
     delete (window as unknown as Record<string, unknown>)[STORE]
+    // 清理逐帧 chrome 隐藏（hideFrameChrome 用）：移除属性 + 删 !important 样式表 + 清状态
+    try {
+      document
+        .querySelectorAll("[data-my-ss-frame-hide]")
+        .forEach((el) => el.removeAttribute("data-my-ss-frame-hide"))
+      document.getElementById("__my_ss_frame_hide_style")?.remove()
+    } catch {
+      /* 忽略 */
+    }
+    delete (window as unknown as Record<string, unknown>)["__myScreenshotFrameHideList"]
+    delete (window as unknown as Record<string, unknown>)["__myScreenshotFollowState"]
   }
 
   // 移除 preparePage 注入的全局冻结样式，恢复页面原有的平滑滚动 / 过渡动画

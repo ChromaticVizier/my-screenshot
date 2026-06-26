@@ -40,6 +40,7 @@ import {
 import {
   detectAndHidePseudoSticky,
   hideFixedElements,
+  hideFrameChrome,
   hideOutsideFrameChain,
   kickScrollListeners,
   measureContentInsets,
@@ -557,6 +558,21 @@ export async function handleCaptureFullPageAggressive(
             args: [siteRule.frameUrl]
           })
         }
+      } catch {
+        /* 不致命 */
+      }
+
+      // 3.3b) 逐帧检测并隐藏「跟随视口」的吸顶元素（顶栏 / 频道导航 / 侧栏）。
+      //       用循环每帧之间的真实滚动位移做参照逐帧比较，解决「滚过阈值后才由 JS
+      //       变吸顶」的导航（如今日头条频道导航）——它截图开始时还在流中、探测不到，
+      //       吸顶后的下一帧即被命中并 display:none（持久）。window 子情形下后续帧整窗
+      //       拼接，吸顶导航会逐帧重复，靠此消除；scroller 子情形下导航本在裁切区外，无害。
+      try {
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: hideFrameChrome,
+          args: [fullPageRules]
+        })
       } catch {
         /* 不致命 */
       }
