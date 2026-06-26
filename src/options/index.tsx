@@ -487,6 +487,7 @@ function Options() {
               <option value="auto">自动（按页面类型路由，推荐）</option>
               <option value="standard">标准（首帧保留 + 逐帧补偿）</option>
               <option value="isolate">隔离（隔离主滚动容器）</option>
+              <option value="spa-like">类 SPA（首帧保留 + 隐藏顶栏/侧边栏）</option>
             </select>
             <span className={styles.hint}>
               「自动」会在截图前探测页面类型（纯内容 / SPA 单容器 / 内嵌 iframe），

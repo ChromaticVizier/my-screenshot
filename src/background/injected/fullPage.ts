@@ -591,7 +591,10 @@ export function scrollToY(y: number): number {
  * 注意：调用时机由 background/handlers/capture.ts 控制——首屏拍完才调用，
  * 让弹窗 / iframe / 顶部 banner 完整进入第一张图。
  */
-export function hideFixedElements(rules: FullPageRuleSet): number {
+export function hideFixedElements(
+  rules: FullPageRuleSet,
+  aggressiveChrome = false
+): number {
   if (!rules || rules.enabled === false) return 0
 
   const MARK = "__myScreenshotHidden"
@@ -690,6 +693,10 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     // 用户已选中该容器内的滚动区；若先做面积过滤，小弹窗（areaRatio < 0.5）会被
     // 早返回拦截，导致弹窗被 display:none 后整个对话框从截图中消失。
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    // 激进 chrome 模式（spa-like 专家）：不再豁免「全高窄侧栏 / 内容型大块」，
+    // 顶栏 + 侧边栏一律隐藏（只在首帧出现）。window 可滚页面正文非 fixed/sticky，
+    // 不会被本函数命中，故此处一律返回 false 是安全的。
+    if (aggressiveChrome) return false
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
@@ -1021,7 +1028,10 @@ export function hideFixedElementsExcludeFrame(
  *  - 借助 MARK 跳过已隐藏元素，纯增量、无副作用、不触发滚动
  *  - 每次截图循环前调用一次，保持顶部/侧栏在每一帧都不可见
  */
-export function rehideFixedElements(rules: FullPageRuleSet): number {
+export function rehideFixedElements(
+  rules: FullPageRuleSet,
+  aggressiveChrome = false
+): number {
   if (!rules || rules.enabled === false) return 0
 
   const MARK = "__myScreenshotHidden"
@@ -1096,6 +1106,8 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
   const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    // 激进 chrome 模式（spa-like 专家）：顶栏 + 侧边栏一律隐藏，不豁免
+    if (aggressiveChrome) return false
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
@@ -1425,6 +1437,53 @@ export function measureTopHeaderBottom(): number {
     }
   }
   return bottom
+}
+
+/**
+ * 量取页面左/右「侧栏」占据的水平区间，返回正文列的左右边界 { left, right }
+ * （CSS 像素，相对视口；无侧栏时 left=0、right=视口宽）。
+ *
+ * 用途：window 滚动 + 固定侧栏页面（旧版 GitLab 等），后续干净帧若按整窗整宽
+ * 拼接，会覆盖掉首帧里保留的侧栏列。改为只截 [left, right] 正文列，侧栏列保留首帧。
+ *
+ * 侧栏判据与 probePageType 一致：贯穿 ≥70% 视口高、宽 6%~35%、贴左/右边（任意定位）。
+ */
+export function measureContentInsets(): { left: number; right: number } {
+  const html = document.documentElement
+  const vw = html.clientWidth || window.innerWidth || 1
+  const vh = html.clientHeight || window.innerHeight || 1
+  let left = 0
+  let right = vw
+  let budget = 1500
+  const all = document.querySelectorAll<HTMLElement>("*")
+  for (const el of all) {
+    if (budget-- <= 0) break
+    let cs: CSSStyleDeclaration
+    try {
+      cs = getComputedStyle(el)
+    } catch {
+      continue
+    }
+    if (cs.display === "none" || cs.visibility === "hidden") continue
+    let r: DOMRect
+    try {
+      r = el.getBoundingClientRect()
+    } catch {
+      continue
+    }
+    const hr = r.height / vh
+    const wr = r.width / vw
+    if (hr < 0.7 || wr < 0.06 || wr > 0.35) continue
+    // 左侧栏：贴左、右沿在视口左半区
+    if (r.left <= vw * 0.02 && r.right > left && r.right < vw * 0.5) {
+      left = Math.max(left, r.right)
+    }
+    // 右侧栏：贴右、左沿在视口右半区
+    if (r.right >= vw * 0.98 && r.left < right && r.left > vw * 0.5) {
+      right = Math.min(right, r.left)
+    }
+  }
+  return { left: Math.round(left), right: Math.round(Math.max(left + 1, right)) }
 }
 
 /**

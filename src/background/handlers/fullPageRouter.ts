@@ -51,7 +51,8 @@ const TOAST_DURATION = 2000
 const EXPERT_LABELS: Record<FullPageExpert, string> = {
   standard: "标准（纯内容 / window 滚动）",
   isolate: "隔离（SPA 单主滚动容器）",
-  iframe: "内嵌 iframe（内容主体在 iframe 内）"
+  iframe: "内嵌 iframe（内容主体在 iframe 内）",
+  "spa-like": "类 SPA（window 可滚 + 固定顶栏 / 大侧边栏）"
 }
 
 export interface RouteDecision {
@@ -103,7 +104,20 @@ export function classifyPageType(p: PageTypeProbe): RouteDecision {
     }
   }
 
-  // 4) 默认：标准流程。window 可滚的传统页面、内容分散 / 多并列容器页面在此最稳，
+  // 4) 类 SPA：带贯穿全高的大侧边栏（gitlab / confluence 等导航壳）。这类页面
+  //    无论 window 滚动还是内部容器滚动，侧栏 / 顶栏都会逐帧重复；交给 spa-like：
+  //    首帧整窗保留 chrome，后续帧把顶栏 + 侧边栏排除（裁切区外 / 激进隐藏）。
+  //    放在 isolate 之后：isolate 已接走「window 不可滚 + 主体滚动容器」的纯 SPA。
+  if (p.hasSidebar && (p.windowScrollable || p.scrollerCandidateCount >= 1)) {
+    return {
+      expert: "spa-like",
+      reason: `sidebar shell (windowScrollable=${p.windowScrollable}, scrollers=${
+        p.scrollerCandidateCount
+      }${p.hasTopBar ? ", topbar" : ""})`
+    }
+  }
+
+  // 5) 默认：标准流程。window 可滚的传统页面、内容分散 / 多并列容器页面在此最稳，
   //    隔离反而可能漏截非容器内容。
   return { expert: "standard", reason: "default (static / window-scroll / spread)" }
 }
@@ -178,6 +192,9 @@ export async function handleCaptureFullPageRouted(
     decision = { expert: "standard", reason: "手动指定模式 = standard" }
   } else if (mode === "isolate") {
     decision = { expert: "isolate", reason: "手动指定模式 = isolate" }
+  } else if (mode === "spa-like") {
+    decision = { expert: "spa-like", reason: "手动指定模式 = spa-like" }
+    routing = { hideStructuralChrome: true }
   } else {
     // auto：用户手动选过的站点滚动区优先级最高，沿用标准流程不再自动判别
     const manualSiteRule = settings.siteScrollRegions[hostname]
@@ -203,6 +220,9 @@ export async function handleCaptureFullPageRouted(
             label: "auto-detected dominant iframe"
           }
           routing = { siteRuleOverride: synthetic }
+        } else if (decision.expert === "spa-like") {
+          // 走标准首帧保留流程，但激进隐藏结构性 chrome（顶栏 + 大侧边栏）
+          routing = { hideStructuralChrome: true }
         }
       }
     }
@@ -241,6 +261,10 @@ export async function handleCaptureFullPageRouted(
       case "isolate":
         return await handleCaptureFullPageAggressive(request)
       case "iframe":
+        return await handleCaptureFullPageAggressive(request, routing)
+      case "spa-like":
+        // 类 SPA：走隔离 handler 的「首帧整窗保留」流程——首帧含顶栏/侧栏，
+        // 后续帧裁切主滚动容器（侧栏在裁切区外自动排除）或整窗 + 激进隐藏 chrome。
         return await handleCaptureFullPageAggressive(request, routing)
       case "standard":
       default:

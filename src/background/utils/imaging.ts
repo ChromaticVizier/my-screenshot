@@ -73,6 +73,10 @@ export interface CaptureSlice {
   sourceWidth?: number
   /** 从源图裁切的高度（CSS 像素） */
   sourceHeight?: number
+  /** 在长图画布上的目标横向位置（CSS 像素，默认 0）。
+   *  用于「首帧整窗 + 后续帧裁切 scroller」混排：后续帧需对齐到 scroller 在
+   *  画布中的左侧位置，而非一律贴左，否则与首帧里的 scroller 内容横向错位。 */
+  destX?: number
 }
 
 export interface StitchParams {
@@ -115,7 +119,7 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   ctx.fillRect(0, 0, canvasW, canvasH)
 
   for (const slice of slices) {
-    const dx = 0
+    const dx = Math.max(0, Math.round((slice.destX ?? 0) * dpr))
     const dy = Math.round(slice.scrollY * dpr)
     const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))
     const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr))

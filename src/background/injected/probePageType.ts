@@ -48,6 +48,10 @@ export interface PageTypeProbe {
   fixedStickyCount: number
   /** 是否存在高层级、覆盖近全屏的 fixed 遮罩（Cookie 横幅 / 模态弹窗） */
   fullscreenOverlay: boolean
+  /** 是否存在贯穿大半视口、贴左/右边的大侧边栏（任意定位；gitlab / confluence 导航壳） */
+  hasSidebar: boolean
+  /** 是否存在贴顶、较宽的固定/吸顶顶栏 */
+  hasTopBar: boolean
   /** window 不可滚且 body/html overflow 被锁（典型 SPA 主壳） */
   bodyScrollLocked: boolean
 }
@@ -90,6 +94,12 @@ export function probePageType(): PageTypeProbe {
   let bestScrollerScrollHeightRatio = 0
   let fixedStickyCount = 0
   let fullscreenOverlay = false
+  // 「SPA 壳」特征：贯穿大半视口的侧边栏 / 固定顶栏（导航 chrome）。
+  // 这类元素在长截图里会逐帧重复，需要 spa-like 专家只在首帧保留。
+  let hasSidebar = false
+  let hasTopBar = false
+  // 限制侧栏/顶栏检测的 getBoundingClientRect 次数，避免大页面布局抖动
+  let rectCheckBudget = 800
 
   let all: HTMLElement[]
   try {
@@ -111,13 +121,51 @@ export function probePageType(): PageTypeProbe {
     const isFixedSticky = pos === "fixed" || pos === "sticky"
     if (isFixedSticky) {
       fixedStickyCount++
-      // 全屏遮罩：高层级 + 覆盖近全屏
       try {
         const r = el.getBoundingClientRect()
         const areaRatio = (r.width * r.height) / Math.max(1, vw * vh)
         const z = parseInt(cs.zIndex || "0", 10)
+        // 全屏遮罩：高层级 + 覆盖近全屏
         if (areaRatio >= 0.85 && (Number.isNaN(z) ? false : z >= 100)) {
           fullscreenOverlay = true
+        }
+      } catch {
+        /* 忽略 */
+      }
+    }
+
+    // 大侧栏 / 顶栏检测：侧栏不限 CSS 定位——gitlab / confluence 等「flex 壳 +
+    // 内容区内部滚动」布局里，侧栏是 static 的，但因处于不滚动的壳中而逐帧重复，
+    // 只认 fixed/sticky 会漏判。用 rectCheckBudget 限制 getBoundingClientRect
+    // 次数（侧栏在 DOM 靠前），避免大页面布局抖动；命中后短路。
+    if ((!hasSidebar || !hasTopBar) && rectCheckBudget > 0) {
+      rectCheckBudget--
+      try {
+        const r = el.getBoundingClientRect()
+        const heightRatio = r.height / Math.max(1, vh)
+        const widthRatio = r.width / Math.max(1, vw)
+        const nearLeft = r.left <= vw * 0.02
+        const nearRight = r.right >= vw * 0.98
+        // 大侧边栏：贯穿大半视口高、较窄、贴左/右边（任意定位）
+        if (
+          !hasSidebar &&
+          heightRatio >= 0.7 &&
+          widthRatio >= 0.06 &&
+          widthRatio <= 0.35 &&
+          (nearLeft || nearRight)
+        ) {
+          hasSidebar = true
+        }
+        // 顶栏：贴顶、较宽、较矮（要求 fixed/sticky——static 顶栏会随滚动离开，不重复）
+        if (
+          !hasTopBar &&
+          isFixedSticky &&
+          r.top <= vh * 0.02 &&
+          widthRatio >= 0.6 &&
+          heightRatio > 0.01 &&
+          heightRatio <= 0.3
+        ) {
+          hasTopBar = true
         }
       } catch {
         /* 忽略 */
@@ -222,6 +270,8 @@ export function probePageType(): PageTypeProbe {
     dominantIframe,
     fixedStickyCount,
     fullscreenOverlay,
+    hasSidebar,
+    hasTopBar,
     bodyScrollLocked
   }
 }

@@ -423,7 +423,7 @@ export async function handleCaptureFullPage(
       await chrome.scripting.executeScript({
         target: scrollerTarget,
         func: hideFixedElements,
-        args: [fullPageRules]
+        args: [fullPageRules, routing?.hideStructuralChrome ?? false]
       })
       if (scrollerIsSubFrame && siteRule?.frameUrl) {
         try {
@@ -599,7 +599,7 @@ export async function handleCaptureFullPage(
           await chrome.scripting.executeScript({
             target: scrollerTarget,
             func: rehideFixedElements,
-            args: [fullPageRules]
+            args: [fullPageRules, routing?.hideStructuralChrome ?? false]
           })
           if (scrollerIsSubFrame && siteRule?.frameUrl) {
             await chrome.scripting.executeScript({

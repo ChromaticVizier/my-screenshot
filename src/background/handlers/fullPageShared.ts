@@ -28,6 +28,12 @@ export interface FullPageRouting {
    *  - 对象：使用该合成规则（典型：路由到 iframe 专家时传入 { frameUrl } ）
    */
   siteRuleOverride?: SiteScrollRegionRule | null
+  /**
+   * 激进隐藏结构性 chrome（顶栏 + 大侧边栏）：spa-like 专家专用。
+   * 开启后标准流程的隐藏步骤不再豁免「全高窄侧栏 / 内容型大块 fixed」，
+   * 把固定顶栏 + 侧边栏一并隐藏，使其只在首帧出现。默认 false（标准专家保留侧栏）。
+   */
+  hideStructuralChrome?: boolean
 }
 
 /** captureVisibleTab 限频间隔（ms），Chrome 限制约 2 次/秒，留一点裕量 */
