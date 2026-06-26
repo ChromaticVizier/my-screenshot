@@ -1605,6 +1605,152 @@ export function hideFrameChrome(rules: FullPageRuleSet): number {
 }
 
 /**
+ * 逐帧「重定位」chrome（借鉴 awesome-screenshot）：把 fixed/sticky 的顶栏 / 侧栏
+ * 改成 position:absolute，并钉在它「当前文档位置」。效果：
+ *   - 该元素脱离视口跟随，变成普通文档元素 → 只在它所在的那一屏出现一次；
+ *   - 脱离文档流后，原本被侧栏占据的横向空间会被正文回填 → 长图无侧栏留白。
+ *
+ * 与 hideFrameChrome（display:none 隐藏 + 留白）的区别就在「重定位而非隐藏」。
+ * 仅处理 computed 为 fixed/sticky 且当前可见的元素；display:none 的（如今日头条
+ * 滚动才显示的 fix-header）测不到位置，跳过——那类仍建议用 hideFrameChrome。
+ *
+ * 在「滚到顶部、截首帧之前」调用一次即可把 chrome 钉在文档顶部、正文回填；循环里
+ * 每帧再增量调用以处理新出现的 chrome。所有改动记于 window[STORE]，restorePage 还原。
+ */
+export function relocateFrameChrome(rules: FullPageRuleSet): number {
+  if (!rules || rules.enabled === false) return 0
+
+  const RELOC_ATTR = "data-my-ss-reloc"
+  const STORE = "__myScreenshotRelocList"
+  const BODY_POS = "__myScreenshotBodyPos"
+  const SCROLLER_ATTR = "data-my-screenshot-scroller"
+
+  const html = document.documentElement
+  const body = document.body
+  const vw = html.clientWidth || window.innerWidth || 1
+  const vh = html.clientHeight || window.innerHeight || 1
+  const docHeight = Math.max(body.scrollHeight, html.scrollHeight, vh)
+  const w = window as unknown as Record<string, unknown>
+
+  // body position:relative（一次），让 absolute 子元素以 body 为基准更可控
+  if (!(BODY_POS in w)) {
+    w[BODY_POS] = body.style.position
+    try {
+      if (getComputedStyle(body).position === "static") {
+        body.style.setProperty("position", "relative", "important")
+      }
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  // 豁免：customKeepSelectors（含祖先链）+ 主滚动容器祖先链
+  const keepSet = new Set<HTMLElement>()
+  ;(rules.customKeepSelectors || []).forEach((sel) => {
+    if (!sel) return
+    try {
+      document.querySelectorAll<HTMLElement>(sel).forEach((el) => {
+        let cur: HTMLElement | null = el
+        while (cur && cur !== html) {
+          keepSet.add(cur)
+          cur = cur.parentElement
+        }
+      })
+    } catch {
+      /* 忽略 */
+    }
+  })
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
+  if (scroller) {
+    let cur: HTMLElement | null = scroller.parentElement
+    while (cur && cur !== html) {
+      keepSet.add(cur)
+      cur = cur.parentElement
+    }
+  }
+
+  const isContentLike = (el: HTMLElement, rect: DOMRect): boolean => {
+    if (el.querySelector(`[${SCROLLER_ATTR}="1"]`)) return true
+    const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
+    const heightRatio = rect.height / Math.max(1, vh)
+    if (areaRatio < 0.5 && heightRatio < 0.9) return false
+    const subtreeRatio = el.scrollHeight / Math.max(1, docHeight)
+    if (subtreeRatio >= 0.6) return true
+    return false
+  }
+
+  const storeRaw = w[STORE]
+  const store = Array.isArray(storeRaw)
+    ? (storeRaw as { el: HTMLElement; cssText: string }[])
+    : []
+
+  let count = 0
+  const all: HTMLElement[] = []
+  const visit = (node: ParentNode) => {
+    node.querySelectorAll<HTMLElement>("*").forEach((el) => {
+      all.push(el)
+      if (el.shadowRoot) visit(el.shadowRoot)
+    })
+  }
+  visit(html)
+
+  for (const el of all) {
+    if (el.getAttribute(RELOC_ATTR) === "1") continue
+    if (el.getAttribute(SCROLLER_ATTR) === "1") continue
+    if (keepSet.has(el)) continue
+    let cs: CSSStyleDeclaration
+    try {
+      cs = getComputedStyle(el)
+    } catch {
+      continue
+    }
+    if (cs.position !== "fixed" && cs.position !== "sticky") continue
+    if (cs.display === "none" || cs.visibility === "hidden") continue
+    let rect: DOMRect
+    try {
+      rect = el.getBoundingClientRect()
+    } catch {
+      continue
+    }
+    if (rect.width < 1 || rect.height < 1) continue
+    if (isContentLike(el, rect)) continue
+
+    // 转 absolute 并钉在「当前视口位置对应的文档位置」：作为文档元素它随文档滚动，
+    // 即固定在当前这一屏，只出现一次；脱离流后正文回填其占位。
+    const savedCss = el.style.cssText
+    el.style.setProperty("position", "absolute", "important")
+    let opRect = { top: 0, left: 0 } as { top: number; left: number }
+    let opBT = 0
+    let opBL = 0
+    try {
+      const op = (el.offsetParent as HTMLElement) || body
+      opRect = op.getBoundingClientRect()
+      const opCs = getComputedStyle(op)
+      opBT = parseFloat(opCs.borderTopWidth) || 0
+      opBL = parseFloat(opCs.borderLeftWidth) || 0
+    } catch {
+      /* 退化为以视口为基准 */
+    }
+    const top = rect.top - opRect.top - opBT
+    const left = rect.left - opRect.left - opBL
+    el.style.setProperty("top", `${Math.round(top)}px`, "important")
+    el.style.setProperty("left", `${Math.round(left)}px`, "important")
+    el.style.setProperty("right", "auto", "important")
+    el.style.setProperty("bottom", "auto", "important")
+    el.style.setProperty("margin", "0", "important")
+    el.style.setProperty("width", `${Math.round(rect.width)}px`, "important")
+    el.style.setProperty("height", `${Math.round(rect.height)}px`, "important")
+    el.style.setProperty("transition", "none", "important")
+    el.setAttribute(RELOC_ATTR, "1")
+    store.push({ el, cssText: savedCss })
+    count++
+  }
+
+  w[STORE] = store
+  return count
+}
+
+/**
  * 读取 hideFixedElements / detectAndHidePseudoSticky 隐藏列表里记录的矩形，
  * 算出「顶部锚定的横向头部」下沿（视口 CSS 像素）。
  *
@@ -1831,6 +1977,32 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
     }
     delete (window as unknown as Record<string, unknown>)["__myScreenshotFrameHideList"]
     delete (window as unknown as Record<string, unknown>)["__myScreenshotFollowState"]
+    // 还原 relocateFrameChrome 的重定位：恢复各元素 inline style + body position
+    try {
+      const relRaw = (window as unknown as Record<string, unknown>)[
+        "__myScreenshotRelocList"
+      ]
+      if (Array.isArray(relRaw)) {
+        ;(relRaw as { el: HTMLElement; cssText: string }[]).forEach(
+          ({ el, cssText }) => {
+            el.style.cssText = cssText
+            el.removeAttribute("data-my-ss-reloc")
+          }
+        )
+      }
+    } catch {
+      /* 忽略 */
+    }
+    delete (window as unknown as Record<string, unknown>)["__myScreenshotRelocList"]
+    {
+      const bodyPos = (window as unknown as Record<string, unknown>)[
+        "__myScreenshotBodyPos"
+      ]
+      if (typeof bodyPos === "string") {
+        document.body.style.position = bodyPos
+      }
+      delete (window as unknown as Record<string, unknown>)["__myScreenshotBodyPos"]
+    }
   }
 
   // 移除 preparePage 注入的全局冻结样式，恢复页面原有的平滑滚动 / 过渡动画
