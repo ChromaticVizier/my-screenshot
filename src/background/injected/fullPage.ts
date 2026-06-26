@@ -180,17 +180,22 @@ export function preparePage(
     windowScrollable
   ) {
     // 标记不命中任何内部 scroller，走 window 滚动路径
-  } else if (!scrollerEl && rules?.detectScrollContainer !== false) {
+  } else if (!scrollerEl) {
     const vw = html.clientWidth || window.innerWidth
     const vh = html.clientHeight || window.innerHeight
-    const minRatio = rules?.scrollContainerMinRatio ?? 1.05
-    const minOverflowPx = rules?.scrollContainerMinOverflowPx ?? 80
-    const areaWeight = rules?.scrollContainerAreaWeight ?? 0.35
-    const textWeight = rules?.scrollContainerTextWeight ?? 0.3
-    const semanticWeight = rules?.scrollContainerSemanticWeight ?? 0.35
+    // 滚动容器评分阈值/权重：原为用户可调设置，引入 MoE 路由后固化为常量
+    // （"该不该用内部容器"已由 fullPageRouter 在截图前判别，无需再暴露调参）。
+    const minRatio = 1.05
+    const minOverflowPx = 80
+    const areaWeight = 0.35
+    const textWeight = 0.3
+    const semanticWeight = 0.35
     let semanticRe: RegExp | null = null
     try {
-      semanticRe = new RegExp(rules?.scrollContainerRegex || "", "i")
+      semanticRe = new RegExp(
+        "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
+        "i"
+      )
     } catch {
       semanticRe = null
     }
@@ -308,9 +313,10 @@ export function preparePage(
   // 直接从底部裁掉一个常数像素裕量即可避免,代价是长图末尾会出现等高的小空白条
   // (远比"周期性遮挡正文"轻),且仅影响 scroller 模式,普通整页截图(window 滚动)
   // 不受影响。具体值由 rules.scrollerBottomSafetyPx 提供,设为 0 即关闭该裕量。
-  const scrollerSafetyPx = scrollerEl
-    ? Math.max(0, rules?.scrollerBottomSafetyPx ?? 20)
-    : 0
+  // 内部滚动容器模式下底部安全裕量。原为用户可调设置 rules.scrollerBottomSafetyPx，
+  // 默认 0（关闭）；MoE 路由化后移除该设置项，固化为 0，保持原默认行为。
+  // 如某些虚拟列表/邻近 box-shadow 站点需要裕量，由对应专家在拼接侧用帧重叠补偿。
+  const scrollerSafetyPx = 0
   const snapshot: PreparePageSnapshot = {
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
@@ -674,8 +680,8 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     html.scrollHeight,
     vh
   )
-  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentRatio = rules.contentRatio ?? 0.45
+  const viewportSizedRatio = 0.5
+  const contentRatio = 0.45
 
   // 大块 fixed 容器豁免：真正的 SPA 主壳 scrollHeight 接近文档总高（subtreeRatio ≥ contentRatio），
   // 弹窗覆盖层 scrollHeight ≈ 视口高（subtreeRatio 很低），不再用 textLen 判断以防误豁免。
@@ -958,8 +964,8 @@ export function hideFixedElementsExcludeFrame(
     html.scrollHeight,
     vh
   )
-  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentRatio = rules.contentRatio ?? 0.45
+  const viewportSizedRatio = 0.5
+  const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
@@ -1086,8 +1092,8 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
     html.scrollHeight,
     vh
   )
-  const viewportSizedRatio = rules.viewportSizedRatio ?? 0.5
-  const contentRatio = rules.contentRatio ?? 0.45
+  const viewportSizedRatio = 0.5
+  const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
     const rect = el.getBoundingClientRect()

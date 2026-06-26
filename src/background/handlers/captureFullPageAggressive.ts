@@ -1,18 +1,19 @@
 /**
- * 激进隐藏模式的整页（滚动拼接）截图。
+ * 隔离模式（"isolate" 专家）的整页（滚动拼接）截图。
  *
- * 由 settings.aggressiveHideMode 开关控制；关闭时走 capture.ts 的
- * handleCaptureFullPage（保留首帧 + 逐帧补偿的旧流程）。
+ * 由 MoE 路由器（fullPageRouter）在判定页面为「SPA 单主滚动容器」时选用；
+ * 用户也可在设置里把 fullPageMode 设为 "isolate" 强制走本流程。
+ * 标准流程见 capture.ts 的 handleCaptureFullPage（首帧保留 + 逐帧补偿）。
  *
  * 业务流程：
  *   1. preparePage()      → 锁定滚动条 + 找主滚动容器（保留手动选择 / iframe 选择）
  *   2. 滚回顶部后「隔离」主滚动容器：把容器外所有元素 display:none
  *      （isolateScroller + hideFixedElements + detectAndHidePseudoSticky；
  *       子 frame 模式主 frame 用 hideOutsideFrameChain 只保留 iframe 链）
- *   3. 隔离后重测裁切区域 → 统一滚动截图、裁切、拼接、下载（与旧流程一致）
+ *   3. 隔离后重测裁切区域 → 统一滚动截图、裁切、拼接、下载（与标准流程一致）
  *
  * 隔离后页面只剩 scroller 子树，无顶栏 / 侧栏 / 弹窗逐帧重复，因此首帧与后续帧
- * 完全一致处理，省掉旧流程里 flatten / 首帧保留 / contentOffsetY 补偿等逻辑。
+ * 完全一致处理，省掉标准流程里 flatten / 首帧保留 / contentOffsetY 补偿等逻辑。
  */
 import {
   dumpDebugFrame,
@@ -22,7 +23,8 @@ import {
   locateFrameOffsetInPage,
   resolveFrameTarget,
   safeCaptureVisibleTab,
-  sleep
+  sleep,
+  type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
   isolateScroller,
@@ -57,7 +59,8 @@ import type {
 import { getSettings } from "~src/shared/settings"
 
 export async function handleCaptureFullPageAggressive(
-  request: CaptureFullPageRequest
+  request: CaptureFullPageRequest,
+  routing?: FullPageRouting
 ): Promise<CaptureResponse> {
   const tabRes = await getCapturableActiveTab()
   if (!tabRes.ok) return { ok: false, error: tabRes.error }
@@ -68,8 +71,11 @@ export async function handleCaptureFullPageAggressive(
   const format = request.payload?.format ?? settings.imageFormat
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
+  // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
-    settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
+    routing?.siteRuleOverride !== undefined
+      ? routing.siteRuleOverride
+      : settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
 
   // 多 frame：用户在某个 iframe 内 picker 选过则 target 该 frame，否则注入主 frame
   const scrollerTarget = await resolveFrameTarget(tabId, siteRule?.frameUrl)

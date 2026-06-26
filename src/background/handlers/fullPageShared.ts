@@ -11,6 +11,24 @@
  */
 import type { CaptureSlice } from "~src/background/utils/imaging"
 import type { CaptureResponse } from "~src/shared/messages"
+import type { SiteScrollRegionRule } from "~src/shared/settings"
+
+/**
+ * 路由上下文：fullPageRouter 选定专家后传给具体 handler 的可选参数。
+ *
+ * 默认（不传）时 handler 按原有逻辑工作（按 hostname 读取 siteScrollRegions）。
+ * 路由器需要让某次截图临时使用特定滚动区 / iframe 时（如自动探测到主体 iframe），
+ * 通过 siteRuleOverride 传入一条合成规则。
+ */
+export interface FullPageRouting {
+  /**
+   * 覆盖默认按 hostname 读取的站点滚动区规则。
+   *  - undefined：不覆盖，handler 仍按 hostname 自行读取
+   *  - null：显式声明"本次无站点规则"（即便存储里有也忽略）
+   *  - 对象：使用该合成规则（典型：路由到 iframe 专家时传入 { frameUrl } ）
+   */
+  siteRuleOverride?: SiteScrollRegionRule | null
+}
 
 /** captureVisibleTab 限频间隔（ms），Chrome 限制约 2 次/秒，留一点裕量 */
 export const CAPTURE_INTERVAL = 600

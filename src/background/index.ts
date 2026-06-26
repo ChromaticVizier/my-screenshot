@@ -5,7 +5,6 @@
 import {
   handleCaptureDelayed,
   handleCaptureDesktop,
-  handleCaptureFullPage,
   handleCaptureSelection,
   handleCaptureVisible,
   handleClearScrollRegion,
@@ -14,7 +13,7 @@ import {
   handleHideRelayWindow,
   handleSelectScrollRegion
 } from "~src/background/handlers/capture"
-import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageRouted } from "~src/background/handlers/fullPageRouter"
 import {
   handleRecorderFinish,
   handleRecorderStarted,
@@ -27,7 +26,6 @@ import {
   getPendingImage
 } from "~src/background/utils/pendingImage"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
-import { getSettings } from "~src/shared/settings"
 
 chrome.runtime.onMessage.addListener(
   (request: ExtensionRequest, sender, sendResponse) => {
@@ -39,13 +37,8 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.CAPTURE_FULL_PAGE: {
-          // 优先级：激进隐藏模式 > 默认滚动拼接
-          const settings = await getSettings()
-          if (settings.aggressiveHideMode) {
-            sendResponse(await handleCaptureFullPageAggressive(request))
-          } else {
-            sendResponse(await handleCaptureFullPage(request))
-          }
+          // MoE 路由：探测页面类型 → 选用对应专家（standard / isolate / iframe）
+          sendResponse(await handleCaptureFullPageRouted(request))
           break
         }
         case MessageType.SELECT_SCROLL_REGION: {

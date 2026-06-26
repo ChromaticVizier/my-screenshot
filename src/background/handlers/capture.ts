@@ -22,7 +22,8 @@ import {
   locateFrameOffsetInPage,
   resolveFrameTarget,
   safeCaptureVisibleTab,
-  sleep
+  sleep,
+  type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
   detectAndHidePseudoSticky,
@@ -108,7 +109,8 @@ export async function handleCaptureVisible(
  * 2. 整页（滚动拼接）
  * ============================================================ */
 export async function handleCaptureFullPage(
-  request: CaptureFullPageRequest
+  request: CaptureFullPageRequest,
+  routing?: FullPageRouting
 ): Promise<CaptureResponse> {
   // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
   const settings = await getSettings()
@@ -122,8 +124,11 @@ export async function handleCaptureFullPage(
   const tabId = tab.id!
 
   const fullPageRules = settings.fullPageRules
+  // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
-    settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
+    routing?.siteRuleOverride !== undefined
+      ? routing.siteRuleOverride
+      : settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
 
   // 多 frame：用户在某个 iframe 内 picker 选过则 target 该 frame，否则注入主 frame
   const scrollerTarget = await resolveFrameTarget(tabId, siteRule?.frameUrl)
