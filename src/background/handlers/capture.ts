@@ -9,11 +9,6 @@
  *   - 整个屏幕或应用窗口：注入函数到当前页 → 调 getDisplayMedia
  *     → 抓首帧 → 下载（唯一不依赖 captureVisibleTab 的模式）
  */
-import { showCountdown } from "~src/background/injected/countdown"
-import {
-  abortScrollRegionPicker,
-  pickScrollRegion
-} from "~src/background/injected/scrollRegionPicker"
 import {
   dumpDebugFrame,
   dumpDebugSlice,
@@ -25,17 +20,19 @@ import {
   sleep,
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
+import { showCountdown } from "~src/background/injected/countdown"
 import {
   detectAndHidePseudoSticky,
   flattenOversizedModals,
   freezeFlattenedModals,
   freezeScrollModals,
+  hideExtensionFloats,
   hideFixedElements,
   hideFixedElementsExcludeFrame,
   hideFrameChrome,
   kickScrollListeners,
-  measureScrollMetrics,
   measureContentTopReservedSpace,
+  measureScrollMetrics,
   measureTopHeaderBottom,
   preparePage,
   rehideFixedElements,
@@ -49,6 +46,10 @@ import {
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
+import {
+  abortScrollRegionPicker,
+  pickScrollRegion
+} from "~src/background/injected/scrollRegionPicker"
 import { pickSelection } from "~src/background/injected/selection"
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
@@ -126,7 +127,10 @@ export async function handleCaptureFullPage(
 
   const fullPageRules = settings.fullPageRules
   // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
-  const frameDelayMs = Math.max(0, Math.round(settings.fullPageFrameDelayMs ?? 1500))
+  const frameDelayMs = Math.max(
+    0,
+    Math.round(settings.fullPageFrameDelayMs ?? 1500)
+  )
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
     routing?.siteRuleOverride !== undefined
@@ -394,7 +398,9 @@ export async function handleCaptureFullPage(
             target: scrollerTarget,
             func: unfreezeScrollModals
           })
-        } catch { /* 忽略 */ }
+        } catch {
+          /* 忽略 */
+        }
       }
     } else {
       // 2.3) 第一帧已拍完，立即解冻弹窗：断开 MutationObserver，让弹窗恢复
@@ -407,7 +413,9 @@ export async function handleCaptureFullPage(
             target: scrollerTarget,
             func: unfreezeScrollModals
           })
-        } catch { /* 忽略 */ }
+        } catch {
+          /* 忽略 */
+        }
         // 给页面 JS 80ms 处理弹窗的自然关闭（scroll-close handler 此时可以执行）
         await sleep(80)
       }
@@ -428,6 +436,11 @@ export async function handleCaptureFullPage(
         func: hideFixedElements,
         args: [fullPageRules, routing?.hideStructuralChrome ?? false]
       })
+      await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: hideExtensionFloats,
+        args: [fullPageRules]
+      })
       if (scrollerIsSubFrame && siteRule?.frameUrl) {
         try {
           await chrome.scripting.executeScript({
@@ -436,8 +449,7 @@ export async function handleCaptureFullPage(
             args: [fullPageRules, siteRule.frameUrl]
           })
         } catch {
-          console.log('Main frame failed to hide!');
-          
+          console.log("Main frame failed to hide!")
         }
       }
       hidingApplied = true
@@ -505,11 +517,12 @@ export async function handleCaptureFullPage(
       //      sticky 等占位元素 display:none 后内容上移、文档变矮，旧的 totalHeight
       //      不再适用；用新高度才能正确判定到底，并算准画布高度。
       try {
-        const [{ result: afterMetrics }] =
-          await chrome.scripting.executeScript({
+        const [{ result: afterMetrics }] = await chrome.scripting.executeScript(
+          {
             target: scrollerTarget,
             func: measureScrollMetrics
-          })
+          }
+        )
         if (afterMetrics && typeof afterMetrics.scrollHeight === "number") {
           totalHeight = afterMetrics.scrollHeight
         }
@@ -557,11 +570,13 @@ export async function handleCaptureFullPage(
         // 4.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
         let measuredHeight = totalHeight
         try {
-          const [{ result: waitResult }] = await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: waitForDynamicContent,
-            args: [DYNAMIC_WAIT_MS]
-          })
+          const [{ result: waitResult }] = await chrome.scripting.executeScript(
+            {
+              target: scrollerTarget,
+              func: waitForDynamicContent,
+              args: [DYNAMIC_WAIT_MS]
+            }
+          )
           if (waitResult && typeof waitResult.scrollHeight === "number") {
             measuredHeight = waitResult.scrollHeight
           }
@@ -575,10 +590,12 @@ export async function handleCaptureFullPage(
         //     scrollTop 是动画初期值；等待稳定后这里才是真实落点。
         //     若不更新 slice.scrollY，会把帧画到错误位置 → 长图前两帧错位。
         try {
-          const [{ result: metricsNow }] = await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: measureScrollMetrics
-          })
+          const [{ result: metricsNow }] = await chrome.scripting.executeScript(
+            {
+              target: scrollerTarget,
+              func: measureScrollMetrics
+            }
+          )
           if (metricsNow) {
             if (metricsNow.scrollHeight > measuredHeight) {
               measuredHeight = metricsNow.scrollHeight
@@ -628,6 +645,11 @@ export async function handleCaptureFullPage(
             func: hideFrameChrome,
             args: [fullPageRules]
           })
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: hideExtensionFloats,
+            args: [fullPageRules]
+          })
         } catch {
           /* 不致命 */
         }
@@ -637,10 +659,11 @@ export async function handleCaptureFullPage(
         // 自身 scrollTop 漂移（如 sticky 元素回弹、虚拟列表项变更），
         // 早期记录的 scrollY 会和 capture 内容偏离 → 长图错位。
         try {
-          const [{ result: finalMetrics }] = await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: measureScrollMetrics
-          })
+          const [{ result: finalMetrics }] =
+            await chrome.scripting.executeScript({
+              target: scrollerTarget,
+              func: measureScrollMetrics
+            })
           if (finalMetrics && typeof finalMetrics.scrollTop === "number") {
             scrollY = finalMetrics.scrollTop
           }
@@ -825,7 +848,9 @@ export async function handleCaptureFullPage(
           target: scrollerTarget,
           func: unfreezeScrollModals
         })
-      } catch { /* 忽略 */ }
+      } catch {
+        /* 忽略 */
+      }
     }
     if (flattenApplied) {
       try {
@@ -850,17 +875,19 @@ export async function handleCaptureFullPage(
         await chrome.scripting.executeScript({
           target: scrollerTarget,
           func: restorePage,
-          args: [snapshot ?? {
-            htmlOverflow: "",
-            bodyOverflow: "",
-            originalScrollY: 0,
-            scrollerIsElement: false,
-            originalScrollerScrollTop: 0,
-            scrollerViewportTop: 0,
-            scrollerViewportLeft: 0,
-            scrollerViewportWidth: 0,
-            scrollerViewportHeight: 0
-          }]
+          args: [
+            snapshot ?? {
+              htmlOverflow: "",
+              bodyOverflow: "",
+              originalScrollY: 0,
+              scrollerIsElement: false,
+              originalScrollerScrollTop: 0,
+              scrollerViewportTop: 0,
+              scrollerViewportLeft: 0,
+              scrollerViewportWidth: 0,
+              scrollerViewportHeight: 0
+            }
+          ]
         })
       } catch {
         /* 标签可能已关闭，忽略 */
@@ -943,7 +970,9 @@ export async function handleSelectScrollRegion(
     // 胜出方携带 frameUrl，败者返回 null（被 abort 或自然取消）。
     type FrameAttempt = {
       frameId: number
-      promise: Promise<ReturnType<typeof pickScrollRegion> extends Promise<infer R> ? R : never>
+      promise: Promise<
+        ReturnType<typeof pickScrollRegion> extends Promise<infer R> ? R : never
+      >
     }
     const attempts: FrameAttempt[] = candidateFrames.map((f) => ({
       frameId: f.frameId,
@@ -952,7 +981,12 @@ export async function handleSelectScrollRegion(
           target: { tabId, frameIds: [f.frameId] },
           func: pickScrollRegion
         })
-        .then((arr) => (arr?.[0]?.result ?? null) as Awaited<ReturnType<typeof pickScrollRegion>>)
+        .then(
+          (arr) =>
+            (arr?.[0]?.result ?? null) as Awaited<
+              ReturnType<typeof pickScrollRegion>
+            >
+        )
         .catch(() => null as Awaited<ReturnType<typeof pickScrollRegion>>)
     }))
 
