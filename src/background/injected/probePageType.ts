@@ -54,6 +54,8 @@ export interface PageTypeProbe {
   hasTopBar: boolean
   /** window 不可滚且 body/html overflow 被锁（典型 SPA 主壳） */
   bodyScrollLocked: boolean
+  /** AI 聊天类页面：底部有输入/发送框，且主体是内部滚动聊天列表 */
+  hasChatComposer: boolean
 }
 
 export function probePageType(): PageTypeProbe {
@@ -194,8 +196,14 @@ export function probePageType(): PageTypeProbe {
     if (rect.width < vw * 0.15 || rect.height < vh * 0.25) continue
     if (rect.bottom <= 0 || rect.top >= vh) continue
 
-    const visibleW = Math.max(0, Math.min(rect.right, vw) - Math.max(rect.left, 0))
-    const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0))
+    const visibleW = Math.max(
+      0,
+      Math.min(rect.right, vw) - Math.max(rect.left, 0)
+    )
+    const visibleH = Math.max(
+      0,
+      Math.min(rect.bottom, vh) - Math.max(rect.top, 0)
+    )
     const visibleAreaRatio = Math.min(
       1,
       (visibleW * visibleH) / Math.max(1, vw * vh)
@@ -206,8 +214,7 @@ export function probePageType(): PageTypeProbe {
     if (visibleAreaRatio > bestScrollerScore) {
       bestScrollerScore = visibleAreaRatio
       bestScrollerCoversViewport = visibleW >= vw * 0.6 && visibleH >= vh * 0.6
-      bestScrollerScrollHeightRatio =
-        el.scrollHeight / Math.max(1, docHeight)
+      bestScrollerScrollHeightRatio = el.scrollHeight / Math.max(1, docHeight)
     }
   }
 
@@ -256,10 +263,30 @@ export function probePageType(): PageTypeProbe {
     const htmlCs = getComputedStyle(html)
     const locked = (cs: CSSStyleDeclaration | null) =>
       !!cs && (cs.overflowY === "hidden" || cs.overflow === "hidden")
-    bodyScrollLocked =
-      !windowScrollable && (locked(bodyCs) || locked(htmlCs))
+    bodyScrollLocked = !windowScrollable && (locked(bodyCs) || locked(htmlCs))
   } catch {
     bodyScrollLocked = false
+  }
+
+  // AI 聊天类页面：底部输入/发送框通常 sticky/fixed 在主聊天 scroller 底部。
+  let hasChatComposer = false
+  try {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        'textarea,input,[contenteditable="true"],[role="textbox"]'
+      )
+    )
+    hasChatComposer = controls.some((el) => {
+      const r = el.getBoundingClientRect()
+      if (r.width < 120 || r.height < 20) return false
+      if (r.top < vh * 0.45 || r.bottom < vh * 0.65) return false
+      const text = `${el.getAttribute("placeholder") || ""} ${el.getAttribute("aria-label") || ""} ${el.getAttribute("name") || ""} ${el.id || ""} ${String(el.className || "")}`
+      return /chat|message|prompt|send|ask|输入|发送|提问|消息|deepseek|gpt|claude|gemini|kimi|豆包/i.test(
+        text
+      )
+    })
+  } catch {
+    hasChatComposer = false
   }
 
   return {
@@ -276,6 +303,7 @@ export function probePageType(): PageTypeProbe {
     fullscreenOverlay,
     hasSidebar,
     hasTopBar,
-    bodyScrollLocked
+    bodyScrollLocked,
+    hasChatComposer
   }
 }

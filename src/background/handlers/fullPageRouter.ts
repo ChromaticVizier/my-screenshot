@@ -18,6 +18,7 @@
  */
 import { handleCaptureFullPage } from "~src/background/handlers/capture"
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageChat } from "~src/background/handlers/captureFullPageChat"
 import { handleCaptureFullPageEmbeddedDoc } from "~src/background/handlers/captureFullPageEmbeddedDoc"
 import {
   errorResponse,
@@ -34,7 +35,10 @@ import {
   type PageTypeProbe
 } from "~src/background/injected/probePageType"
 import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
-import type { CaptureFullPageRequest, CaptureResponse } from "~src/shared/messages"
+import type {
+  CaptureFullPageRequest,
+  CaptureResponse
+} from "~src/shared/messages"
 import { appendRouteLog } from "~src/shared/routeLog"
 import {
   getSettings,
@@ -54,7 +58,8 @@ const EXPERT_LABELS: Record<FullPageExpert, string> = {
   isolate: "隔离（SPA 单主滚动容器）",
   iframe: "内嵌 iframe（内容主体在 iframe 内）",
   "spa-like": "类 SPA（window 可滚 + 固定顶栏 / 大侧边栏）",
-  "embedded-doc": "内嵌文档/表格（canvas 自定义滚动，如网易灵犀）"
+  "embedded-doc": "内嵌文档/表格（canvas 自定义滚动，如网易灵犀）",
+  chat: "AI 聊天（输入框只保留在最后一帧）"
 }
 
 export interface RouteDecision {
@@ -83,7 +88,22 @@ export function classifyPageType(p: PageTypeProbe): RouteDecision {
     }
   }
 
-  // 2) SPA 单主滚动容器：window 不可滚 + 存在占视口主体的内部滚动容器。
+  // 2) AI 聊天：主体为内部滚动聊天列表 + 底部输入框。输入框应只出现在最后一帧。
+  if (
+    p.hasChatComposer &&
+    !p.windowScrollable &&
+    p.bestScrollerCoversViewport &&
+    p.scrollerCandidateCount >= 1
+  ) {
+    return {
+      expert: "chat",
+      reason: `chat composer + dominant scroller (score=${p.bestScrollerScore.toFixed(
+        2
+      )})`
+    }
+  }
+
+  // 3) SPA 单主滚动容器：window 不可滚 + 存在占视口主体的内部滚动容器。
   //    这是旧版需要用户手动开"激进隐藏"的典型场景，现自动升级到 isolate。
   if (
     !p.windowScrollable &&
@@ -121,7 +141,10 @@ export function classifyPageType(p: PageTypeProbe): RouteDecision {
 
   // 5) 默认：标准流程。window 可滚的传统页面、内容分散 / 多并列容器页面在此最稳，
   //    隔离反而可能漏截非容器内容。
-  return { expert: "standard", reason: "default (static / window-scroll / spread)" }
+  return {
+    expert: "standard",
+    reason: "default (static / window-scroll / spread)"
+  }
 }
 
 /**
@@ -156,7 +179,8 @@ async function maybeShowDebugToast(
       func: showPageTypeToast,
       args: [text]
     })
-    if (DEBUG_ROUTE) console.log("[fullPage][router] debug toast shown", { tabId })
+    if (DEBUG_ROUTE)
+      console.log("[fullPage][router] debug toast shown", { tabId })
     await sleep(TOAST_DURATION)
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -197,12 +221,17 @@ export async function handleCaptureFullPageRouted(
   } else if (mode === "spa-like") {
     decision = { expert: "spa-like", reason: "手动指定模式 = spa-like" }
     routing = { hideStructuralChrome: true }
+  } else if (mode === "chat") {
+    decision = { expert: "chat", reason: "手动指定模式 = chat" }
   } else if (mode === "embedded-doc") {
     // 手动：探测主体 iframe 作为内嵌文档目标，交给 embedded-doc 专家（内部再判是否
     // 自定义滚动文档，不是则回退）。
     decision = { expert: "embedded-doc", reason: "手动指定模式 = embedded-doc" }
     signals = await probe(tabId)
-    if (signals?.dominantIframe && /^https?:/i.test(signals.dominantIframe.src)) {
+    if (
+      signals?.dominantIframe &&
+      /^https?:/i.test(signals.dominantIframe.src)
+    ) {
       routing = {
         siteRuleOverride: {
           selector: "",
@@ -292,6 +321,8 @@ export async function handleCaptureFullPageRouted(
         return await handleCaptureFullPageEmbeddedDoc(request, routing)
       case "embedded-doc":
         return await handleCaptureFullPageEmbeddedDoc(request, routing)
+      case "chat":
+        return await handleCaptureFullPageChat(request, routing)
       case "spa-like":
         // 类 SPA：走隔离 handler 的「首帧整窗保留」流程——首帧含顶栏/侧栏，
         // 后续帧裁切主滚动容器（侧栏在裁切区外自动排除）或整窗 + 激进隐藏 chrome。

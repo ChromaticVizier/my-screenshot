@@ -93,6 +93,7 @@ export type FullPageMode =
   | "isolate"
   | "spa-like"
   | "embedded-doc"
+  | "chat"
 
 /**
  * 长截图「专家」标识（MoE 路由的输出）：
@@ -109,6 +110,7 @@ export type FullPageExpert =
   | "iframe"
   | "spa-like"
   | "embedded-doc"
+  | "chat"
 
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */

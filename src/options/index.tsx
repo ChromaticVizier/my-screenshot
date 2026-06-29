@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react"
 
+import { clearRouteLog, getRouteLog } from "~src/shared/routeLog"
 import {
   DEFAULT_FULL_PAGE_RULES,
   DEFAULT_SETTINGS,
@@ -18,7 +19,6 @@ import {
   type FullPageMode,
   type FullPageRuleSet
 } from "~src/shared/settings"
-import { clearRouteLog, getRouteLog } from "~src/shared/routeLog"
 
 import "~src/styles/global.css"
 
@@ -465,7 +465,9 @@ function Options() {
               <input
                 type="checkbox"
                 checked={settings.cropBeforeDownload}
-                onChange={(e) => update({ cropBeforeDownload: e.target.checked })}
+                onChange={(e) =>
+                  update({ cropBeforeDownload: e.target.checked })
+                }
               />
               <span>{settings.cropBeforeDownload ? "已启用" : "已关闭"}</span>
             </label>
@@ -487,18 +489,21 @@ function Options() {
               <option value="auto">自动（按页面类型路由，推荐）</option>
               <option value="standard">标准（首帧保留 + 逐帧补偿）</option>
               <option value="isolate">隔离（隔离主滚动容器）</option>
-              <option value="spa-like">类 SPA（首帧保留 + 隐藏顶栏/侧边栏）</option>
+              <option value="spa-like">
+                类 SPA（首帧保留 + 隐藏顶栏/侧边栏）
+              </option>
               <option value="embedded-doc">
                 内嵌文档/表格（canvas 自定义滚动，如灵犀）
               </option>
+              <option value="chat">AI 聊天（输入框只在最后一帧显示）</option>
             </select>
             <span className={styles.hint}>
-              「自动」会在截图前探测页面类型（纯内容 / SPA 单容器 / 内嵌 iframe），
-              路由到对应专家流程，多数情况无需手动干预。
-              遇到自动判别不理想的页面，可临时切到「标准」或「隔离」：
-              标准对 window 滚动、内容分散页面最稳；
-              隔离会先隔离主滚动容器、隐藏容器外所有元素，
-              对顶栏 / 侧栏 / 弹窗逐屏重复的 SPA 效果最好，
+              「自动」会在截图前探测页面类型（纯内容 / SPA 单容器 / 内嵌
+              iframe）， 路由到对应专家流程，多数情况无需手动干预。
+              遇到自动判别不理想的页面，可临时切到「标准」或「隔离」： 标准对
+              window 滚动、内容分散页面最稳；
+              隔离会先隔离主滚动容器、隐藏容器外所有元素， 对顶栏 / 侧栏 /
+              弹窗逐屏重复的 SPA 效果最好，
               但「内容分散在多个并列容器」的页面可能漏截部分元素。
             </span>
           </div>
@@ -513,20 +518,28 @@ function Options() {
               min={0}
               max={10}
               step={0.1}
-              value={safeNumberValue(settings.fullPageFrameDelayMs / 1000, 1.5, {
-                min: 0,
-                max: 10
-              })}
+              value={safeNumberValue(
+                settings.fullPageFrameDelayMs / 1000,
+                1.5,
+                {
+                  min: 0,
+                  max: 10
+                }
+              )}
               onChange={(e) => {
-                const n = parseClampedNumber(e.target.value, { min: 0, max: 10 })
+                const n = parseClampedNumber(e.target.value, {
+                  min: 0,
+                  max: 10
+                })
                 if (n !== null) {
                   update({ fullPageFrameDelayMs: Math.round(n * 1000) })
                 }
               }}
             />
             <span className={styles.hint}>
-              长截图每滚动到新一帧后等待的时间，给页面渲染 / 懒加载 / 动画留出稳定时间。
-              默认 1.5 秒；动态内容多的页面可调大，纯静态页可调小提速。
+              长截图每滚动到新一帧后等待的时间，给页面渲染 / 懒加载 /
+              动画留出稳定时间。 默认 1.5
+              秒；动态内容多的页面可调大，纯静态页可调小提速。
             </span>
           </div>
         </div>
@@ -545,7 +558,8 @@ function Options() {
               <span>{settings.showPageTypeToast ? "已启用" : "已关闭"}</span>
             </label>
             <span className={styles.hint}>
-              开启后，点击「整页截图」时会先在页面顶部短暂弹出本次 MoE 判定的页面类型，
+              开启后，点击「整页截图」时会先在页面顶部短暂弹出本次 MoE
+              判定的页面类型，
               便于排查路由是否符合预期。浮层会在正式截图前自动移除，不会进入截图。
             </span>
           </div>
@@ -575,8 +589,8 @@ function Options() {
 
         <p className={styles.subtitle}>
           每次整页截图都会记录一条「网址 + MoE 判定类型 + 判定依据」，已累计{" "}
-          {logCount} 条（最多保留 1000 条）。导出的 JSON 可用于核对路由是否符合预期、
-          积累页面类型样本集。
+          {logCount} 条（最多保留 1000 条）。导出的 JSON
+          可用于核对路由是否符合预期、 积累页面类型样本集。
         </p>
       </section>
 
@@ -624,7 +638,9 @@ function Options() {
         {groups.map((g) => (
           <details className={styles.group} key={g.title} open>
             <summary className={styles.groupTitle}>{g.title}</summary>
-            <div className={styles.groupBody}>{g.fields.map(renderRuleField)}</div>
+            <div className={styles.groupBody}>
+              {g.fields.map(renderRuleField)}
+            </div>
           </details>
         ))}
       </section>
