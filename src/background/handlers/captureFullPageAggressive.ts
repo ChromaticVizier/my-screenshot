@@ -34,8 +34,11 @@ import {
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
+  isolateScroller,
+  measureScrollerRect
+} from "~src/background/injected/fullPageAggressive"
+import {
   detectAndHidePseudoSticky,
-  hideExtensionFloats,
   hideFixedElements,
   hideFrameChrome,
   hideOutsideFrameChain,
@@ -52,10 +55,6 @@ import {
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
-import {
-  isolateScroller,
-  measureScrollerRect
-} from "~src/background/injected/fullPageAggressive"
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
   dataUrlToBitmap,
@@ -83,10 +82,7 @@ export async function handleCaptureFullPageAggressive(
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
   // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
-  const frameDelayMs = Math.max(
-    0,
-    Math.round(settings.fullPageFrameDelayMs ?? 1500)
-  )
+  const frameDelayMs = Math.max(0, Math.round(settings.fullPageFrameDelayMs ?? 1500))
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
     routing?.siteRuleOverride !== undefined
@@ -303,11 +299,6 @@ export async function handleCaptureFullPageAggressive(
         })
         await chrome.scripting.executeScript({
           target: scrollerTarget,
-          func: hideExtensionFloats,
-          args: [fullPageRules]
-        })
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
           func: detectAndHidePseudoSticky,
           args: [fullPageRules]
         })
@@ -393,11 +384,6 @@ export async function handleCaptureFullPageAggressive(
       await chrome.scripting.executeScript({
         target: scrollerTarget,
         func: hideFixedElements,
-        args: [fullPageRules]
-      })
-      await chrome.scripting.executeScript({
-        target: scrollerTarget,
-        func: hideExtensionFloats,
         args: [fullPageRules]
       })
       await chrome.scripting.executeScript({
@@ -602,11 +588,6 @@ export async function handleCaptureFullPageAggressive(
             func: hideFrameChrome,
             args: [fullPageRules, true]
           })
-          await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: hideExtensionFloats,
-            args: [fullPageRules]
-          })
         } else {
           await chrome.scripting.executeScript({
             target: scrollerTarget,
@@ -625,11 +606,6 @@ export async function handleCaptureFullPageAggressive(
             func: hideFrameChrome,
             args: [fullPageRules]
           })
-          await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: hideExtensionFloats,
-            args: [fullPageRules]
-          })
         }
       } catch {
         /* 不致命 */
@@ -638,12 +614,10 @@ export async function handleCaptureFullPageAggressive(
       // 3.4) capture 紧前一刻重读 scrollTop：中间 rehide / 懒加载 reflow 可能让
       //      scroller scrollTop 漂移，早期记录值会与 capture 内容偏离 → 长图错位。
       try {
-        const [{ result: finalMetrics }] = await chrome.scripting.executeScript(
-          {
-            target: scrollerTarget,
-            func: measureScrollMetrics
-          }
-        )
+        const [{ result: finalMetrics }] = await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: measureScrollMetrics
+        })
         if (finalMetrics && typeof finalMetrics.scrollTop === "number") {
           scrollY = finalMetrics.scrollTop
         }
