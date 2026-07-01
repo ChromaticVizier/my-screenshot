@@ -9,14 +9,12 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react"
 
-import { clearRouteLog, getRouteLog } from "~src/shared/routeLog"
 import {
   DEFAULT_FULL_PAGE_RULES,
   DEFAULT_SETTINGS,
   getSettings,
   setSettings,
   type AppSettings,
-  type FullPageMode,
   type FullPageRuleSet
 } from "~src/shared/settings"
 
@@ -88,8 +86,192 @@ const RULE_GROUPS: Array<{
     ]
   },
   {
-    title: "长截图参数",
+    title: "1. 行为判别",
     fields: [
+      {
+        key: "followThresholdPx",
+        label: "绝对位置漂移阈值 (px)",
+        hint: "首帧与当前帧的文档绝对位置差超过此值视为“跟着视口走”。",
+        min: 0,
+        max: 50,
+        step: 1
+      },
+      {
+        key: "viewportStableThresholdPx",
+        label: "视口位置稳定阈值 (px)",
+        hint: "rect 在视口里的位置偏移不超过此值才视为“稳定贴在视口”。",
+        min: 0,
+        max: 100,
+        step: 1
+      }
+    ]
+  },
+  {
+    title: "2. 内容容器豁免",
+    fields: [
+      {
+        key: "contentRatio",
+        label: "子树高度占比阈值",
+        hint: "scrollHeight / 文档高度 ≥ 此值视为主内容容器，保留。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "contentText",
+        label: "文本量阈值",
+        hint: "元素 innerText 长度 ≥ 此值视为内容容器，保留。",
+        min: 0,
+        max: 10000,
+        step: 50
+      }
+    ]
+  },
+  {
+    title: "3. 背景层 / 水印豁免",
+    fields: [
+      {
+        key: "backgroundArea",
+        label: "背景层最小面积比",
+        hint: "占视口面积 ≥ 此值且少文本无交互才算背景层。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "backgroundText",
+        label: "背景层最大文本量",
+        hint: "背景层允许的最大 innerText 长度。",
+        min: 0,
+        max: 500,
+        step: 5
+      },
+      {
+        key: "watermarkAreaMin",
+        label: "水印最小面积比",
+        hint: "pointer-events:none 且面积 ≥ 此值的元素一律视为水印，保留。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      }
+    ]
+  },
+  {
+    title: "4. 浮层硬命中",
+    fields: [
+      {
+        key: "highZIndex",
+        label: "高 z-index 阈值",
+        hint: "computed z-index ≥ 此值即视为高层级浮层候选。",
+        min: 0,
+        max: 999999,
+        step: 1
+      },
+      {
+        key: "nearEdgePx",
+        label: "贴边像素阈值",
+        hint: "距视口任一边 ≤ 此像素视为“贴边”。",
+        min: 0,
+        max: 200,
+        step: 1
+      },
+      {
+        key: "viewportSizedRatio",
+        label: "视口级大块面积比",
+        hint: "面积 ≥ 此值视为“视口级大块”，不会按浮层处理（保护主内容容器）。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      }
+    ]
+  },
+  {
+    title: "5. 角色识别",
+    fields: [
+      {
+        key: "semanticMainRegex",
+        label: "主内容容器正则",
+        hint: "按 id/class 字符串匹配，命中即视为内容容器（不区分大小写）。",
+        control: "text"
+      },
+      {
+        key: "extensionOverlayKeywords",
+        label: "扩展浮层关键词",
+        hint: "命中即标记为插件浮层（按小写子串匹配 id/class/tag/role）。",
+        control: "tags"
+      }
+    ]
+  },
+  {
+    title: "7. 主滚动容器识别",
+    fields: [
+      {
+        key: "detectScrollContainer",
+        label: "自动检测内部滚动容器",
+        hint: "适配 window 不滚、主体 div 滚动的 SPA/三栏页面。关闭后只使用 window 滚动。"
+      },
+      {
+        key: "scrollContainerMinRatio",
+        label: "滚动容器最小高度比",
+        hint: "scrollHeight / clientHeight ≥ 此值才作为候选。调小更容易命中短滚动区域。",
+        min: 1,
+        max: 3,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerMinOverflowPx",
+        label: "滚动容器最小溢出距离 (px)",
+        hint: "scrollHeight - clientHeight 至少超过此值才作为候选。调小更激进。",
+        min: 0,
+        max: 1000,
+        step: 10
+      },
+      {
+        key: "scrollContainerAreaWeight",
+        label: "视口面积权重",
+        hint: "越高越偏向占屏大的容器；三栏页面可适当降低。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerTextWeight",
+        label: "文本量权重",
+        hint: "越高越偏向正文/聊天内容等文本较多的容器。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerSemanticWeight",
+        label: "语义命中权重",
+        hint: "越高越依赖 id/class 命中 main/content/chat/scroll 等关键词。",
+        min: 0,
+        max: 1,
+        step: 0.01,
+        control: "slider"
+      },
+      {
+        key: "scrollContainerRegex",
+        label: "滚动容器语义正则",
+        hint: "按 id/class 字符串匹配，命中会提高主体滚动容器评分。",
+        control: "text"
+      },
+      {
+        key: "scrollerBottomSafetyPx",
+        label: "滚动容器底部安全裕量 (px)",
+        hint: "仅内部滚动容器模式下从底部多裁掉的像素，规避虚拟列表渲染溢出 / 邻近输入框 box-shadow 上溢导致的周期性白底条。代价是长图末尾会有等高的小空白。设为 0 关闭。",
+        min: 0,
+        max: 100,
+        step: 1
+      },
       {
         key: "fullPageOverlapRatio",
         label: "长截图相邻帧重叠比例",
@@ -110,7 +292,17 @@ const RULE_GROUPS: Array<{
     ]
   },
   {
-    title: "自定义选择器（最高优先级）",
+    title: "8. 模式开关",
+    fields: [
+      {
+        key: "hideAllFixedFallback",
+        label: "兜底隐藏剩余跟随视口元素",
+        hint: "关闭后只隐藏明确命中浮层/插件规则的元素，更保守。"
+      }
+    ]
+  },
+  {
+    title: "6. 自定义选择器（最高优先级）",
     fields: [
       {
         key: "customKeepSelectors",
@@ -133,7 +325,6 @@ function Options() {
   const [loaded, setLoaded] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [logCount, setLogCount] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -141,7 +332,6 @@ function Options() {
       setLocal(s)
       setLoaded(true)
     })
-    getRouteLog().then((list) => setLogCount(list.length))
   }, [])
 
   // 节流保存：3 次输入合并 1 次写入，避免输入框抖动
@@ -208,26 +398,6 @@ function Options() {
     a.download = "my-screenshot-settings.json"
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  /* ---- 页面类型路由日志（调试）---- */
-  const exportRouteLogJson = async () => {
-    const list = await getRouteLog()
-    const blob = new Blob([JSON.stringify(list, null, 2)], {
-      type: "application/json"
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-")
-    a.href = url
-    a.download = `my-screenshot-moe-route-log-${stamp}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const handleClearRouteLog = async () => {
-    await clearRouteLog()
-    setLogCount(0)
   }
 
   const onImportFile = async (file: File) => {
@@ -465,9 +635,7 @@ function Options() {
               <input
                 type="checkbox"
                 checked={settings.cropBeforeDownload}
-                onChange={(e) =>
-                  update({ cropBeforeDownload: e.target.checked })
-                }
+                onChange={(e) => update({ cropBeforeDownload: e.target.checked })}
               />
               <span>{settings.cropBeforeDownload ? "已启用" : "已关闭"}</span>
             </label>
@@ -478,120 +646,26 @@ function Options() {
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label}>长截图模式</label>
-          <div className={styles.control}>
-            <select
-              className={styles.input}
-              value={settings.fullPageMode}
-              onChange={(e) =>
-                update({ fullPageMode: e.target.value as FullPageMode })
-              }>
-              <option value="auto">自动（按页面类型路由，推荐）</option>
-              <option value="standard">标准（首帧保留 + 逐帧补偿）</option>
-              <option value="isolate">隔离（隔离主滚动容器）</option>
-              <option value="spa-like">
-                类 SPA（首帧保留 + 隐藏顶栏/侧边栏）
-              </option>
-              <option value="embedded-doc">
-                内嵌文档/表格（canvas 自定义滚动，如灵犀）
-              </option>
-              <option value="chat">AI 聊天（输入框只在最后一帧显示）</option>
-            </select>
-            <span className={styles.hint}>
-              「自动」会在截图前探测页面类型（纯内容 / SPA 单容器 / 内嵌
-              iframe）， 路由到对应专家流程，多数情况无需手动干预。
-              遇到自动判别不理想的页面，可临时切到「标准」或「隔离」： 标准对
-              window 滚动、内容分散页面最稳；
-              隔离会先隔离主滚动容器、隐藏容器外所有元素， 对顶栏 / 侧栏 /
-              弹窗逐屏重复的 SPA 效果最好，
-              但「内容分散在多个并列容器」的页面可能漏截部分元素。
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>长截图帧间隔（秒）</label>
-          <div className={styles.control}>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              max={10}
-              step={0.1}
-              value={safeNumberValue(
-                settings.fullPageFrameDelayMs / 1000,
-                1.5,
-                {
-                  min: 0,
-                  max: 10
-                }
-              )}
-              onChange={(e) => {
-                const n = parseClampedNumber(e.target.value, {
-                  min: 0,
-                  max: 10
-                })
-                if (n !== null) {
-                  update({ fullPageFrameDelayMs: Math.round(n * 1000) })
-                }
-              }}
-            />
-            <span className={styles.hint}>
-              长截图每滚动到新一帧后等待的时间，给页面渲染 / 懒加载 /
-              动画留出稳定时间。 默认 1.5
-              秒；动态内容多的页面可调大，纯静态页可调小提速。
-            </span>
-          </div>
-        </div>
-
-        <div className={styles.field}>
-          <label className={styles.label}>显示页面类型判定（调试）</label>
+          <label className={styles.label}>激进隐藏模式</label>
           <div className={styles.control}>
             <label className={styles.toggle}>
               <input
                 type="checkbox"
-                checked={settings.showPageTypeToast}
+                checked={settings.aggressiveHideMode}
                 onChange={(e) =>
-                  update({ showPageTypeToast: e.target.checked })
+                  update({ aggressiveHideMode: e.target.checked })
                 }
               />
-              <span>{settings.showPageTypeToast ? "已启用" : "已关闭"}</span>
+              <span>{settings.aggressiveHideMode ? "已启用" : "已关闭"}</span>
             </label>
             <span className={styles.hint}>
-              开启后，点击「整页截图」时会先在页面顶部短暂弹出本次 MoE
-              判定的页面类型，
-              便于排查路由是否符合预期。浮层会在正式截图前自动移除，不会进入截图。
+              开启后长截图先"隔离主滚动容器"，把容器之外的所有元素隐藏，
+              彻底消除顶栏 / 侧栏 / 弹窗在每屏重复出现的问题；
+              代价是词典官网等"内容分散在多个并列容器"的页面可能漏截部分元素。
+              关闭则使用默认的首帧保留 + 逐帧补偿流程。
             </span>
           </div>
         </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>页面类型日志（调试）</h2>
-          <div className={styles.sectionActions}>
-            <button
-              type="button"
-              className={styles.secondaryBtn}
-              disabled={logCount === 0}
-              onClick={exportRouteLogJson}>
-              导出日志 JSON
-            </button>
-            <button
-              type="button"
-              className={styles.dangerBtn}
-              disabled={logCount === 0}
-              onClick={handleClearRouteLog}>
-              清空日志
-            </button>
-          </div>
-        </div>
-
-        <p className={styles.subtitle}>
-          每次整页截图都会记录一条「网址 + MoE 判定类型 + 判定依据」，已累计{" "}
-          {logCount} 条（最多保留 1000 条）。导出的 JSON
-          可用于核对路由是否符合预期、 积累页面类型样本集。
-        </p>
       </section>
 
       <section className={styles.section}>
@@ -631,16 +705,13 @@ function Options() {
         </div>
 
         <p className={styles.subtitle}>
-          页面类型由 MoE 路由在截图前自动判别，原先的判别阈值已无需手动调参；
-          这里只保留与判别无关的操作项（帧重叠、长图高度上限、自定义选择器）。
+          调小数值或开启“兜底”一般更激进（隐藏更多元素），调大或关掉一般更保守。
         </p>
 
         {groups.map((g) => (
           <details className={styles.group} key={g.title} open>
             <summary className={styles.groupTitle}>{g.title}</summary>
-            <div className={styles.groupBody}>
-              {g.fields.map(renderRuleField)}
-            </div>
+            <div className={styles.groupBody}>{g.fields.map(renderRuleField)}</div>
           </details>
         ))}
       </section>

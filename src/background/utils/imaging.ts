@@ -73,10 +73,6 @@ export interface CaptureSlice {
   sourceWidth?: number
   /** 从源图裁切的高度（CSS 像素） */
   sourceHeight?: number
-  /** 在长图画布上的目标横向位置（CSS 像素，默认 0）。
-   *  用于「首帧整窗 + 后续帧裁切 scroller」混排：后续帧需对齐到 scroller 在
-   *  画布中的左侧位置，而非一律贴左，否则与首帧里的 scroller 内容横向错位。 */
-  destX?: number
 }
 
 export interface StitchParams {
@@ -88,10 +84,6 @@ export interface StitchParams {
   devicePixelRatio: number
   format?: "png" | "jpeg"
   quality?: number
-  /** 画布底色（CSS 颜色串）。默认白色。
-   *  内部滚动容器 / 类 SPA 模式下，后续帧只绘制内容列，侧栏槽等区域不会被绘制，
-   *  应填成网页背景色而非白色，避免长图周边出现白边。 */
-  backgroundColor?: string
 }
 
 /**
@@ -108,8 +100,7 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
     totalHeight,
     devicePixelRatio: dpr,
     format = "png",
-    quality,
-    backgroundColor
+    quality
   } = params
 
   const canvasW = Math.round(viewportWidth * dpr)
@@ -118,15 +109,13 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("无法创建 OffscreenCanvas 2D 上下文")
 
-  // 先填底色：
-  // - dpr 非整数时各帧首尾对齐会有 1px 透明缝隙，透明区在某些查看器 / jpeg 输出下显黑线；
-  // - scroller / 类 SPA 模式后续帧只绘制内容列，侧栏槽不会被绘制，留白应为网页背景色。
-  // 默认白色（向后兼容）；调用方可传入实测的网页背景色。
-  ctx.fillStyle = backgroundColor || "#ffffff"
+  // 先填白底：dpr 非整数时各帧首尾对齐会有 1px 透明缝隙，
+  // 透明区在某些查看器 / jpeg 输出下会显示为黑色细线
+  ctx.fillStyle = "#ffffff"
   ctx.fillRect(0, 0, canvasW, canvasH)
 
   for (const slice of slices) {
-    const dx = Math.max(0, Math.round((slice.destX ?? 0) * dpr))
+    const dx = 0
     const dy = Math.round(slice.scrollY * dpr)
     const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))
     const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr))

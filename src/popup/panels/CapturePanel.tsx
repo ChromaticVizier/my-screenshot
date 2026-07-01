@@ -6,7 +6,7 @@
  * - 整个页面（fullPage）：popup 立即关闭以让出焦点，background 继续完成滚动拼接长截图
  * - 选择区域（selection）：popup 立刻关闭以让出焦点，背景脚本继续完成选区流程
  */
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
 import { CloudIcon } from "~src/components/icons"
@@ -15,78 +15,26 @@ import {
   CAPTURE_LIST_ACTIONS
 } from "~src/constants/captureActions"
 import {
-  cancelFullPageCapture,
   captureDelayed,
   captureDesktop,
   captureFullPage,
   captureSelection,
   captureVisibleArea,
   clearScrollRegion,
-  getFullPageCaptureProgress,
   selectScrollRegion
 } from "~src/services/capture"
-import {
-  MessageType,
-  type CaptureFullPageProgressState
-} from "~src/shared/messages"
 import type { CaptureAction, CaptureMode } from "~src/types/popup"
 
 import * as styles from "./CapturePanel.module.css"
 
-interface CapturePanelProps {
-  onBusyChange?: (busy: boolean) => void
-}
-
-function CapturePanel({ onBusyChange }: CapturePanelProps) {
+function CapturePanel() {
   const [busy, setBusy] = useState<CaptureMode | "scrollRegion" | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [fullPageProgress, setFullPageProgress] =
-    useState<CaptureFullPageProgressState | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    getFullPageCaptureProgress().then((res) => {
-      if (!alive || !res.ok || !res.progress) return
-      if (["capturing", "stitching"].includes(res.progress.phase)) {
-        setFullPageProgress(res.progress)
-      }
-    })
-    const listener = (msg: unknown) => {
-      const req = msg as {
-        type?: string
-        payload?: CaptureFullPageProgressState
-      }
-      if (req.type !== MessageType.CAPTURE_FULL_PAGE_PROGRESS || !req.payload) {
-        return
-      }
-      if (["done", "cancelled", "error"].includes(req.payload.phase)) {
-        setFullPageProgress(null)
-        onBusyChange?.(false)
-        if (req.payload.phase === "error") {
-          setError(req.payload.error ?? "长截图失败")
-        }
-        return
-      }
-      setFullPageProgress(req.payload)
-    }
-    chrome.runtime.onMessage.addListener(listener)
-    return () => {
-      alive = false
-      chrome.runtime.onMessage.removeListener(listener)
-    }
-  }, [])
 
   const handleSelectScrollRegion = async () => {
     if (busy) return
     setError(null)
-    ;(window as any)._rlog?.push([
-      "_trackCustom",
-      "event",
-      [
-        ["action", "screenshot_scroll_region_select_click"],
-        ["from", "capture_panel"]
-      ]
-    ])
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_scroll_region_select_click'], ['from', 'capture_panel']]])
     setBusy("scrollRegion")
     const res = await selectScrollRegion()
     setBusy(null)
@@ -100,14 +48,7 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
   const handleClearScrollRegion = async () => {
     if (busy) return
     setError(null)
-    ;(window as any)._rlog?.push([
-      "_trackCustom",
-      "event",
-      [
-        ["action", "screenshot_scroll_region_clear_click"],
-        ["from", "capture_panel"]
-      ]
-    ])
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_scroll_region_clear_click'], ['from', 'capture_panel']]])
     setBusy("scrollRegion")
     const res = await clearScrollRegion()
     setBusy(null)
@@ -133,27 +74,10 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
 
     switch (mode) {
       case "visible": {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_visible_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_click'], ['from', 'capture_panel']]])
         setBusy(mode)
         const res = await captureVisibleArea()
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_visible_result"],
-            ["result", res.ok ? "success" : "fail"],
-            ...(res.ok
-              ? []
-              : [["error_code", String(res.error ?? "unknown").slice(0, 50)]])
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_visible_result'], ['result', res.ok ? 'success' : 'fail'], ...(res.ok ? [] : [['error_code', String(res.error ?? 'unknown').slice(0, 50)]])]])
         setBusy(null)
         if (!res.ok) setError(res.error ?? "截图失败")
         else window.close()
@@ -161,42 +85,19 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       }
 
       case "fullPage": {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_fullpage_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
-        // 保持扩展 popup 打开，直接切换为进度 UI。
-        const taskId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
-        setFullPageProgress({
-          taskId,
-          phase: "capturing",
-          current: 1,
-          total: 100,
-          message: "正在准备截图"
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_fullpage_click'], ['from', 'capture_panel']]])
+        // 整页截图要滚动拼接好几秒，若在此 await 期间保持 popup 打开，
+        // popup 会作为一个独立窗口长期驻留在屏幕上。与 selection/delayed 一致：
+        // 立即关闭 popup，由 background 独立完成后续截图与下载，不影响功能。
+        captureFullPage().catch(() => {
+          /* popup 已关闭，错误由 background 控制台输出 */
         })
-        onBusyChange?.(true)
-        setBusy(mode)
-        captureFullPage({ taskId }).then((res) => {
-          setBusy(null)
-          onBusyChange?.(false)
-          if (!res.ok && !res.cancelled) setError(res.error ?? "长截图失败")
-        })
+        window.close()
         break
       }
 
       case "selection": {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_selection_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_selection_click'], ['from', 'capture_panel']]])
         // 选区交互需要页面接收鼠标焦点，popup 必须先关闭。
         // background 会接管后续：注入遮罩 → 等待用户拖拽 → 截图裁剪下载。
         captureSelection().catch(() => {
@@ -207,14 +108,7 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       }
 
       case "delayed": {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_delayed_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_delayed_click'], ['from', 'capture_panel']]])
         // 倒计时浮窗在页面上展示，popup 必须先关闭，否则用户看不到也点不到「Cancel」。
         // 倒计时秒数由 background 从 chrome.storage.sync 读取（默认 3 秒）。
         captureDelayed().catch(() => {
@@ -225,14 +119,7 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       }
 
       case "desktop": {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_desktop_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_desktop_click'], ['from', 'capture_panel']]])
         // 通过中转窗口调用 getDisplayMedia：直接在 popup 调会导致系统
         // 选择器锚定在 popup 位置（extension icon 附近，偏右超出屏幕）。
         // 中转窗口由 background 创建在屏幕居中位置，选择器锚定到它就不会溢出。
@@ -242,56 +129,11 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       }
 
       default: {
-        rlog?.push([
-          "_trackCustom",
-          "event",
-          [
-            ["action", "screenshot_capture_annotate_click"],
-            ["from", "capture_panel"]
-          ]
-        ])
+        rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_capture_annotate_click'], ['from', 'capture_panel']]])
         // TODO: 其他截图模式
         console.log("[capture] action not implemented:", mode)
       }
     }
-  }
-
-  if (fullPageProgress) {
-    const total = Math.max(1, fullPageProgress.total)
-    const current = Math.max(0, Math.min(fullPageProgress.current, total))
-    const percent = Math.round((current / total) * 100)
-    const isStitching = fullPageProgress.phase === "stitching"
-    return (
-      <div className={styles.progressPanel}>
-        <div className={styles.progressTitle}>
-          {isStitching ? "正在拼接" : "正在截取整个页面..."}
-        </div>
-        {!isStitching ? (
-          <>
-            <div className={styles.progressTrack}>
-              <div
-                className={styles.progressFill}
-                style={{ width: `${percent}%` }}
-              />
-              <div className={styles.progressPercent}>{percent}%</div>
-            </div>
-            <p className={styles.progressHint}>
-              为了保证最好的截图效果，请不要在截图的时候滚动页面或者移动鼠标指针。
-            </p>
-            <button
-              type="button"
-              className={styles.stopBtn}
-              onClick={() => {
-                cancelFullPageCapture().catch(() => undefined)
-              }}>
-              强制停止
-            </button>
-          </>
-        ) : (
-          <p className={styles.progressHint}>正在拼接长图，请稍候...</p>
-        )}
-      </div>
-    )
   }
 
   return (
