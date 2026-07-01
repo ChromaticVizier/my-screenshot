@@ -1,18 +1,26 @@
 /**
- * 激进隐藏模式的整页（滚动拼接）截图。
+ * 隔离模式（"isolate" 专家）的整页（滚动拼接）截图。
  *
- * 由 settings.aggressiveHideMode 开关控制；关闭时走 capture.ts 的
- * handleCaptureFullPage（保留首帧 + 逐帧补偿的旧流程）。
+ * 由 MoE 路由器（fullPageRouter）在判定页面为「SPA 单主滚动容器」时选用；
+ * 用户也可在设置里把 fullPageMode 设为 "isolate" 强制走本流程。
+ * 标准流程见 capture.ts 的 handleCaptureFullPage（首帧保留 + 逐帧补偿）。
  *
- * 业务流程：
- *   1. preparePage()      → 锁定滚动条 + 找主滚动容器（保留手动选择 / iframe 选择）
- *   2. 滚回顶部后「隔离」主滚动容器：把容器外所有元素 display:none
- *      （isolateScroller + hideFixedElements + detectAndHidePseudoSticky；
- *       子 frame 模式主 frame 用 hideOutsideFrameChain 只保留 iframe 链）
- *   3. 隔离后重测裁切区域 → 统一滚动截图、裁切、拼接、下载（与旧流程一致）
+ * 两条分支：
  *
- * 隔离后页面只剩 scroller 子树，无顶栏 / 侧栏 / 弹窗逐帧重复，因此首帧与后续帧
- * 完全一致处理，省掉旧流程里 flatten / 首帧保留 / contentOffsetY 补偿等逻辑。
+ * A) 保留首帧（主 frame 内部滚动容器，典型 SPA：网易邮箱 / Confluence）：
+ *    1. preparePage() 找主滚动容器（原始位置）
+ *    2. 首帧整窗截图 —— 顶栏 / 侧栏等固定元素原样保留，只出现这一次
+ *    3. 隐藏覆盖在 scroller 上的 fixed / 伪 sticky（不调 isolateScroller，避免兄弟
+ *       元素 display:none 引起 scroller 回流、与首帧接缝处布局跳变）
+ *    4. 后续帧裁切 scroller「原始矩形」——chrome 在裁切区之外，自动不再出现；
+ *       并用 contentOffsetY / destX 把后续帧排到首帧 chrome 之下、与首帧里的
+ *       scroller 内容同宽同位，接缝无缝。
+ *
+ * B) 隔离（子 frame / iframe 专家，或 window 滚动）：
+ *    preparePage → isolateScroller 把容器外元素 display:none → 重测裁切区 →
+ *    统一滚动截图。子 frame 主 frame 用 hideOutsideFrameChain 只保留 iframe 链。
+ *
+ * 截完统一 restoreFixedElements / restorePage 还原。
  */
 import {
   dumpDebugFrame,
@@ -22,17 +30,17 @@ import {
   locateFrameOffsetInPage,
   resolveFrameTarget,
   safeCaptureVisibleTab,
-  sleep
+  sleep,
+  type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
-import {
-  isolateScroller,
-  measureScrollerRect
-} from "~src/background/injected/fullPageAggressive"
 import {
   detectAndHidePseudoSticky,
   hideFixedElements,
+  hideFrameChrome,
   hideOutsideFrameChain,
   kickScrollListeners,
+  measureContentInsets,
+  measurePageBackground,
   measureScrollMetrics,
   preparePage,
   rehideFixedElements,
@@ -43,7 +51,15 @@ import {
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
+import {
+  isolateScroller,
+  measureScrollerRect
+} from "~src/background/injected/fullPageAggressive"
 import { downloadImageBlob } from "~src/background/utils/download"
+import {
+  assertFullPageTaskNotCancelled,
+  updateFullPageTaskProgress
+} from "~src/background/utils/fullPageTask"
 import {
   dataUrlToBitmap,
   stitchToBlob,
@@ -57,7 +73,8 @@ import type {
 import { getSettings } from "~src/shared/settings"
 
 export async function handleCaptureFullPageAggressive(
-  request: CaptureFullPageRequest
+  request: CaptureFullPageRequest,
+  routing?: FullPageRouting
 ): Promise<CaptureResponse> {
   const tabRes = await getCapturableActiveTab()
   if (!tabRes.ok) return { ok: false, error: tabRes.error }
@@ -65,11 +82,20 @@ export async function handleCaptureFullPageAggressive(
   const tabId = tab.id!
 
   const settings = await getSettings()
+  const taskId = request.payload?.taskId
   const format = request.payload?.format ?? settings.imageFormat
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
+  // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
+  const frameDelayMs = Math.max(
+    0,
+    Math.round(settings.fullPageFrameDelayMs ?? 1500)
+  )
+  // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
-    settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
+    routing?.siteRuleOverride !== undefined
+      ? routing.siteRuleOverride
+      : settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
 
   // 多 frame：用户在某个 iframe 内 picker 选过则 target 该 frame，否则注入主 frame
   const scrollerTarget = await resolveFrameTarget(tabId, siteRule?.frameUrl)
@@ -106,26 +132,66 @@ export async function handleCaptureFullPageAggressive(
       func: preparePage,
       args: [fullPageRules, siteRule]
     })
+    assertFullPageTaskNotCancelled(taskId)
     if (!prepResult) return { ok: false, error: "页面准备失败" }
     const metrics: PageMetrics = prepResult
     snapshot = prepResult.snapshot
-
-    const makeSlice = (bitmap: ImageBitmap, scrollY: number): CaptureSlice => ({
-      bitmap,
-      scrollY,
-      ...(metrics.scrollerIsElement
-        ? {
-            // 把 iframe 在主 frame viewport 中的偏移叠加到 captureX/Y。
-            // 主 frame scroller 时 frameOffset=0，等价于原行为。
-            sourceX: metrics.captureX + frameOffsetX,
-            sourceY: metrics.captureY + frameOffsetY,
-            sourceWidth: metrics.captureWidth,
-            sourceHeight: metrics.captureHeight
-          }
-        : {})
+    updateFullPageTaskProgress(taskId, {
+      phase: "capturing",
+      current: 1,
+      total: Math.max(1, metrics.totalHeight),
+      message: "正在滚动并截图"
     })
 
+    // 「保留首帧」模式下：后续帧需整体下移 contentOffsetY（给首帧顶栏/侧栏让位），
+    // 并把裁切出的 scroller 画到画布上 scroller 原本的横向位置 framesDestX，
+    // 与首帧整窗里的 scroller 内容对齐。非保留模式（子 frame / window）下二者为 0，
+    // makeSlice 行为与原先完全一致。
+    let contentOffsetY = 0
+    let framesDestX = 0
+    // spa-like 专家：激进隐藏结构性 chrome（顶栏 + 大侧边栏）。供首帧保留分支与
+    // 循环内的 rehideFixedElements 共用，保证重新挂载的侧栏也持续隐藏。
+    const aggressiveChrome = routing?.hideStructuralChrome ?? false
+    // 后续帧从源图裁切的矩形（CSS 像素，相对视口）。null = 整窗不裁。
+    // scroller 模式 = scroller 矩形；window+侧栏模式 = 正文列；由各分支设定。
+    let frameCrop: { x: number; y: number; w: number; h: number } | null = null
+    // 重定位模式：window 滚动页面（无内部滚动容器）下，用「重定位」而非隐藏处理 chrome。
+    let relocateMode = false
+
+    const makeSlice = (
+      bitmap: ImageBitmap,
+      scrollTop: number
+    ): CaptureSlice => {
+      const base: CaptureSlice = {
+        bitmap,
+        scrollY: scrollTop + contentOffsetY,
+        destX: framesDestX
+      }
+      if (!frameCrop) return base
+      return {
+        ...base,
+        // 把 iframe 在主 frame viewport 中的偏移叠加到裁切原点。
+        // 主 frame 时 frameOffset=0，等价于原行为。
+        sourceX: frameCrop.x + frameOffsetX,
+        sourceY: frameCrop.y + frameOffsetY,
+        sourceWidth: frameCrop.w,
+        sourceHeight: frameCrop.h
+      }
+    }
+
     const slices: CaptureSlice[] = []
+
+    // 网页背景色：用作长图画布底色，使后续帧未绘制的侧栏槽留白与网页背景一致。
+    let pageBackground = "#ffffff"
+    try {
+      const [{ result: bg }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: measurePageBackground
+      })
+      if (typeof bg === "string" && bg) pageBackground = bg
+    } catch {
+      /* 取不到沿用白色 */
+    }
 
     // scroller 在子 iframe 内：主 frame 上的顶栏 / 侧栏需在主 frame 单独隔离
     // （只保留承载 scroller 的 iframe 链）。
@@ -135,6 +201,16 @@ export async function handleCaptureFullPageAggressive(
       scrollerTarget.frameIds.length > 0 &&
       scrollerTarget.frameIds[0] !== 0
 
+    // 是否走「保留首帧」分支：主 frame（非子 iframe）一律保留首帧。
+    // 含两种子情形：内部滚动容器（网易邮箱 / Confluence / gitlab）与 window 滚动
+    //（带固定顶栏 / 侧栏的页面）。子 frame（iframe 专家）仍走原隔离流程。
+    const preserveFirstFrame = !scrollerIsSubFrame
+
+    // 后续帧循环的起始 scrollTop（保留首帧时从首帧已展示内容之后接着拍）
+    let firstTargetY = 0
+    // 保留首帧模式下首帧整窗高度（CSS 像素），用于保证画布不裁掉首帧
+    let preserveFirstFrameH = 0
+
     /* ===== 阶段 1：滚回顶部（用户可能未在 scrollY=0 触发截图）===== */
     await chrome.scripting.executeScript({
       target: scrollerTarget,
@@ -143,79 +219,18 @@ export async function handleCaptureFullPageAggressive(
     })
     await sleep(120)
 
-    /* ===== 阶段 2：隔离主滚动容器，隐藏其它所有元素 ===== */
-    // 2.1) scroller 所在 frame：链隔离（隐藏 scroller 祖先链外的兄弟）
-    //      + 隐藏容器内部的 fixed/sticky 与 JS 伪 sticky（避免内部吸顶元素逐帧重复）。
-    await chrome.scripting.executeScript({
-      target: scrollerTarget,
-      func: isolateScroller,
-      args: [fullPageRules]
-    })
-    await chrome.scripting.executeScript({
-      target: scrollerTarget,
-      func: hideFixedElements,
-      args: [fullPageRules]
-    })
-    await chrome.scripting.executeScript({
-      target: scrollerTarget,
-      func: detectAndHidePseudoSticky,
-      args: [fullPageRules]
-    })
-    // 2.2) 子 frame 模式：主 frame 上只保留承载 scroller 的 iframe 链
-    if (scrollerIsSubFrame && siteRule?.frameUrl) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          func: hideOutsideFrameChain,
-          args: [siteRule.frameUrl]
-        })
-      } catch {
-        console.log("Main frame failed to isolate frame chain!")
-      }
-    }
-    hidingApplied = true
-    await sleep(150)
-
-    // 2.3) 主 frame 隔离后承载 scroller 的 iframe 可能回流移位，重算其偏移
-    if (scrollerIsSubFrame && siteRule?.frameUrl) {
-      try {
-        const [{ result: offset }] = await chrome.scripting.executeScript({
-          target: { tabId },
-          func: locateFrameOffsetInPage,
-          args: [siteRule.frameUrl]
-        })
-        if (offset && typeof offset === "object") {
-          frameOffsetX = offset.x ?? frameOffsetX
-          frameOffsetY = offset.y ?? frameOffsetY
-        }
-      } catch {
-        /* 保持隔离前的旧偏移 */
-      }
-    }
-
-    // 2.4) 隔离会移除 scroller 的兄弟元素，scroller 在视口中的位置 / 尺寸已变，
-    //      重测裁切区域与总高度，覆盖 preparePage 的旧值。
-    try {
-      const [{ result: m }] = await chrome.scripting.executeScript({
-        target: scrollerTarget,
-        func: measureScrollerRect
-      })
-      if (m) {
-        metrics.captureX = m.captureX
-        metrics.captureY = m.captureY
-        metrics.captureWidth = m.captureWidth
-        metrics.captureHeight = m.captureHeight
-        metrics.viewportWidth = m.captureWidth
-        metrics.viewportHeight = m.captureHeight
-        metrics.totalHeight = m.totalHeight
-      }
-    } catch {
-      /* 重测失败沿用 preparePage 旧值，可能仍有衔接缝隙 */
-    }
-
-    // 2.5) captureHeight 再夹紧到 iframe 在主 frame viewport 中的实际可见高度，
-    //      避免 slice 源高度超过 bitmap 边界被 clamp → 长图衔接处白条。
-    if (metrics.scrollerIsElement && (frameOffsetY > 0 || frameOffsetX > 0)) {
+    if (preserveFirstFrame) {
+      /* ===== 阶段 2A：保留首帧（顶栏 / 侧栏等固定元素只在第一帧出现）=====
+       * 关键取舍：不调 isolateScroller（它 display:none 兄弟会让 scroller 回流、
+       * 宽度变化，导致首帧与后续帧接缝处布局跳变）。改为：
+       *  - 首帧整窗截图，原样保留 chrome；
+       *  - 后续帧裁切 scroller 的「原始」矩形——chrome 在裁切区之外，自动不出现；
+       *  - 仅隐藏覆盖在 scroller 上的 fixed / 伪 sticky（避免内部吸顶元素逐帧重复）。
+       * 这样 scroller 不回流，首帧里的 scroller 内容与后续帧同宽同位，接缝无缝。
+       */
+      // 整窗尺寸（画布宽度用整窗宽，首帧整窗、后续帧定位到 scroller 左侧）
+      let vw = metrics.captureWidth
+      let vh = metrics.captureHeight
       try {
         const [{ result: vp }] = await chrome.scripting.executeScript({
           target: { tabId },
@@ -225,26 +240,258 @@ export async function handleCaptureFullPageAggressive(
           })
         })
         if (vp && typeof vp === "object") {
-          const maxH = Math.max(
-            1,
-            (vp.h ?? metrics.captureHeight) - frameOffsetY - metrics.captureY
-          )
-          const maxW = Math.max(
-            1,
-            (vp.w ?? metrics.captureWidth) - frameOffsetX - metrics.captureX
-          )
-          if (metrics.captureHeight > maxH) {
-            metrics.captureHeight = maxH
-            metrics.viewportHeight = maxH
-          }
-          if (metrics.captureWidth > maxW) {
-            metrics.captureWidth = maxW
-            metrics.viewportWidth = maxW
-          }
+          vw = vp.w ?? vw
+          vh = vp.h ?? vh
         }
       } catch {
-        /* 校正失败保持原值 */
+        /* 取不到整窗尺寸则退化为 scroller 尺寸 */
       }
+
+      // window 模式（无内部滚动容器）：首帧整窗保留副栏（在流中、主区自然宽度）；
+      // 后续帧用「visibility:hidden 保留占位」隐藏副栏 —— 不脱流、不回流，主滚动区
+      // 宽度全程不变（避免之前 relocate 转 absolute 把主区撑宽的问题）。
+      relocateMode = !metrics.scrollerIsElement
+
+      // 首帧整窗截图（scroller 模式 / 类 SPA window 模式均原样保留 chrome 在流中）
+      const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
+        format: "png"
+      })
+      assertFullPageTaskNotCancelled(taskId)
+      if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
+      const firstBitmap = await dataUrlToBitmap(firstDataUrl)
+      slices.push({
+        bitmap: firstBitmap,
+        scrollY: 0,
+        destX: 0,
+        sourceX: 0,
+        sourceY: 0,
+        sourceWidth: vw,
+        sourceHeight: vh
+      })
+      await dumpDebugFrame(firstDataUrl, 0, 0, {
+        preserveFirstFrame: true,
+        vw,
+        vh,
+        captureX: metrics.captureX,
+        captureY: metrics.captureY,
+        captureWidth: metrics.captureWidth,
+        captureHeight: metrics.captureHeight
+      })
+
+      // 画布宽度用整窗宽度，容纳首帧整窗 + 左侧侧栏带
+      metrics.viewportWidth = vw
+      // 记录首帧整窗高度，拼接时保证画布至少容纳首帧
+      preserveFirstFrameH = vh
+
+      const seamOverlapRatio = Math.min(
+        0.5,
+        Math.max(0, fullPageRules.fullPageOverlapRatio ?? 0.05)
+      )
+      if (metrics.scrollerIsElement) {
+        // 子情形①：内部滚动容器 —— 沿用裁切（chrome 在裁切区外，自动不出现）。
+        // 量取侧栏 inset（隐藏前测；防御 captureX 落入侧栏）。
+        let insetLeft = 0
+        let insetRight = vw
+        try {
+          const [{ result: ins }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureContentInsets
+          })
+          if (ins && typeof ins === "object") {
+            insetLeft = Math.max(0, Math.min(Math.round(ins.left ?? 0), vw))
+            insetRight = Math.max(
+              insetLeft + 1,
+              Math.min(Math.round(ins.right ?? vw), vw)
+            )
+          }
+        } catch {
+          /* 测不到则视为无侧栏 */
+        }
+        // 类 SPA 内部滚动容器：首帧必须完整保留 chrome，后续帧再隐藏。
+        // 这里不能在首帧后立刻隐藏再重测裁切，否则会污染首帧可见状态，并可能让
+        // window 滚动页（如 bilibili 动态）出现首屏重复。真正隐藏放到逐帧截图前。
+        hidingApplied = true
+
+        // 关键：首帧是在「隐藏 chrome 之前」截的（scroller 在原始位置 captureY）；
+        // 隐藏可能让 scroller 上方的占位元素消失、scroller 回流上移，使其真实位置变成
+        // captureY'。若后续帧仍按原 captureY 裁切，就会裁到错位内容 → 首帧↔次帧接缝处
+        // 半行重叠 / 遮挡。对策：用「重测后的矩形」做裁切源，用「原始 captureY」做画布
+        // 对齐（与首帧一致）。重测失败则沿用原值。
+        let srcX = metrics.captureX
+        let srcY = metrics.captureY
+        let srcW = metrics.captureWidth
+        let srcH = metrics.captureHeight
+        try {
+          const [{ result: m }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureScrollerRect
+          })
+          if (m) {
+            srcX = m.captureX
+            srcY = m.captureY
+            srcW = m.captureWidth
+            srcH = m.captureHeight
+            if (typeof m.totalHeight === "number") {
+              metrics.totalHeight = m.totalHeight
+            }
+            // 后续帧步长仍以首帧看到的原始 scroller 高度为准，避免首帧内容重复。
+          }
+        } catch {
+          /* 重测失败沿用 preparePage 旧值 */
+        }
+
+        const cropLeft = Math.max(Math.round(srcX), insetLeft)
+        const cropRight = Math.min(Math.round(srcX + srcW), insetRight)
+        // 画布对齐用「原始」captureY / captureHeight（首帧坐标系）
+        contentOffsetY = Math.max(0, Math.round(metrics.captureY))
+        framesDestX = cropLeft
+        frameCrop = {
+          x: cropLeft,
+          y: srcY,
+          w: Math.max(1, cropRight - cropLeft),
+          h: srcH
+        }
+        // 首帧已展示 scroller 顶部 captureHeight 高内容；后续帧从其后接着拍，减重叠避缝隙
+        const seamOverlap = Math.round(metrics.captureHeight * seamOverlapRatio)
+        firstTargetY = Math.max(
+          0,
+          Math.round(metrics.captureHeight) - seamOverlap
+        )
+      } else {
+        // 子情形②：window 滚动 —— chrome 已在截首帧前「重定位」（脱离视口跟随、钉住、
+        // 正文回填占位）。后续帧整窗、自然平铺（contentOffsetY=0、从第二屏起），
+        // chrome 只出现在首帧，且无侧栏留白。
+        contentOffsetY = 0
+        framesDestX = 0
+        frameCrop = null
+        firstTargetY = vh
+        // 重定位后内容高度可能变化，重测作为终止 / 画布基准
+        try {
+          const [{ result: m }] = await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: measureScrollMetrics
+          })
+          if (m && typeof m.scrollHeight === "number") {
+            metrics.totalHeight = m.scrollHeight
+          }
+        } catch {
+          /* 测不到沿用旧值 */
+        }
+      }
+    } else {
+      /* ===== 阶段 2B：隔离主滚动容器，隐藏其它所有元素（原流程）===== */
+      // 2.1) scroller 所在 frame：链隔离（隐藏 scroller 祖先链外的兄弟）
+      //      + 隐藏容器内部的 fixed/sticky 与 JS 伪 sticky（避免内部吸顶元素逐帧重复）。
+      await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: isolateScroller,
+        args: [fullPageRules]
+      })
+      await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: hideFixedElements,
+        args: [fullPageRules]
+      })
+      await chrome.scripting.executeScript({
+        target: scrollerTarget,
+        func: detectAndHidePseudoSticky,
+        args: [fullPageRules]
+      })
+      // 2.2) 子 frame 模式：主 frame 上只保留承载 scroller 的 iframe 链
+      if (scrollerIsSubFrame && siteRule?.frameUrl) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            func: hideOutsideFrameChain,
+            args: [siteRule.frameUrl]
+          })
+        } catch {
+          console.log("Main frame failed to isolate frame chain!")
+        }
+      }
+      hidingApplied = true
+      await sleep(150)
+
+      // 2.3) 主 frame 隔离后承载 scroller 的 iframe 可能回流移位，重算其偏移
+      if (scrollerIsSubFrame && siteRule?.frameUrl) {
+        try {
+          const [{ result: offset }] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: locateFrameOffsetInPage,
+            args: [siteRule.frameUrl]
+          })
+          if (offset && typeof offset === "object") {
+            frameOffsetX = offset.x ?? frameOffsetX
+            frameOffsetY = offset.y ?? frameOffsetY
+          }
+        } catch {
+          /* 保持隔离前的旧偏移 */
+        }
+      }
+
+      // 2.4) 隔离会移除 scroller 的兄弟元素，scroller 在视口中的位置 / 尺寸已变，
+      //      重测裁切区域与总高度，覆盖 preparePage 的旧值。
+      try {
+        const [{ result: m }] = await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: measureScrollerRect
+        })
+        if (m) {
+          metrics.captureX = m.captureX
+          metrics.captureY = m.captureY
+          metrics.captureWidth = m.captureWidth
+          metrics.captureHeight = m.captureHeight
+          metrics.viewportWidth = m.captureWidth
+          metrics.viewportHeight = m.captureHeight
+          metrics.totalHeight = m.totalHeight
+        }
+      } catch {
+        /* 重测失败沿用 preparePage 旧值，可能仍有衔接缝隙 */
+      }
+
+      // 2.5) captureHeight 再夹紧到 iframe 在主 frame viewport 中的实际可见高度，
+      //      避免 slice 源高度超过 bitmap 边界被 clamp → 长图衔接处白条。
+      if (metrics.scrollerIsElement && (frameOffsetY > 0 || frameOffsetX > 0)) {
+        try {
+          const [{ result: vp }] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => ({
+              w: document.documentElement.clientWidth,
+              h: document.documentElement.clientHeight
+            })
+          })
+          if (vp && typeof vp === "object") {
+            const maxH = Math.max(
+              1,
+              (vp.h ?? metrics.captureHeight) - frameOffsetY - metrics.captureY
+            )
+            const maxW = Math.max(
+              1,
+              (vp.w ?? metrics.captureWidth) - frameOffsetX - metrics.captureX
+            )
+            if (metrics.captureHeight > maxH) {
+              metrics.captureHeight = maxH
+              metrics.viewportHeight = maxH
+            }
+            if (metrics.captureWidth > maxW) {
+              metrics.captureWidth = maxW
+              metrics.viewportWidth = maxW
+            }
+          }
+        } catch {
+          /* 校正失败保持原值 */
+        }
+      }
+
+      // 后续帧裁切到（重测后的）scroller 矩形；window 模式整窗不裁。
+      frameCrop = metrics.scrollerIsElement
+        ? {
+            x: metrics.captureX,
+            y: metrics.captureY,
+            w: metrics.captureWidth,
+            h: metrics.captureHeight
+          }
+        : null
     }
 
     /* ===== 阶段 3：滚动 + 多次截图（首帧不再特殊处理，所有帧统一）===== */
@@ -266,7 +513,13 @@ export async function handleCaptureFullPageAggressive(
     let totalHeight = metrics.totalHeight
     let effectiveHeight = Math.max(totalHeight, stepHeight)
 
-    let targetY = 0
+    // 保留首帧模式下，若 scroller 内容已在首帧整窗里展示完（不可再滚），
+    // 则只需首帧这一张，跳过后续滚动循环。
+    const singleFrame =
+      preserveFirstFrame && totalHeight <= metrics.captureHeight + 4
+
+    // 后续帧从 firstTargetY 开始（保留首帧时 = 首帧已展示内容之后；否则 0）
+    let targetY = firstTargetY
     // 上一轮已截过的 scrollY，用于检测「无法再滚」。
     // 首帧目标 scrollY=0，用 -1 哨兵避免首轮被误判为「无法推进」而提前退出。
     let prevScrollY = -1
@@ -277,7 +530,14 @@ export async function handleCaptureFullPageAggressive(
     const DYNAMIC_WAIT_MS = 1500
     let frameIndex = 0
 
-    while (true) {
+    while (!singleFrame) {
+      assertFullPageTaskNotCancelled(taskId)
+      updateFullPageTaskProgress(taskId, {
+        phase: "capturing",
+        current: Math.min(totalHeight, Math.max(1, targetY)),
+        total: Math.max(1, totalHeight),
+        message: "正在滚动并截图"
+      })
       // 滚到目标位置（可能因页面底部不足被夹到 maxScrollY）
       const [{ result: actualY }] = await chrome.scripting.executeScript({
         target: scrollerTarget,
@@ -285,6 +545,9 @@ export async function handleCaptureFullPageAggressive(
         args: [targetY]
       })
       let scrollY = actualY ?? targetY
+
+      // 帧间等待：每滚到新一帧后等待用户设定的时长，给页面留出渲染/懒加载/动画稳定的时间
+      if (frameDelayMs > 0) await sleep(frameDelayMs)
 
       // 3.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
       let measuredHeight = totalHeight
@@ -322,21 +585,45 @@ export async function handleCaptureFullPageAggressive(
 
       if (measuredHeight > totalHeight) {
         totalHeight = measuredHeight
+        updateFullPageTaskProgress(taskId, {
+          phase: "capturing",
+          current: Math.min(totalHeight, Math.max(1, scrollY)),
+          total: Math.max(1, totalHeight),
+          message: "正在滚动并截图"
+        })
         effectiveHeight = Math.max(effectiveHeight, totalHeight)
       }
 
-      // 3.3) 补隐藏滚动期间 SPA 重新挂载的 fixed/sticky；子 frame 主 frame 再隔离一次
+      // 3.3) 逐帧处理本帧的 chrome：
+      //   - 类 SPA（window）模式：用 hideFrameChrome(keepSpace=true) —— 把副栏 / 顶栏
+      //     以 visibility:hidden 隐藏（**保留布局占位、不脱流、不回流**），首帧后副栏
+      //     不再出现、但主滚动区宽度全程不变（不被撑宽）。
+      //   - 隐藏模式（scroller / 子 frame）：补隐藏 SPA 重挂载的 fixed/sticky + 子 frame
+      //     链，再 hideFrameChrome（display:none）锁死跟随视口的 chrome。
       try {
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: rehideFixedElements,
-          args: [fullPageRules]
-        })
-        if (scrollerIsSubFrame && siteRule?.frameUrl) {
+        if (relocateMode) {
           await chrome.scripting.executeScript({
-            target: { tabId },
-            func: hideOutsideFrameChain,
-            args: [siteRule.frameUrl]
+            target: scrollerTarget,
+            func: hideFrameChrome,
+            args: [fullPageRules, true]
+          })
+        } else {
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: rehideFixedElements,
+            args: [fullPageRules, aggressiveChrome]
+          })
+          if (scrollerIsSubFrame && siteRule?.frameUrl) {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              func: hideOutsideFrameChain,
+              args: [siteRule.frameUrl]
+            })
+          }
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: hideFrameChrome,
+            args: [fullPageRules]
           })
         }
       } catch {
@@ -346,10 +633,12 @@ export async function handleCaptureFullPageAggressive(
       // 3.4) capture 紧前一刻重读 scrollTop：中间 rehide / 懒加载 reflow 可能让
       //      scroller scrollTop 漂移，早期记录值会与 capture 内容偏离 → 长图错位。
       try {
-        const [{ result: finalMetrics }] = await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: measureScrollMetrics
-        })
+        const [{ result: finalMetrics }] = await chrome.scripting.executeScript(
+          {
+            target: scrollerTarget,
+            func: measureScrollMetrics
+          }
+        )
         if (finalMetrics && typeof finalMetrics.scrollTop === "number") {
           scrollY = finalMetrics.scrollTop
         }
@@ -471,13 +760,27 @@ export async function handleCaptureFullPageAggressive(
     if (maxFullPageHeightPx > 0) {
       effectiveHeight = Math.min(effectiveHeight, maxFullPageHeightPx)
     }
+    // 保留首帧模式下后续帧整体下移了 contentOffsetY（顶栏带高度），画布相应加高；
+    // 并保证画布至少容纳首帧整窗高度（短页面只有首帧时不被裁底）。
+    const canvasHeight = Math.max(
+      effectiveHeight + contentOffsetY,
+      preserveFirstFrameH
+    )
+    updateFullPageTaskProgress(taskId, {
+      phase: "stitching",
+      current: 1,
+      total: 1,
+      message: "正在拼接"
+    })
+    assertFullPageTaskNotCancelled(taskId)
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
-      totalHeight: effectiveHeight,
+      totalHeight: canvasHeight,
       devicePixelRatio: metrics.devicePixelRatio,
       format,
-      quality
+      quality,
+      backgroundColor: pageBackground
     })
 
     // 释放 bitmap

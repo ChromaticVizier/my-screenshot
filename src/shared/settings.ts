@@ -19,72 +19,27 @@
  *
  * 字段顺序在 options 页 UI 中也按这个顺序展示，便于排查。
  */
+/**
+ * 整页截图规则（精简后）。
+ *
+ * 历史上这里有大量"页面类型判别阈值"（fixed/sticky 漂移阈值、背景层面积、
+ * 高 z-index、滚动容器评分权重等），用于让用户手动调参来适配各类页面。
+ * 引入 MoE 页面类型路由（src/background/handlers/fullPageRouter.ts）后，
+ * "该用哪套策略"由路由器在截图前自动判别，这些判别阈值不再需要暴露给用户，
+ * 已固化为各注入函数内部常量并从设置中移除。
+ *
+ * 这里只保留与"判别"无关的纯操作项：隐藏总开关、用户自定义选择器、
+ * 帧重叠比例、长图高度上限。
+ */
 export interface FullPageRuleSet {
   /** 总开关：关掉则后续帧不做任何隐藏（等同首帧策略） */
   enabled: boolean
 
-  /* ---- 1. 行为判别 ---- */
-  /** 绝对位置漂移阈值（px）：超过此值视为"跟着视口走" */
-  followThresholdPx: number
-  /** 视口位置稳定阈值（px）：当前 rect 与首帧 rect 的偏差小于此值才视为稳定 */
-  viewportStableThresholdPx: number
-
-  /* ---- 2. 内容容器豁免 ---- */
-  /** 子树高度占文档高度比例 ≥ 此值视为主内容容器 */
-  contentRatio: number
-  /** 元素 innerText 长度 ≥ 此值视为内容容器 */
-  contentText: number
-
-  /* ---- 3. 背景层豁免 ---- */
-  /** 占视口面积 ≥ 此值才有资格被判为背景 */
-  backgroundArea: number
-  /** 背景层最大文本量（用于排除"大面积但有大量文字"的内容容器） */
-  backgroundText: number
-  /** 水印类元素最低面积（pointer-events:none 且面积 ≥ 此值即保留） */
-  watermarkAreaMin: number
-
-  /* ---- 4. 浮层硬命中 ---- */
-  /** ≥ 此值视为高 z-index 浮层候选 */
-  highZIndex: number
-  /** 距视口任一边 ≤ 此像素即视为"贴边" */
-  nearEdgePx: number
-  /** 占视口面积 ≥ 此值视为"视口级大块"，不当作浮层处理 */
-  viewportSizedRatio: number
-
-  /* ---- 5. 角色识别 ---- */
-  /** 主内容容器的 id/class 正则字符串（默认覆盖 main/content/article/post 等） */
-  semanticMainRegex: string
-  /** 命中即认为是扩展浮层（按子串小写匹配 id/class/tag/role） */
-  extensionOverlayKeywords: string[]
-
-  /* ---- 6. 用户自定义选择器（最高优先级）---- */
+  /* ---- 用户自定义选择器（最高优先级）---- */
   /** 永远保留：匹配的元素无论什么规则都不会被隐藏 */
   customKeepSelectors: string[]
   /** 永远隐藏：匹配的元素在每一帧（含首帧）都隐藏 */
   customHideSelectors: string[]
-
-  /* ---- 7. 主滚动容器识别 ---- */
-  /** 自动检测内部主滚动容器（SPA 常见：window 不滚，主体 div 滚） */
-  detectScrollContainer: boolean
-  /** 滚动容器最小 scrollHeight/clientHeight 比例 */
-  scrollContainerMinRatio: number
-  /** 滚动容器最小可滚动距离（px） */
-  scrollContainerMinOverflowPx: number
-  /** 视口覆盖面积权重：越高越偏向全屏容器 */
-  scrollContainerAreaWeight: number
-  /** 文本量权重：越高越偏向正文区域 */
-  scrollContainerTextWeight: number
-  /** 语义命中权重：越高越偏向 main/content/chat/list 等类名 */
-  scrollContainerSemanticWeight: number
-  /** 识别候选容器的 id/class 正则 */
-  scrollContainerRegex: string
-
-  /** 内部滚动容器底部安全裕量（px）。仅在选用内部滚动容器时生效，
-   *  普通整页（window 滚动）不受影响。
-   *  适配 vue-recycle-scroller 等虚拟列表内部 item 渲染溢出 overflow:hidden 边界、
-   *  以及紧邻 scroller 的输入框/工具栏 box-shadow 上溢导致每屏底部多切一条白底
-   *  的问题。代价是长图末尾会有等高的小空白条。 */
-  scrollerBottomSafetyPx: number
 
   /** 长截图相邻帧重叠比例（0~0.5）。
    *  scroller 底部常因 padding / box-shadow / mask 不渲染内容；按完整 viewport
@@ -100,10 +55,6 @@ export interface FullPageRuleSet {
    *  达到此高度后立即停止滚动并以该高度封顶拼接。
    *  同时也规避超大画布（OffscreenCanvas 超过浏览器尺寸上限会静默失败）。 */
   maxFullPageHeightPx: number
-
-  /* ---- 8. 模式开关 ---- */
-  /** 兜底：剩余跟随视口元素是否一律隐藏（关闭后只隐藏明确命中浮层规则的） */
-  hideAllFixedFallback: boolean
 }
 
 export interface SiteScrollRegionRule {
@@ -127,6 +78,40 @@ export interface SiteScrollRegionRule {
   clientHeight?: number
 }
 
+/**
+ * 整页（长截图）专家路由模式。
+ *  - "auto"：截图前自动探测页面类型并路由到对应专家（默认，推荐）
+ *  - "standard"：强制走标准流程（首帧保留顶栏 + 逐帧隐藏补偿，window 滚动友好）
+ *  - "isolate"：强制走隔离流程（隔离主滚动容器、隐藏容器外所有元素）
+ *  - "spa-like"：强制走「类 SPA」流程（window 可滚但有固定顶栏 / 大侧边栏，
+ *     首帧保留 chrome，后续帧把顶栏 + 侧边栏一并隐藏）
+ * 详见 src/background/handlers/fullPageRouter.ts。
+ */
+export type FullPageMode =
+  | "auto"
+  | "standard"
+  | "isolate"
+  | "spa-like"
+  | "embedded-doc"
+  | "chat"
+
+/**
+ * 长截图「专家」标识（MoE 路由的输出）：
+ *  - "standard"：标准流程（首帧保留 + 逐帧补偿）
+ *  - "isolate"：隔离主滚动容器流程
+ *  - "iframe"：内容主体在某大 iframe 内
+ *  - "spa-like"：window 可滚但带固定顶栏 / 大侧边栏的「类 SPA」页面
+ *  - "embedded-doc"：网页内嵌、canvas 渲染、自定义滚动的表格 / 文档（如网易灵犀）
+ * 与 fullPageRouter / routeLog 共用。
+ */
+export type FullPageExpert =
+  | "standard"
+  | "isolate"
+  | "iframe"
+  | "spa-like"
+  | "embedded-doc"
+  | "chat"
+
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */
   delaySeconds: number
@@ -140,63 +125,27 @@ export interface AppSettings {
   siteScrollRegions: Record<string, SiteScrollRegionRule>
   /** 截图后先打开裁剪编辑器，确认后再下载 */
   cropBeforeDownload: boolean
-  /** 长截图「激进隐藏模式」。
-   *  开启后整页滚动拼接走「先隔离主滚动容器、把容器外所有元素隐藏」的流程，
-   *  彻底消除顶栏 / 侧栏 / 弹窗逐帧重复；代价是词典官网等「内容分散在多个并列
-   *  容器」的页面可能漏截非滚动容器内的元素。默认关闭，保留旧的首帧保留 +
-   *  逐帧补偿流程。 */
-  aggressiveHideMode: boolean
+  /** 长截图专家路由模式。默认 "auto"：截图前自动判别页面类型并选用对应专家。
+   *  "standard" / "isolate" 为手动覆盖（强制使用某一专家）。 */
+  fullPageMode: FullPageMode
+  /** 调试：整页截图前在页面上短暂弹出 MoE 判定的页面类型（展示后立即移除，
+   *  不会进入截图）。feat/MoE 调试阶段默认开启，便于核对路由；可在设置页关闭。 */
+  showPageTypeToast: boolean
+  /** 长截图相邻两帧之间的等待时长（毫秒）。每滚动到新一帧后等待这么久再截图，
+   *  给页面留出渲染 / 懒加载 / 动画稳定的时间。默认 1500。调大更稳但更慢。 */
+  fullPageFrameDelayMs: number
 }
 
 /** 整页规则默认值。也作为"恢复默认"按钮的回填来源 */
 export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
   enabled: true,
 
-  followThresholdPx: 3,
-  viewportStableThresholdPx: 8,
-
-  contentRatio: 0.45,
-  contentText: 500,
-
-  backgroundArea: 0.6,
-  backgroundText: 20,
-  watermarkAreaMin: 0.25,
-
-  highZIndex: 100,
-  nearEdgePx: 32,
-  viewportSizedRatio: 0.5,
-
-  semanticMainRegex: "(^|[-_\\s])(main|content|article|post|page-content)([-_\\s]|$)",
-  extensionOverlayKeywords: [
-    "immersive",
-    "translation",
-    "translator",
-    "translate",
-    "extension",
-    "plasmo",
-    "crx",
-    "chrome-extension"
-  ],
-
   customKeepSelectors: [],
   customHideSelectors: [],
 
-  detectScrollContainer: true,
-  scrollContainerMinRatio: 1.05,
-  scrollContainerMinOverflowPx: 80,
-  scrollContainerAreaWeight: 0.35,
-  scrollContainerTextWeight: 0.3,
-  scrollContainerSemanticWeight: 0.35,
-  scrollContainerRegex:
-    "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
-
-  scrollerBottomSafetyPx: 0,
-
   fullPageOverlapRatio: 0.05,
 
-  maxFullPageHeightPx: 20000,
-
-  hideAllFixedFallback: true
+  maxFullPageHeightPx: 20000
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -206,7 +155,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   fullPageRules: DEFAULT_FULL_PAGE_RULES,
   siteScrollRegions: {},
   cropBeforeDownload: true,
-  aggressiveHideMode: false
+  fullPageMode: "auto",
+  showPageTypeToast: true,
+  fullPageFrameDelayMs: 1000
 }
 
 const KEY = "settings"
@@ -220,6 +171,14 @@ function mergeFullPageRules(
 
 /** 把存储里的原始对象补齐默认值，得到完整 AppSettings */
 function normalizeSettings(stored: Partial<AppSettings>): AppSettings {
+  // 旧版本用布尔 aggressiveHideMode 表达模式；迁移为新的 fullPageMode：
+  //   aggressiveHideMode=true → "isolate"，false / 未设置 → "auto"。
+  const legacyAggressive = (stored as { aggressiveHideMode?: boolean })
+    .aggressiveHideMode
+  const fullPageMode: FullPageMode =
+    stored.fullPageMode ??
+    (legacyAggressive === true ? "isolate" : DEFAULT_SETTINGS.fullPageMode)
+
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
@@ -229,8 +188,13 @@ function normalizeSettings(stored: Partial<AppSettings>): AppSettings {
     imageQuality: stored.imageQuality ?? DEFAULT_SETTINGS.imageQuality,
     cropBeforeDownload:
       stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,
-    aggressiveHideMode:
-      stored.aggressiveHideMode ?? DEFAULT_SETTINGS.aggressiveHideMode
+    fullPageMode,
+    showPageTypeToast:
+      stored.showPageTypeToast ?? DEFAULT_SETTINGS.showPageTypeToast,
+    fullPageFrameDelayMs:
+      typeof stored.fullPageFrameDelayMs === "number"
+        ? stored.fullPageFrameDelayMs
+        : DEFAULT_SETTINGS.fullPageFrameDelayMs
   }
 }
 

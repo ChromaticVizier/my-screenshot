@@ -7,6 +7,9 @@
 export const MessageType = {
   CAPTURE_VISIBLE: "capture/visible",
   CAPTURE_FULL_PAGE: "capture/fullPage",
+  CAPTURE_FULL_PAGE_CANCEL: "capture/fullPageCancel",
+  CAPTURE_FULL_PAGE_PROGRESS_GET: "capture/fullPageProgress/get",
+  CAPTURE_FULL_PAGE_PROGRESS: "capture/fullPageProgress",
   CAPTURE_SELECTION: "capture/selection",
   CAPTURE_DELAYED: "capture/delayed",
   CAPTURE_DESKTOP: "capture/desktop",
@@ -75,7 +78,38 @@ export interface CaptureVisibleRequest {
 /* ---------- 整页 ---------- */
 export interface CaptureFullPageRequest {
   type: typeof MessageType.CAPTURE_FULL_PAGE
-  payload?: ImageOptions
+  payload?: ImageOptions & {
+    taskId?: string
+  }
+}
+
+export interface CaptureFullPageCancelRequest {
+  type: typeof MessageType.CAPTURE_FULL_PAGE_CANCEL
+}
+
+export interface CaptureFullPageProgressGetRequest {
+  type: typeof MessageType.CAPTURE_FULL_PAGE_PROGRESS_GET
+}
+
+export type CaptureFullPageProgressPhase =
+  | "capturing"
+  | "stitching"
+  | "done"
+  | "cancelled"
+  | "error"
+
+export interface CaptureFullPageProgressState {
+  taskId: string
+  phase: CaptureFullPageProgressPhase
+  current: number
+  total: number
+  message?: string
+  error?: string
+}
+
+export interface CaptureFullPageProgressRequest {
+  type: typeof MessageType.CAPTURE_FULL_PAGE_PROGRESS
+  payload: CaptureFullPageProgressState
 }
 
 /* ---------- 滚动区域选择 ---------- */
@@ -223,6 +257,9 @@ export interface CaptureResponse {
 export type ExtensionRequest =
   | CaptureVisibleRequest
   | CaptureFullPageRequest
+  | CaptureFullPageCancelRequest
+  | CaptureFullPageProgressGetRequest
+  | CaptureFullPageProgressRequest
   | SelectScrollRegionRequest
   | ClearScrollRegionRequest
   | CaptureSelectionRequest

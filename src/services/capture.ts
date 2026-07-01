@@ -6,6 +6,8 @@ import {
   MessageType,
   type CaptureDelayedRequest,
   type CaptureDesktopRequest,
+  type CaptureFullPageCancelRequest,
+  type CaptureFullPageProgressGetRequest,
   type CaptureFullPageRequest,
   type CaptureResponse,
   type CaptureSelectionRequest,
@@ -41,12 +43,41 @@ export function captureVisibleArea(payload?: ImageOptions) {
 }
 
 /** 截取整页（滚动拼接）并触发下载 */
-export function captureFullPage(payload?: ImageOptions) {
+export function captureFullPage(payload?: CaptureFullPageRequest["payload"]) {
   const req: CaptureFullPageRequest = {
     type: MessageType.CAPTURE_FULL_PAGE,
     payload
   }
   return send(req)
+}
+
+export function cancelFullPageCapture() {
+  const req: CaptureFullPageCancelRequest = {
+    type: MessageType.CAPTURE_FULL_PAGE_CANCEL
+  }
+  return send(req)
+}
+
+export function getFullPageCaptureProgress(): Promise<
+  CaptureResponse & {
+    progress?:
+      | import("~src/shared/messages").CaptureFullPageProgressState
+      | null
+  }
+> {
+  const req: CaptureFullPageProgressGetRequest = {
+    type: MessageType.CAPTURE_FULL_PAGE_PROGRESS_GET
+  }
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(req, (res) => {
+      const lastError = chrome.runtime.lastError
+      if (lastError) {
+        resolve({ ok: false, error: lastError.message ?? "消息通道异常" })
+        return
+      }
+      resolve(res)
+    })
+  })
 }
 
 /** 手动选择并记忆当前站点的滚动区域 */
@@ -75,9 +106,7 @@ export function captureSelection(payload?: ImageOptions) {
 }
 
 /** 延迟后截取可视区域并触发下载（页面右上角会显示倒计时） */
-export function captureDelayed(
-  payload?: CaptureDelayedRequest["payload"]
-) {
+export function captureDelayed(payload?: CaptureDelayedRequest["payload"]) {
   const req: CaptureDelayedRequest = {
     type: MessageType.CAPTURE_DELAYED,
     payload
