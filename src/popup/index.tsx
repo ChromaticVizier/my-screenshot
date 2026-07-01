@@ -12,6 +12,7 @@ import TabBar from "~src/components/TabBar"
 import { TAB_ITEMS } from "~src/constants/tabs"
 import Editor from "~src/editor"
 import DesktopCaptureWindow from "~src/popup/desktop"
+import FullPageProgressWindow from "~src/popup/fullPageProgress"
 import OffscreenRecorder from "~src/popup/offscreenRecorder"
 import CapturePanel from "~src/popup/panels/CapturePanel"
 import RecordPanel from "~src/popup/panels/RecordPanel"
@@ -28,12 +29,13 @@ function Popup() {
     if (!w._rlog) {
       w._rlog = []
     }
-    ;(w._rlog as unknown[]).push(['_setAccount', 'screenshot'])
+    ;(w._rlog as unknown[]).push(["_setAccount", "screenshot"])
   }, [])
 
   // 根据 query 参数决定渲染哪个界面
   const action = new URLSearchParams(window.location.search).get("action")
   if (action === "desktopCapture") return <DesktopCaptureWindow />
+  if (action === "fullPageProgress") return <FullPageProgressWindow />
   if (action === "offscreenRecorder") return <OffscreenRecorder />
   if (action === "editor") return <Editor />
   return <MainPopup />
@@ -41,24 +43,45 @@ function Popup() {
 
 function MainPopup() {
   const [activeTab, setActiveTab] = useState<TabKey>("capture")
+  const [captureBusy, setCaptureBusy] = useState(false)
 
   // popup show 埋点
   useEffect(() => {
-    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['show', 'screenshot_popup_show'], ['from', 'toolbar_icon']]])
+    ;(window as any)._rlog?.push([
+      "_trackCustom",
+      "event",
+      [
+        ["show", "screenshot_popup_show"],
+        ["from", "toolbar_icon"]
+      ]
+    ])
   }, [])
 
   return (
     <div className={styles.popup}>
-      <TabBar
-        items={TAB_ITEMS}
-        activeKey={activeTab}
-        onChange={(key) => {
-          ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_tab_switch'], ['tab', key]]])
-          setActiveTab(key as TabKey)
-        }}
-      />
+      {!captureBusy && (
+        <TabBar
+          items={TAB_ITEMS}
+          activeKey={activeTab}
+          onChange={(key) => {
+            ;(window as any)._rlog?.push([
+              "_trackCustom",
+              "event",
+              [
+                ["action", "screenshot_tab_switch"],
+                ["tab", key]
+              ]
+            ])
+            setActiveTab(key as TabKey)
+          }}
+        />
+      )}
       <div className={styles.content}>
-        {activeTab === "capture" ? <CapturePanel /> : <RecordPanel />}
+        {activeTab === "capture" ? (
+          <CapturePanel onBusyChange={setCaptureBusy} />
+        ) : (
+          <RecordPanel />
+        )}
       </div>
     </div>
   )
