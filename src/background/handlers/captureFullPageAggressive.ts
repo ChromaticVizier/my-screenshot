@@ -57,6 +57,10 @@ import {
 } from "~src/background/injected/fullPageAggressive"
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
+  assertFullPageTaskNotCancelled,
+  updateFullPageTaskProgress
+} from "~src/background/utils/fullPageTask"
+import {
   dataUrlToBitmap,
   stitchToBlob,
   type CaptureSlice
@@ -78,6 +82,7 @@ export async function handleCaptureFullPageAggressive(
   const tabId = tab.id!
 
   const settings = await getSettings()
+  const taskId = request.payload?.taskId
   const format = request.payload?.format ?? settings.imageFormat
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
@@ -127,9 +132,16 @@ export async function handleCaptureFullPageAggressive(
       func: preparePage,
       args: [fullPageRules, siteRule]
     })
+    assertFullPageTaskNotCancelled(taskId)
     if (!prepResult) return { ok: false, error: "页面准备失败" }
     const metrics: PageMetrics = prepResult
     snapshot = prepResult.snapshot
+    updateFullPageTaskProgress(taskId, {
+      phase: "capturing",
+      current: 1,
+      total: Math.max(1, metrics.totalHeight),
+      message: "正在滚动并截图"
+    })
 
     // 「保留首帧」模式下：后续帧需整体下移 contentOffsetY（给首帧顶栏/侧栏让位），
     // 并把裁切出的 scroller 画到画布上 scroller 原本的横向位置 framesDestX，
@@ -244,6 +256,7 @@ export async function handleCaptureFullPageAggressive(
       const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
         format: "png"
       })
+      assertFullPageTaskNotCancelled(taskId)
       if (!firstDataUrl) throw new Error("截图失败：返回数据为空")
       const firstBitmap = await dataUrlToBitmap(firstDataUrl)
       slices.push({
@@ -518,6 +531,13 @@ export async function handleCaptureFullPageAggressive(
     let frameIndex = 0
 
     while (!singleFrame) {
+      assertFullPageTaskNotCancelled(taskId)
+      updateFullPageTaskProgress(taskId, {
+        phase: "capturing",
+        current: Math.min(totalHeight, Math.max(1, targetY)),
+        total: Math.max(1, totalHeight),
+        message: "正在滚动并截图"
+      })
       // 滚到目标位置（可能因页面底部不足被夹到 maxScrollY）
       const [{ result: actualY }] = await chrome.scripting.executeScript({
         target: scrollerTarget,
@@ -565,6 +585,12 @@ export async function handleCaptureFullPageAggressive(
 
       if (measuredHeight > totalHeight) {
         totalHeight = measuredHeight
+        updateFullPageTaskProgress(taskId, {
+          phase: "capturing",
+          current: Math.min(totalHeight, Math.max(1, scrollY)),
+          total: Math.max(1, totalHeight),
+          message: "正在滚动并截图"
+        })
         effectiveHeight = Math.max(effectiveHeight, totalHeight)
       }
 
@@ -740,6 +766,13 @@ export async function handleCaptureFullPageAggressive(
       effectiveHeight + contentOffsetY,
       preserveFirstFrameH
     )
+    updateFullPageTaskProgress(taskId, {
+      phase: "stitching",
+      current: 1,
+      total: 1,
+      message: "正在拼接"
+    })
+    assertFullPageTaskNotCancelled(taskId)
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
