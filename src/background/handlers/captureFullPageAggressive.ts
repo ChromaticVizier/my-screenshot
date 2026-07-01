@@ -34,10 +34,6 @@ import {
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
-  isolateScroller,
-  measureScrollerRect
-} from "~src/background/injected/fullPageAggressive"
-import {
   detectAndHidePseudoSticky,
   hideFixedElements,
   hideFrameChrome,
@@ -55,6 +51,10 @@ import {
   type PageMetrics,
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
+import {
+  isolateScroller,
+  measureScrollerRect
+} from "~src/background/injected/fullPageAggressive"
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
   dataUrlToBitmap,
@@ -82,7 +82,10 @@ export async function handleCaptureFullPageAggressive(
   const quality = request.payload?.quality ?? settings.imageQuality
   const fullPageRules = settings.fullPageRules
   // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）
-  const frameDelayMs = Math.max(0, Math.round(settings.fullPageFrameDelayMs ?? 1500))
+  const frameDelayMs = Math.max(
+    0,
+    Math.round(settings.fullPageFrameDelayMs ?? 1500)
+  )
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
     routing?.siteRuleOverride !== undefined
@@ -291,19 +294,10 @@ export async function handleCaptureFullPageAggressive(
         } catch {
           /* 测不到则视为无侧栏 */
         }
-        // 隐藏覆盖在 scroller 上的 fixed / 伪 sticky（scroller 外的 chrome 裁切区外不进图）
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: hideFixedElements,
-          args: [fullPageRules, aggressiveChrome]
-        })
-        await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: detectAndHidePseudoSticky,
-          args: [fullPageRules]
-        })
+        // 类 SPA 内部滚动容器：首帧必须完整保留 chrome，后续帧再隐藏。
+        // 这里不能在首帧后立刻隐藏再重测裁切，否则会污染首帧可见状态，并可能让
+        // window 滚动页（如 bilibili 动态）出现首屏重复。真正隐藏放到逐帧截图前。
         hidingApplied = true
-        await sleep(150)
 
         // 关键：首帧是在「隐藏 chrome 之前」截的（scroller 在原始位置 captureY）；
         // 隐藏可能让 scroller 上方的占位元素消失、scroller 回流上移，使其真实位置变成
@@ -327,8 +321,7 @@ export async function handleCaptureFullPageAggressive(
             if (typeof m.totalHeight === "number") {
               metrics.totalHeight = m.totalHeight
             }
-            // 后续帧步长以「隐藏后」可见高度为准
-            metrics.viewportHeight = m.captureHeight
+            // 后续帧步长仍以首帧看到的原始 scroller 高度为准，避免首帧内容重复。
           }
         } catch {
           /* 重测失败沿用 preparePage 旧值 */
@@ -614,10 +607,12 @@ export async function handleCaptureFullPageAggressive(
       // 3.4) capture 紧前一刻重读 scrollTop：中间 rehide / 懒加载 reflow 可能让
       //      scroller scrollTop 漂移，早期记录值会与 capture 内容偏离 → 长图错位。
       try {
-        const [{ result: finalMetrics }] = await chrome.scripting.executeScript({
-          target: scrollerTarget,
-          func: measureScrollMetrics
-        })
+        const [{ result: finalMetrics }] = await chrome.scripting.executeScript(
+          {
+            target: scrollerTarget,
+            func: measureScrollMetrics
+          }
+        )
         if (finalMetrics && typeof finalMetrics.scrollTop === "number") {
           scrollY = finalMetrics.scrollTop
         }

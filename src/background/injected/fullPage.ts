@@ -103,6 +103,32 @@ export function preparePage(
     .querySelectorAll(`[${SCROLLER_ATTR}="1"]`)
     .forEach((el) => el.removeAttribute(SCROLLER_ATTR))
 
+  // 清掉上一轮异常中断后可能残留的逐帧 chrome 隐藏标记。
+  // 特别是 open shadowRoot 内的侧栏：若旧的 data-my-ss-frame-hide/style 残留，
+  // 首帧截图前就会被隐藏，表现为「首帧缺侧栏」。
+  const FRAME_HIDE_ATTR = "data-my-ss-frame-hide"
+  const FRAME_HIDE_STYLE_ID = "__my_ss_frame_hide_style"
+  const clearFrameHideResidue = (root: Document | ShadowRoot) => {
+    try {
+      root
+        .querySelectorAll<HTMLElement>(`[${FRAME_HIDE_ATTR}]`)
+        .forEach((el) => el.removeAttribute(FRAME_HIDE_ATTR))
+      root.getElementById(FRAME_HIDE_STYLE_ID)?.remove()
+      root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+        if (el.shadowRoot) clearFrameHideResidue(el.shadowRoot)
+      })
+    } catch {
+      /* 忽略 */
+    }
+  }
+  clearFrameHideResidue(document)
+  delete (window as unknown as Record<string, unknown>)[
+    "__myScreenshotFrameHideList"
+  ]
+  delete (window as unknown as Record<string, unknown>)[
+    "__myScreenshotFollowState"
+  ]
+
   // 注入全局「冻结样式」：截图全程关闭平滑滚动与所有过渡/动画。
   // 参考 awesome-screenshot 逆向（docs/screenshot-flow-reference.md #4 #5）：
   //   - scroll-behavior:auto → scrollTo / scrollTop 立即生效，不产生滚动动画帧；
@@ -127,7 +153,11 @@ export function preparePage(
 
   // 1) 探测 window 是否真的能滚
   const probeY = originalScrollY + 1
-  window.scrollTo({ top: probeY, left: 0, behavior: "instant" as ScrollBehavior })
+  window.scrollTo({
+    top: probeY,
+    left: 0,
+    behavior: "instant" as ScrollBehavior
+  })
   const reachedY = window.scrollY
   // 还原 scrollY，避免影响后续探测
   window.scrollTo({
@@ -174,11 +204,7 @@ export function preparePage(
   // 慕课等 body.overflow=hidden|auto 的页面其实是 window 可滚的，自动评分却会把某个
   // 内部 div 误判成主滚动容器 → scrollToY 设错对象 → 只出首帧、后续空白。
   // 因此该模式下：window 可滚就直接用 window，跳过内部容器评分。
-  if (
-    !scrollerEl &&
-    options?.preferWindowScroll &&
-    windowScrollable
-  ) {
+  if (!scrollerEl && options?.preferWindowScroll && windowScrollable) {
     // 标记不命中任何内部 scroller，走 window 滚动路径
   } else if (!scrollerEl) {
     const vw = html.clientWidth || window.innerWidth
@@ -207,7 +233,8 @@ export function preparePage(
       html.offsetHeight,
       html.clientHeight
     )
-    const windowCanCover = windowScrollable && windowDocHeight > vh + minOverflowPx
+    const windowCanCover =
+      windowScrollable && windowDocHeight > vh + minOverflowPx
     let bestScore = 0
     let bestEl: HTMLElement | null = null
 
@@ -235,9 +262,18 @@ export function preparePage(
       // 不在视口内或过小的滚动块不作为整页主体
       if (rect.width < vw * 0.15 || rect.height < vh * 0.25) return
       if (rect.bottom <= 0 || rect.top >= vh) return
-      const visibleW = Math.max(0, Math.min(rect.right, vw) - Math.max(rect.left, 0))
-      const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0))
-      const visibleAreaRatio = Math.min(1, (visibleW * visibleH) / Math.max(1, vw * vh))
+      const visibleW = Math.max(
+        0,
+        Math.min(rect.right, vw) - Math.max(rect.left, 0)
+      )
+      const visibleH = Math.max(
+        0,
+        Math.min(rect.bottom, vh) - Math.max(rect.top, 0)
+      )
+      const visibleAreaRatio = Math.min(
+        1,
+        (visibleW * visibleH) / Math.max(1, vw * vh)
+      )
       if (visibleAreaRatio <= 0.03) return
 
       const idClass = `${el.id || ""} ${String(el.className || "")}`
@@ -248,7 +284,8 @@ export function preparePage(
       const heightScore = Math.min(1, visibleH / Math.max(1, vh))
       const widthScore = Math.min(1, visibleW / Math.max(1, vw))
       const centerX = rect.left + rect.width / 2
-      const centerScore = 1 - Math.min(1, Math.abs(centerX - vw / 2) / Math.max(1, vw / 2))
+      const centerScore =
+        1 - Math.min(1, Math.abs(centerX - vw / 2) / Math.max(1, vw / 2))
       const depthPenalty = (() => {
         let depth = 0
         let cur: HTMLElement | null = el
@@ -259,7 +296,8 @@ export function preparePage(
         return Math.min(0.2, depth * 0.01)
       })()
 
-      const areaScore = visibleAreaRatio * 0.55 + heightScore * 0.3 + widthScore * 0.15
+      const areaScore =
+        visibleAreaRatio * 0.55 + heightScore * 0.3 + widthScore * 0.15
       const score =
         overflowScore * 0.25 +
         areaScore * areaWeight +
@@ -326,13 +364,18 @@ export function preparePage(
     scrollerViewportTop: scrollerRect ? Math.max(0, scrollerRect.top) : 0,
     scrollerViewportLeft: scrollerRect ? Math.max(0, scrollerRect.left) : 0,
     scrollerViewportWidth: scrollerRect
-      ? Math.min(scrollerRect.width, html.clientWidth - Math.max(0, scrollerRect.left))
+      ? Math.min(
+          scrollerRect.width,
+          html.clientWidth - Math.max(0, scrollerRect.left)
+        )
       : html.clientWidth,
     scrollerViewportHeight: scrollerRect
       ? Math.max(
           1,
-          Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top)) -
-            scrollerSafetyPx
+          Math.min(
+            scrollerRect.height,
+            html.clientHeight - Math.max(0, scrollerRect.top)
+          ) - scrollerSafetyPx
         )
       : html.clientHeight
   }
@@ -359,7 +402,10 @@ export function preparePage(
   const captureHeight = scrollerRect
     ? Math.max(
         1,
-        Math.min(scrollerRect.height, html.clientHeight - Math.max(0, scrollerRect.top))
+        Math.min(
+          scrollerRect.height,
+          html.clientHeight - Math.max(0, scrollerRect.top)
+        )
       )
     : html.clientHeight
 
@@ -392,9 +438,7 @@ export function measureScrollMetrics(): {
   scrollTop: number
 } {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   if (scroller) {
     return {
       scrollHeight: Math.max(scroller.scrollHeight, scroller.clientHeight),
@@ -436,9 +480,7 @@ export function waitForDynamicContent(maxWaitMs: number): Promise<{
   iterations: number
 }> {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   const POLL_INTERVAL = 80
   const STABLE_CHECKS = 3
   const start = performance.now()
@@ -512,9 +554,7 @@ export function waitForDynamicContent(maxWaitMs: number): Promise<{
  */
 export function kickScrollListeners(stepHeight: number): void {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   const target: EventTarget = scroller ?? window
   try {
     target.dispatchEvent(new Event("scroll", { bubbles: true }))
@@ -547,9 +587,7 @@ export function kickScrollListeners(stepHeight: number): void {
  */
 export function scrollToY(y: number): number {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   if (scroller) {
     const prevBehavior = scroller.style.scrollBehavior
     const prevSnap = scroller.style.scrollSnapType
@@ -678,11 +716,7 @@ export function hideFixedElements(
   const html = document.documentElement
   const vw = html.clientWidth || window.innerWidth
   const vh = html.clientHeight || window.innerHeight
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    html.scrollHeight,
-    vh
-  )
+  const docHeight = Math.max(document.body.scrollHeight, html.scrollHeight, vh)
   const viewportSizedRatio = 0.5
   const contentRatio = 0.45
 
@@ -855,7 +889,6 @@ export function hideOutsideFrameChain(keepFrameUrl: string): number {
   return list.length
 }
 
-
 /**
  * 隐藏主 frame 上的 fixed/sticky 元素（含跨域 iframe 父级页面的顶栏 / 侧栏）。
  *
@@ -966,11 +999,7 @@ export function hideFixedElementsExcludeFrame(
   const html = document.documentElement
   const vw = html.clientWidth || window.innerWidth
   const vh = html.clientHeight || window.innerHeight
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    html.scrollHeight,
-    vh
-  )
+  const docHeight = Math.max(document.body.scrollHeight, html.scrollHeight, vh)
   const viewportSizedRatio = 0.5
   const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
@@ -1011,7 +1040,6 @@ export function hideFixedElementsExcludeFrame(
     })
   }
   visit(document.documentElement)
-
   ;(window as unknown as Record<string, unknown>)[STORE] = list
   return list.length
 }
@@ -1097,11 +1125,7 @@ export function rehideFixedElements(
   const html = document.documentElement
   const vw = html.clientWidth || window.innerWidth
   const vh = html.clientHeight || window.innerHeight
-  const docHeight = Math.max(
-    document.body.scrollHeight,
-    html.scrollHeight,
-    vh
-  )
+  const docHeight = Math.max(document.body.scrollHeight, html.scrollHeight, vh)
   const viewportSizedRatio = 0.5
   const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
@@ -1137,7 +1161,6 @@ export function rehideFixedElements(
     })
   }
   visit(document.documentElement)
-
   ;(window as unknown as Record<string, unknown>)[STORE] = list
   return newlyHidden.length
 }
@@ -1197,9 +1220,7 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
 
   const html = document.documentElement
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   const getScrollTop = () => (scroller ? scroller.scrollTop : window.scrollY)
   const getScrollLeft = () => (scroller ? scroller.scrollLeft : window.scrollX)
   const scrollToPos = (top: number, left: number) => {
@@ -1221,7 +1242,11 @@ export function detectAndHidePseudoSticky(rules: FullPageRuleSet): number {
   const vh = scroller ? scroller.clientHeight : html.clientHeight
   const docHeight = scroller
     ? Math.max(scroller.scrollHeight, scroller.clientHeight)
-    : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, vh)
+    : Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        vh
+      )
 
   // 不足以滚动的页面无需探测
   const maxScroll = Math.max(0, docHeight - vh)
@@ -1429,9 +1454,7 @@ export function hideFrameChrome(
   const LARGE_SUBTREE_RATIO = 0.9
 
   const html = document.documentElement
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   const scrollTop = scroller ? scroller.scrollTop : window.scrollY
   const scrollLeft = scroller ? scroller.scrollLeft : window.scrollX
   const vw = scroller ? scroller.clientWidth : html.clientWidth
@@ -1444,14 +1467,19 @@ export function hideFrameChrome(
   //  - 属性值 "1"：display:none（彻底移除，会回流——scroller / iframe 模式用）；
   //  - 属性值 "2"：仅 visibility:hidden（**保留布局占位、不回流**——类 SPA 副栏用，
   //    避免主滚动区因副栏脱流而被撑宽）。
-  if (!document.getElementById(STYLE_ID)) {
+  const ensureHideStyle = (root: Document | ShadowRoot) => {
+    if (root.getElementById(STYLE_ID)) return
     const st = document.createElement("style")
     st.id = STYLE_ID
     st.textContent =
       `[${ATTR}="1"]{display:none!important;visibility:hidden!important}` +
       `[${ATTR}="2"]{visibility:hidden!important}`
-    ;(document.head || html).appendChild(st)
+    ;(root instanceof Document
+      ? root.head || root.documentElement
+      : root
+    ).appendChild(st)
   }
+  ensureHideStyle(document)
 
   // 豁免名单：customKeepSelectors（含祖先链）+ 主滚动容器祖先链
   const keepSet = new Set<HTMLElement>()
@@ -1509,7 +1537,20 @@ export function hideFrameChrome(
   const storeRaw = w[ATTR_STORE]
   const store = Array.isArray(storeRaw) ? (storeRaw as HTMLElement[]) : []
 
+  const hasHostWithFrameHideAttr = (el: HTMLElement): boolean => {
+    const root = el.getRootNode()
+    return (
+      root instanceof ShadowRoot &&
+      root.host instanceof HTMLElement &&
+      root.host.hasAttribute(ATTR)
+    )
+  }
+
   const tag = (el: HTMLElement) => {
+    const root = el.getRootNode()
+    if (root instanceof Document || root instanceof ShadowRoot) {
+      ensureHideStyle(root)
+    }
     el.setAttribute(ATTR, keepSpace ? "2" : "1")
     store.push(el)
   }
@@ -1526,6 +1567,7 @@ export function hideFrameChrome(
 
   for (const el of all) {
     if (el.getAttribute(ATTR)) continue
+    if (hasHostWithFrameHideAttr(el)) continue
     if (el.getAttribute(SCROLLER_ATTR) === "1") continue
     if (keepSet.has(el)) continue
 
@@ -1705,7 +1747,13 @@ export function relocateFrameChrome(rules: FullPageRuleSet): number {
       }[])
     : []
 
-  const pin = (el: HTMLElement, t: number, l: number, wpx: number, hpx: number) => {
+  const pin = (
+    el: HTMLElement,
+    t: number,
+    l: number,
+    wpx: number,
+    hpx: number
+  ) => {
     el.style.setProperty("position", "absolute", "important")
     el.style.setProperty("top", `${t}px`, "important")
     el.style.setProperty("left", `${l}px`, "important")
@@ -1805,9 +1853,7 @@ export function relocateFrameChrome(rules: FullPageRuleSet): number {
 export function measureTopHeaderBottom(): number {
   const STORE = "__myScreenshotHiddenList"
   const store = (window as unknown as Record<string, unknown>)[STORE]
-  const list = Array.isArray(store)
-    ? (store as { rect?: DOMRect }[])
-    : []
+  const list = Array.isArray(store) ? (store as { rect?: DOMRect }[]) : []
   const html = document.documentElement
   const vpw = html.clientWidth || window.innerWidth
   const vph = html.clientHeight || window.innerHeight
@@ -1877,7 +1923,10 @@ export function measureContentInsets(): { left: number; right: number } {
       right = Math.min(right, r.left)
     }
   }
-  return { left: Math.round(left), right: Math.round(Math.max(left + 1, right)) }
+  return {
+    left: Math.round(left),
+    right: Math.round(Math.max(left + 1, right))
+  }
 }
 
 /**
@@ -1922,11 +1971,8 @@ export function measurePageBackground(): string {
  */
 export function measureContentTopReservedSpace(): number {
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
-  const root: ParentNode =
-    scroller || document.body || document.documentElement
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
+  const root: ParentNode = scroller || document.body || document.documentElement
   const vph = scroller
     ? scroller.clientHeight
     : document.documentElement.clientHeight || window.innerHeight
@@ -2011,12 +2057,32 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
       document
         .querySelectorAll("[data-my-ss-frame-hide]")
         .forEach((el) => el.removeAttribute("data-my-ss-frame-hide"))
+      const frameHideStore = (window as unknown as Record<string, unknown>)[
+        "__myScreenshotFrameHideList"
+      ]
+      if (Array.isArray(frameHideStore)) {
+        ;(frameHideStore as HTMLElement[]).forEach((el) => {
+          try {
+            el.removeAttribute("data-my-ss-frame-hide")
+            const root = el.getRootNode()
+            if (root instanceof ShadowRoot) {
+              root.getElementById("__my_ss_frame_hide_style")?.remove()
+            }
+          } catch {
+            /* 忽略 */
+          }
+        })
+      }
       document.getElementById("__my_ss_frame_hide_style")?.remove()
     } catch {
       /* 忽略 */
     }
-    delete (window as unknown as Record<string, unknown>)["__myScreenshotFrameHideList"]
-    delete (window as unknown as Record<string, unknown>)["__myScreenshotFollowState"]
+    delete (window as unknown as Record<string, unknown>)[
+      "__myScreenshotFrameHideList"
+    ]
+    delete (window as unknown as Record<string, unknown>)[
+      "__myScreenshotFollowState"
+    ]
     // 还原 relocateFrameChrome 的重定位：恢复各元素 inline style + body position
     try {
       const relRaw = (window as unknown as Record<string, unknown>)[
@@ -2033,7 +2099,9 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
     } catch {
       /* 忽略 */
     }
-    delete (window as unknown as Record<string, unknown>)["__myScreenshotRelocList"]
+    delete (window as unknown as Record<string, unknown>)[
+      "__myScreenshotRelocList"
+    ]
     {
       const bodyPos = (window as unknown as Record<string, unknown>)[
         "__myScreenshotBodyPos"
@@ -2041,7 +2109,9 @@ export function restorePage(snapshot: PreparePageSnapshot): void {
       if (typeof bodyPos === "string") {
         document.body.style.position = bodyPos
       }
-      delete (window as unknown as Record<string, unknown>)["__myScreenshotBodyPos"]
+      delete (window as unknown as Record<string, unknown>)[
+        "__myScreenshotBodyPos"
+      ]
     }
   }
 
@@ -2109,9 +2179,7 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
 
   const html = document.documentElement
   const SCROLLER_ATTR = "data-my-screenshot-scroller"
-  const scroller = document.querySelector<HTMLElement>(
-    `[${SCROLLER_ATTR}="1"]`
-  )
+  const scroller = document.querySelector<HTMLElement>(`[${SCROLLER_ATTR}="1"]`)
   const vw = scroller ? scroller.clientWidth : html.clientWidth
   const vh = scroller ? scroller.clientHeight : html.clientHeight
 
@@ -2167,7 +2235,11 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
   // 或自身高度 ≥ 视口 90% 且子树包含大量内容
   const docHeight = scroller
     ? Math.max(scroller.scrollHeight, scroller.clientHeight)
-    : Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, vh)
+    : Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        vh
+      )
   const isMainContainer = (el: HTMLElement, rect: DOMRect): boolean => {
     if (vh > 0 && rect.height >= vh * 0.9 && rect.width >= vw * 0.9) {
       // 占满视口的 fixed 元素：除非它是真的弹窗，否则极可能是 SPA 主壳
@@ -2211,8 +2283,7 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
       }
       // 自身 fixed/sticky 直接进入候选；
       // 否则若是 absolute 且祖先链有 fixed/sticky，也视为「视口跟随弹窗」候选。
-      const isSelfSticky =
-        cs.position === "fixed" || cs.position === "sticky"
+      const isSelfSticky = cs.position === "fixed" || cs.position === "sticky"
       const isAbsoluteUnderSticky =
         cs.position === "absolute" && findStickyAncestor(el) !== null
       if (!isSelfSticky && !isAbsoluteUnderSticky) {
@@ -2311,8 +2382,7 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
         return
       }
       // 必须含 iframe（自身或后代），仅针对 iframe 弹窗
-      const hasIframe =
-        el.tagName === "IFRAME" || !!el.querySelector("iframe")
+      const hasIframe = el.tagName === "IFRAME" || !!el.querySelector("iframe")
       if (!hasIframe) {
         if (el.shadowRoot) visit(el.shadowRoot)
         return
@@ -2407,7 +2477,6 @@ export function flattenOversizedModals(rules: FullPageRuleSet): {
     })
   }
   visit(document.documentElement)
-
   ;(window as unknown as Record<string, unknown>)[STORE] = list
 
   // 调试日志：列出命中元素 + 跳过原因，便于现场判断 flatten 为何漏判
@@ -2486,9 +2555,9 @@ export function restoreFlattenedModals(): void {
   const SPACER_STORE = "__myScreenshotFlattenSpacer"
 
   // 先移除撑高用的 spacer
-  const spacer = (window as unknown as Record<string, unknown>)[SPACER_STORE] as
-    | HTMLElement
-    | undefined
+  const spacer = (window as unknown as Record<string, unknown>)[
+    SPACER_STORE
+  ] as HTMLElement | undefined
   if (spacer && spacer.parentNode) {
     try {
       spacer.parentNode.removeChild(spacer)
@@ -2551,8 +2620,7 @@ export function restoreFlattenedModals(): void {
       const parentEl = parent as Node | null
       if (parentEl && parentEl !== el.parentNode) {
         const isParentConnected =
-          parentEl === document ||
-          (parentEl as Node).isConnected !== false
+          parentEl === document || (parentEl as Node).isConnected !== false
         if (isParentConnected) {
           if (nextSibling && (nextSibling as Node).parentNode === parentEl) {
             parentEl.insertBefore(el, nextSibling as Node)
@@ -2685,7 +2753,6 @@ export function freezeFlattenedModals(): number {
     document.addEventListener(name, swallow, true)
     window.addEventListener(name, swallow, true)
   })
-
   ;(window as unknown as Record<string, unknown>)[FREEZE_STORE] = {
     observer,
     swallowedEvents,
@@ -2744,7 +2811,12 @@ export function unfreezeFlattenedModals(): void {
 export function freezeScrollModals(): number {
   const STORE = "__myScreenshotScrollModalFreeze"
 
-  type Target = { el: HTMLElement; display: string; visibility: string; opacity: string }
+  type Target = {
+    el: HTMLElement
+    display: string
+    visibility: string
+    opacity: string
+  }
   const targets: Target[] = []
 
   document.querySelectorAll<HTMLElement>("*").forEach((el) => {
@@ -2801,7 +2873,6 @@ export function freezeScrollModals(): number {
     attributes: true,
     attributeFilter: ["style", "class", "hidden"]
   })
-
   ;(window as unknown as Record<string, unknown>)[STORE] = { observer }
   return targets.length
 }
