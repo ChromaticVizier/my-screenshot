@@ -5,6 +5,7 @@
 import {
   handleCaptureDelayed,
   handleCaptureDesktop,
+  handleCaptureFullPage,
   handleCaptureSelection,
   handleCaptureVisible,
   handleClearScrollRegion,
@@ -13,7 +14,7 @@ import {
   handleHideRelayWindow,
   handleSelectScrollRegion
 } from "~src/background/handlers/capture"
-import { handleCaptureFullPageRouted } from "~src/background/handlers/fullPageRouter"
+import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
 import {
   handleRecorderFinish,
   handleRecorderStarted,
@@ -22,18 +23,11 @@ import {
   handleRecordStop
 } from "~src/background/handlers/record"
 import {
-  cancelFullPageTask,
-  finishFullPageTask,
-  getFullPageTask,
-  isFullPageCaptureCancelled,
-  setFullPageTaskTab,
-  startFullPageTask
-} from "~src/background/utils/fullPageTask"
-import {
   clearPendingImage,
   getPendingImage
 } from "~src/background/utils/pendingImage"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
+import { getSettings } from "~src/shared/settings"
 
 chrome.runtime.onMessage.addListener(
   (request: ExtensionRequest, sender, sendResponse) => {
@@ -45,36 +39,13 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.CAPTURE_FULL_PAGE: {
-          const taskId = startFullPageTask(request.payload?.taskId)
-          request.payload = { ...(request.payload ?? {}), taskId }
-          const tabId = sender.tab?.id
-          setFullPageTaskTab(taskId, tabId)
-          try {
-            const res = await handleCaptureFullPageRouted(request)
-            finishFullPageTask(taskId, res)
-            sendResponse(res)
-          } catch (err) {
-            const res = isFullPageCaptureCancelled(err)
-              ? { ok: false, cancelled: true, error: "长截图已停止" }
-              : {
-                  ok: false,
-                  error: err instanceof Error ? err.message : String(err)
-                }
-            finishFullPageTask(taskId, res)
-            sendResponse(res)
+          // 优先级：激进隐藏模式 > 默认滚动拼接
+          const settings = await getSettings()
+          if (settings.aggressiveHideMode) {
+            sendResponse(await handleCaptureFullPageAggressive(request))
+          } else {
+            sendResponse(await handleCaptureFullPage(request))
           }
-          break
-        }
-        case MessageType.CAPTURE_FULL_PAGE_CANCEL: {
-          sendResponse({ ok: cancelFullPageTask(), cancelled: true })
-          break
-        }
-        case MessageType.CAPTURE_FULL_PAGE_PROGRESS_GET: {
-          sendResponse({ ok: true, progress: getFullPageTask() })
-          break
-        }
-        case MessageType.CAPTURE_FULL_PAGE_PROGRESS: {
-          sendResponse({ ok: true })
           break
         }
         case MessageType.SELECT_SCROLL_REGION: {
@@ -112,11 +83,7 @@ chrome.runtime.onMessage.addListener(
         case MessageType.GET_PENDING_IMAGE: {
           const img = getPendingImage()
           if (img) {
-            sendResponse({
-              ok: true,
-              dataUrl: img.dataUrl,
-              filename: img.filename
-            })
+            sendResponse({ ok: true, dataUrl: img.dataUrl, filename: img.filename })
           } else {
             sendResponse({ ok: false, error: "没有待编辑的图片" })
           }
