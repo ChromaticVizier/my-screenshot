@@ -20,6 +20,7 @@ import { handleCaptureFullPage } from "~src/background/handlers/capture"
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
 import { handleCaptureFullPageChat } from "~src/background/handlers/captureFullPageChat"
 import { handleCaptureFullPageEmbeddedDoc } from "~src/background/handlers/captureFullPageEmbeddedDoc"
+import { handleCaptureFullPageLegacyFrame } from "~src/background/handlers/captureFullPageLegacyFrame"
 import {
   errorResponse,
   hostnameFromUrl,
@@ -59,6 +60,7 @@ const EXPERT_LABELS: Record<FullPageExpert, string> = {
   iframe: "内嵌 iframe（内容主体在 iframe 内）",
   "spa-like": "类 SPA（window 可滚 + 固定顶栏 / 大侧边栏）",
   "embedded-doc": "内嵌文档/表格（canvas 自定义滚动，如网易灵犀）",
+  "legacy-frame": "旧式 frame 页面（frameset 多 frame）",
   chat: "AI 聊天（输入框只保留在最后一帧）"
 }
 
@@ -75,6 +77,17 @@ export interface RouteDecision {
  *   isolate / iframe，避免误判把"原本能正常截"的页面改坏。
  */
 export function classifyPageType(p: PageTypeProbe): RouteDecision {
+  if (
+    p.legacyFrame &&
+    p.legacyFrame.count >= 2 &&
+    p.legacyFrame.scrollableCount >= 1
+  ) {
+    return {
+      expert: "legacy-frame",
+      reason: `legacy frameset frames=${p.legacyFrame.count}, scrollable=${p.legacyFrame.scrollableCount}`
+    }
+  }
+
   // 1) 主体 iframe：一个大 iframe 占据视口主体 → 内容多半在 iframe 内。
   //    要求有可用的 http(s) src 才能做 frame 定位，否则回退后续判据。
   if (
@@ -221,6 +234,20 @@ export async function handleCaptureFullPageRouted(
   } else if (mode === "spa-like") {
     decision = { expert: "spa-like", reason: "手动指定模式 = spa-like" }
     routing = { hideStructuralChrome: true }
+  } else if (mode === "legacy-frame") {
+    decision = { expert: "legacy-frame", reason: "手动指定模式 = legacy-frame" }
+    signals = await probe(tabId)
+    if (signals?.legacyFrame?.mainFrameUrl) {
+      routing = {
+        siteRuleOverride: {
+          selector: "",
+          hostname,
+          createdAt: Date.now(),
+          frameUrl: signals.legacyFrame.mainFrameUrl,
+          label: `legacy frame ${signals.legacyFrame.mainFrameName || "main"}`
+        }
+      }
+    }
   } else if (mode === "chat") {
     decision = { expert: "chat", reason: "手动指定模式 = chat" }
   } else if (mode === "embedded-doc") {
@@ -256,7 +283,20 @@ export async function handleCaptureFullPageRouted(
         decision = { expert: "standard", reason: "页面探测失败，兜底标准流程" }
       } else {
         decision = classifyPageType(signals)
-        if (decision.expert === "iframe" && signals.dominantIframe) {
+        if (
+          decision.expert === "legacy-frame" &&
+          signals.legacyFrame?.mainFrameUrl
+        ) {
+          routing = {
+            siteRuleOverride: {
+              selector: "",
+              hostname,
+              createdAt: Date.now(),
+              frameUrl: signals.legacyFrame.mainFrameUrl,
+              label: `auto legacy frame ${signals.legacyFrame.mainFrameName || "main"}`
+            }
+          }
+        } else if (decision.expert === "iframe" && signals.dominantIframe) {
           const synthetic: SiteScrollRegionRule = {
             selector: "",
             hostname,
@@ -308,6 +348,8 @@ export async function handleCaptureFullPageRouted(
         return await handleCaptureFullPageAggressive(request, routing)
       case "embedded-doc":
         return await handleCaptureFullPageEmbeddedDoc(request, routing)
+      case "legacy-frame":
+        return await handleCaptureFullPageLegacyFrame(request, routing)
       case "chat":
         return await handleCaptureFullPageChat(request, routing)
       case "spa-like":

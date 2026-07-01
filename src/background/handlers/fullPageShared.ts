@@ -184,6 +184,8 @@ export async function resolveFrameTarget(
   if (!frames || frames.length === 0) return { tabId }
   const exact = frames.find((f) => f.url === frameUrl)
   if (exact) return { tabId, frameIds: [exact.frameId] }
+  const byName = frames.find((f) => f.name === frameUrl)
+  if (byName) return { tabId, frameIds: [byName.frameId] }
   const partial = frames.find((f) => looseMatchUrl(f.url, frameUrl))
   if (partial) return { tabId, frameIds: [partial.frameId] }
   return { tabId }
@@ -204,9 +206,11 @@ export async function resolveFrameTarget(
  * query 但 path 第一段也变），退而取主 frame 中"最大可见 iframe"。popo 文档
  * 等富文本嵌入页一般主 iframe 占视口 ≥ 50%，远比侧边的小 iframe 大，区分度高。
  */
-export function locateFrameOffsetInPage(
-  frameUrl: string
-): { x: number; y: number; matchedBy: "exact" | "loose" | "largest" | "none" } {
+export function locateFrameOffsetInPage(frameUrl: string): {
+  x: number
+  y: number
+  matchedBy: "exact" | "loose" | "largest" | "none"
+} {
   const matches = (a: string, b: string): boolean => {
     if (!a || !b) return false
     if (a === b) return true
@@ -230,7 +234,9 @@ export function locateFrameOffsetInPage(
   ): { x: number; y: number; matchedBy: "exact" | "loose" } | null => {
     let iframes: HTMLIFrameElement[]
     try {
-      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+      iframes = Array.from(
+        doc.querySelectorAll<HTMLIFrameElement>("iframe,frame")
+      )
     } catch {
       return null
     }
@@ -250,11 +256,15 @@ export function locateFrameOffsetInPage(
       } catch {
         nestedDoc = null
       }
-      if (f.src === frameUrl) return { x: localX, y: localY, matchedBy: "exact" }
+      if (f.src === frameUrl)
+        return { x: localX, y: localY, matchedBy: "exact" }
       if (nestedDoc?.location?.href === frameUrl) {
         return { x: localX, y: localY, matchedBy: "exact" }
       }
-      if (matches(f.src, frameUrl) || matches(nestedDoc?.location?.href ?? "", frameUrl)) {
+      if (
+        matches(f.src, frameUrl) ||
+        matches(nestedDoc?.location?.href ?? "", frameUrl)
+      ) {
         return { x: localX, y: localY, matchedBy: "loose" }
       }
 
@@ -278,7 +288,7 @@ export function locateFrameOffsetInPage(
   //    虽然稳定，但若将来 path 也变会同样失效。最大 iframe 兜底覆盖了
   //    "页面只有一个主 iframe + 几个小 iframe（统计/分享）" 这类典型布局。
   let best: { el: HTMLIFrameElement; area: number } | null = null
-  document.querySelectorAll<HTMLIFrameElement>("iframe").forEach((f) => {
+  document.querySelectorAll<HTMLIFrameElement>("iframe,frame").forEach((f) => {
     let r: DOMRect
     try {
       r = f.getBoundingClientRect()

@@ -44,6 +44,15 @@ export interface PageTypeProbe {
     areaRatio: number
   } | null
 
+  /** 传统 frameset/frame 页面：内容主体在 <frame> 内，主 window 不滚动 */
+  legacyFrame: {
+    count: number
+    scrollableCount: number
+    mainFrameUrl: string
+    mainFrameName: string
+    mainFrameAreaRatio: number
+    chromeFrameCount: number
+  } | null
   /** fixed/sticky 元素总数（弹窗/吸顶密度的粗略指标） */
   fixedStickyCount: number
   /** 是否存在高层级、覆盖近全屏的 fixed 遮罩（Cookie 横幅 / 模态弹窗） */
@@ -256,7 +265,76 @@ export function probePageType(): PageTypeProbe {
     dominantIframe = null
   }
 
-  /* ---- 4) body/html overflow 锁 ---- */
+  /* ---- 4) 传统 frameset/frame ---- */
+  let legacyFrame: PageTypeProbe["legacyFrame"] = null
+  try {
+    const frames = Array.from(
+      document.querySelectorAll<HTMLFrameElement>("frame")
+    )
+    if (frames.length >= 2) {
+      let best: {
+        frame: HTMLFrameElement
+        area: number
+        url: string
+        name: string
+        scrollable: boolean
+      } | null = null
+      let scrollableCount = 0
+      let chromeFrameCount = 0
+      frames.forEach((f) => {
+        const r = f.getBoundingClientRect()
+        const area = Math.max(0, r.width) * Math.max(0, r.height)
+        if (area <= 0) return
+        let doc: Document | null = null
+        try {
+          doc = f.contentDocument
+        } catch {
+          doc = null
+        }
+        const docH = doc
+          ? Math.max(
+              doc.documentElement.scrollHeight,
+              doc.body?.scrollHeight ?? 0,
+              doc.documentElement.offsetHeight,
+              doc.body?.offsetHeight ?? 0
+            )
+          : 0
+        const frameH = Math.max(1, r.height)
+        const scrollable = docH > frameH + 8
+        if (scrollable) scrollableCount++
+        if (
+          r.height <= vh * 0.25 ||
+          /head|header|top|foot|bottom|menu|nav/i.test(f.name || f.src || "")
+        ) {
+          chromeFrameCount++
+        }
+        const item = {
+          frame: f,
+          area,
+          url: doc?.location?.href || f.src || "",
+          name: f.name || "",
+          scrollable
+        }
+        if (!best || (scrollable && !best.scrollable) || area > best.area) {
+          best = item
+        }
+      })
+      if (best) {
+        legacyFrame = {
+          count: frames.length,
+          scrollableCount,
+          mainFrameUrl: best.url,
+          mainFrameName: best.name,
+          mainFrameAreaRatio: best.area / Math.max(1, vw * vh),
+          chromeFrameCount
+        }
+      }
+    }
+  } catch {
+    legacyFrame = null
+  }
+
+  /* ---- 5) body/html overflow 锁 ---- */
   let bodyScrollLocked = false
   try {
     const bodyCs = body ? getComputedStyle(body) : null
@@ -299,6 +377,7 @@ export function probePageType(): PageTypeProbe {
     bestScrollerCoversViewport,
     bestScrollerScrollHeightRatio,
     dominantIframe,
+    legacyFrame,
     fixedStickyCount,
     fullscreenOverlay,
     hasSidebar,
