@@ -41,6 +41,7 @@ const SPECIAL_CASE_HANDLERS: Partial<
   },
   "spa-like": {},
   "embedded-doc": {},
+  "legacy-frame": {},
   chat: {}
 }
 
@@ -77,6 +78,7 @@ function normalizeSpecialCases(
     iframe: normalizeExpertCases("iframe", config, handlers),
     "spa-like": normalizeExpertCases("spa-like", config, handlers),
     "embedded-doc": normalizeExpertCases("embedded-doc", config, handlers),
+    "legacy-frame": normalizeExpertCases("legacy-frame", config, handlers),
     chat: normalizeExpertCases("chat", config, handlers)
   }
 }
