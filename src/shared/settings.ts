@@ -93,6 +93,7 @@ export type FullPageMode =
   | "isolate"
   | "spa-like"
   | "embedded-doc"
+  | "legacy-frame"
   | "chat"
 
 /**
@@ -110,6 +111,7 @@ export type FullPageExpert =
   | "iframe"
   | "spa-like"
   | "embedded-doc"
+  | "legacy-frame"
   | "chat"
 
 export interface AppSettings {

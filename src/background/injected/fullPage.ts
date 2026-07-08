@@ -803,7 +803,9 @@ export function hideOutsideFrameChain(keepFrameUrl: string): number {
   const findIframe = (doc: Document): HTMLIFrameElement | null => {
     let iframes: HTMLIFrameElement[]
     try {
-      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+      iframes = Array.from(
+        doc.querySelectorAll<HTMLIFrameElement>("iframe,frame")
+      )
     } catch {
       return null
     }
@@ -929,7 +931,9 @@ export function hideFixedElementsExcludeFrame(
   const visitForIframe = (doc: Document): HTMLIFrameElement | null => {
     let iframes: HTMLIFrameElement[]
     try {
-      iframes = Array.from(doc.querySelectorAll<HTMLIFrameElement>("iframe"))
+      iframes = Array.from(
+        doc.querySelectorAll<HTMLIFrameElement>("iframe,frame")
+      )
     } catch {
       return null
     }

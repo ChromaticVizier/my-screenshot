@@ -495,6 +495,9 @@ function Options() {
               <option value="embedded-doc">
                 内嵌文档/表格（canvas 自定义滚动，如灵犀）
               </option>
+              <option value="legacy-frame">
+                旧式 frame 页面（frameset 多 frame）
+              </option>
               <option value="chat">AI 聊天（输入框只在最后一帧显示）</option>
             </select>
             <span className={styles.hint}>
