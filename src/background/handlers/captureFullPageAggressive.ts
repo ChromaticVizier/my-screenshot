@@ -608,11 +608,13 @@ export async function handleCaptureFullPageAggressive(
             args: [fullPageRules, true]
           })
         } else {
-          await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: rehideFixedElements,
-            args: [fullPageRules, aggressiveChrome]
-          })
+          if (!routing?.skipFrameChromeHiding) {
+            await chrome.scripting.executeScript({
+              target: scrollerTarget,
+              func: rehideFixedElements,
+              args: [fullPageRules, aggressiveChrome]
+            })
+          }
           if (scrollerIsSubFrame && siteRule?.frameUrl) {
             await chrome.scripting.executeScript({
               target: { tabId },
@@ -620,11 +622,13 @@ export async function handleCaptureFullPageAggressive(
               args: [siteRule.frameUrl]
             })
           }
-          await chrome.scripting.executeScript({
-            target: scrollerTarget,
-            func: hideFrameChrome,
-            args: [fullPageRules]
-          })
+          if (!routing?.skipFrameChromeHiding) {
+            await chrome.scripting.executeScript({
+              target: scrollerTarget,
+              func: hideFrameChrome,
+              args: [fullPageRules]
+            })
+          }
         }
       } catch {
         /* 不致命 */

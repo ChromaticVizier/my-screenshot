@@ -34,6 +34,12 @@ export interface FullPageRouting {
    * 把固定顶栏 + 侧边栏一并隐藏，使其只在首帧出现。默认 false（标准专家保留侧栏）。
    */
   hideStructuralChrome?: boolean
+  /**
+   * 特殊站点补丁：跳过逐帧隐藏 fixed/sticky/frame chrome。
+   * 用于页面主体本身会被通用隐藏规则误伤的隔离 SPA；仍保留 scroller 裁切，
+   * 因此顶栏/侧栏会自然只出现在首帧。
+   */
+  skipFrameChromeHiding?: boolean
 }
 
 /** captureVisibleTab 限频间隔（ms），Chrome 限制约 2 次/秒，留一点裕量 */
@@ -204,9 +210,11 @@ export async function resolveFrameTarget(
  * query 但 path 第一段也变），退而取主 frame 中"最大可见 iframe"。popo 文档
  * 等富文本嵌入页一般主 iframe 占视口 ≥ 50%，远比侧边的小 iframe 大，区分度高。
  */
-export function locateFrameOffsetInPage(
-  frameUrl: string
-): { x: number; y: number; matchedBy: "exact" | "loose" | "largest" | "none" } {
+export function locateFrameOffsetInPage(frameUrl: string): {
+  x: number
+  y: number
+  matchedBy: "exact" | "loose" | "largest" | "none"
+} {
   const matches = (a: string, b: string): boolean => {
     if (!a || !b) return false
     if (a === b) return true
@@ -250,11 +258,15 @@ export function locateFrameOffsetInPage(
       } catch {
         nestedDoc = null
       }
-      if (f.src === frameUrl) return { x: localX, y: localY, matchedBy: "exact" }
+      if (f.src === frameUrl)
+        return { x: localX, y: localY, matchedBy: "exact" }
       if (nestedDoc?.location?.href === frameUrl) {
         return { x: localX, y: localY, matchedBy: "exact" }
       }
-      if (matches(f.src, frameUrl) || matches(nestedDoc?.location?.href ?? "", frameUrl)) {
+      if (
+        matches(f.src, frameUrl) ||
+        matches(nestedDoc?.location?.href ?? "", frameUrl)
+      ) {
         return { x: localX, y: localY, matchedBy: "loose" }
       }
 

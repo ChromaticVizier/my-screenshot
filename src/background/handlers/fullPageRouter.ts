@@ -26,6 +26,7 @@ import {
   sleep,
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
+import { matchFullPageSpecialCase } from "~src/background/handlers/fullPageSpecialCases"
 import {
   removePageTypeToast,
   showPageTypeToast
@@ -299,7 +300,25 @@ export async function handleCaptureFullPageRouted(
     await maybeShowDebugToast(tabId, decision)
   }
 
-  // ===== 3) 分派到对应专家 =====
+  // ===== 3) 命中特殊处理名单时，直接走对应专家的专用逻辑 =====
+  const specialCase = matchFullPageSpecialCase(decision.expert, tab.url)
+  if (specialCase) {
+    if (DEBUG_ROUTE) {
+      console.log("[fullPage][router] special case", {
+        hostname,
+        expert: decision.expert,
+        id: specialCase.id,
+        label: specialCase.label
+      })
+    }
+    try {
+      return await specialCase.handler(request, routing)
+    } catch (err) {
+      return errorResponse(err)
+    }
+  }
+
+  // ===== 4) 分派到对应专家 =====
   try {
     switch (decision.expert) {
       case "isolate":
