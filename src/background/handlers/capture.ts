@@ -17,7 +17,8 @@ import {
   locateFrameOffsetInPage,
   resolveFrameTarget,
   safeCaptureVisibleTab,
-  sleep
+  sleep,
+  type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import { showCountdown } from "~src/background/injected/countdown"
 import {
@@ -27,6 +28,7 @@ import {
   freezeScrollModals,
   hideFixedElements,
   hideFixedElementsExcludeFrame,
+  hideFrameChrome,
   kickScrollListeners,
   measureContentTopReservedSpace,
   measureScrollMetrics,
@@ -112,7 +114,8 @@ export async function handleCaptureVisible(
  * 2. 整页（滚动拼接）
  * ============================================================ */
 export async function handleCaptureFullPage(
-  request: CaptureFullPageRequest
+  request: CaptureFullPageRequest,
+  routing?: FullPageRouting
 ): Promise<CaptureResponse> {
   // 读取用户的整页判别规则；以参数形式传入注入函数，便于即时生效
   const settings = await getSettings()
@@ -134,7 +137,9 @@ export async function handleCaptureFullPage(
   )
   // 路由器可临时覆盖站点滚动区（如自动探测到主体 iframe）；否则按 hostname 读取
   const siteRule =
-    settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
+    routing?.siteRuleOverride !== undefined
+      ? routing.siteRuleOverride
+      : settings.siteScrollRegions[hostnameFromUrl(tab.url) ?? ""] ?? null
 
   // 多 frame：用户在某个 iframe 内 picker 选过则 target 该 frame，否则注入主 frame
   const scrollerTarget = await resolveFrameTarget(tabId, siteRule?.frameUrl)
@@ -441,7 +446,7 @@ export async function handleCaptureFullPage(
       await chrome.scripting.executeScript({
         target: scrollerTarget,
         func: hideFixedElements,
-        args: [fullPageRules]
+        args: [fullPageRules, routing?.hideStructuralChrome ?? false]
       })
       if (scrollerIsSubFrame && siteRule?.frameUrl) {
         try {
@@ -573,6 +578,9 @@ export async function handleCaptureFullPage(
         // 处于动画初期（远小于目标）。后面用 measureScrollMetrics 重新拿稳定值。
         let scrollY = actualY ?? targetY
 
+        // 帧间等待：每滚到新一帧后等待用户设定的时长，给页面留出渲染/懒加载/动画稳定的时间
+        if (frameDelayMs > 0) await sleep(frameDelayMs)
+
         // 4.1) 等待动态内容稳定：scrollHeight + 视口内 <img> 完成度
         let measuredHeight = totalHeight
         try {
@@ -634,7 +642,7 @@ export async function handleCaptureFullPage(
           await chrome.scripting.executeScript({
             target: scrollerTarget,
             func: rehideFixedElements,
-            args: [fullPageRules]
+            args: [fullPageRules, routing?.hideStructuralChrome ?? false]
           })
           if (scrollerIsSubFrame && siteRule?.frameUrl) {
             await chrome.scripting.executeScript({
@@ -643,6 +651,20 @@ export async function handleCaptureFullPage(
               args: [fullPageRules, siteRule.frameUrl]
             })
           }
+        } catch {
+          /* 不致命 */
+        }
+
+        // 逐帧检测并隐藏「跟随视口」的吸顶元素（顶栏 / 频道导航 / 侧栏等）。
+        // 不再依赖截图前一次性探测——很多导航是滚过阈值后才由 JS 变吸顶（如今日头条
+        // 频道导航），那时才能被发现。用循环每帧之间的真实滚动位移做参照逐帧比较，
+        // 元素一旦吸顶，下一帧即被命中、display:none（持久），从而消除逐帧重复。
+        try {
+          await chrome.scripting.executeScript({
+            target: scrollerTarget,
+            func: hideFrameChrome,
+            args: [fullPageRules]
+          })
         } catch {
           /* 不致命 */
         }

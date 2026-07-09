@@ -5,7 +5,6 @@
 import {
   handleCaptureDelayed,
   handleCaptureDesktop,
-  handleCaptureFullPage,
   handleCaptureSelection,
   handleCaptureVisible,
   handleClearScrollRegion,
@@ -14,7 +13,7 @@ import {
   handleHideRelayWindow,
   handleSelectScrollRegion
 } from "~src/background/handlers/capture"
-import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageRouted } from "~src/background/handlers/fullPageRouter"
 import {
   handleRecorderFinish,
   handleRecorderStarted,
@@ -35,7 +34,6 @@ import {
   getPendingImage
 } from "~src/background/utils/pendingImage"
 import { MessageType, type ExtensionRequest } from "~src/shared/messages"
-import { getSettings } from "~src/shared/settings"
 
 chrome.runtime.onMessage.addListener(
   (request: ExtensionRequest, sender, sendResponse) => {

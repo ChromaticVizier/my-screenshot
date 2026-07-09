@@ -206,17 +206,22 @@ export function preparePage(
   // 因此该模式下：window 可滚就直接用 window，跳过内部容器评分。
   if (!scrollerEl && options?.preferWindowScroll && windowScrollable) {
     // 标记不命中任何内部 scroller，走 window 滚动路径
-  } else if (!scrollerEl && rules?.detectScrollContainer !== false) {
+  } else if (!scrollerEl) {
     const vw = html.clientWidth || window.innerWidth
     const vh = html.clientHeight || window.innerHeight
-    const minRatio = rules?.scrollContainerMinRatio ?? 1.05
-    const minOverflowPx = rules?.scrollContainerMinOverflowPx ?? 80
-    const areaWeight = rules?.scrollContainerAreaWeight ?? 0.35
-    const textWeight = rules?.scrollContainerTextWeight ?? 0.3
-    const semanticWeight = rules?.scrollContainerSemanticWeight ?? 0.35
+    // 滚动容器评分阈值/权重：原为用户可调设置，引入 MoE 路由后固化为常量
+    // （"该不该用内部容器"已由 fullPageRouter 在截图前判别，无需再暴露调参）。
+    const minRatio = 1.05
+    const minOverflowPx = 80
+    const areaWeight = 0.35
+    const textWeight = 0.3
+    const semanticWeight = 0.35
     let semanticRe: RegExp | null = null
     try {
-      semanticRe = new RegExp(rules?.scrollContainerRegex || "", "i")
+      semanticRe = new RegExp(
+        "(^|[-_\\s])(main|content|body|center|middle|scroll|scroller|container|workspace|chat|conversation|message|article|detail|panel|pane)([-_\\s]|$)",
+        "i"
+      )
     } catch {
       semanticRe = null
     }
@@ -346,9 +351,10 @@ export function preparePage(
   // 直接从底部裁掉一个常数像素裕量即可避免,代价是长图末尾会出现等高的小空白条
   // (远比"周期性遮挡正文"轻),且仅影响 scroller 模式,普通整页截图(window 滚动)
   // 不受影响。具体值由 rules.scrollerBottomSafetyPx 提供,设为 0 即关闭该裕量。
-  const scrollerSafetyPx = scrollerEl
-    ? Math.max(0, rules?.scrollerBottomSafetyPx ?? 20)
-    : 0
+  // 内部滚动容器模式下底部安全裕量。原为用户可调设置 rules.scrollerBottomSafetyPx，
+  // 默认 0（关闭）；MoE 路由化后移除该设置项，固化为 0，保持原默认行为。
+  // 如某些虚拟列表/邻近 box-shadow 站点需要裕量，由对应专家在拼接侧用帧重叠补偿。
+  const scrollerSafetyPx = 0
   const snapshot: PreparePageSnapshot = {
     htmlOverflow: html.style.overflow,
     bodyOverflow: body.style.overflow,
@@ -623,7 +629,10 @@ export function scrollToY(y: number): number {
  * 注意：调用时机由 background/handlers/capture.ts 控制——首屏拍完才调用，
  * 让弹窗 / iframe / 顶部 banner 完整进入第一张图。
  */
-export function hideFixedElements(rules: FullPageRuleSet): number {
+export function hideFixedElements(
+  rules: FullPageRuleSet,
+  aggressiveChrome = false
+): number {
   if (!rules || rules.enabled === false) return 0
 
   const MARK = "__myScreenshotHidden"
@@ -718,6 +727,10 @@ export function hideFixedElements(rules: FullPageRuleSet): number {
     // 用户已选中该容器内的滚动区；若先做面积过滤，小弹窗（areaRatio < 0.5）会被
     // 早返回拦截，导致弹窗被 display:none 后整个对话框从截图中消失。
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    // 激进 chrome 模式（spa-like 专家）：不再豁免「全高窄侧栏 / 内容型大块」，
+    // 顶栏 + 侧边栏一律隐藏（只在首帧出现）。window 可滚页面正文非 fixed/sticky，
+    // 不会被本函数命中，故此处一律返回 false 是安全的。
+    if (aggressiveChrome) return false
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
@@ -1047,7 +1060,10 @@ export function hideFixedElementsExcludeFrame(
  *  - 借助 MARK 跳过已隐藏元素，纯增量、无副作用、不触发滚动
  *  - 每次截图循环前调用一次，保持顶部/侧栏在每一帧都不可见
  */
-export function rehideFixedElements(rules: FullPageRuleSet): number {
+export function rehideFixedElements(
+  rules: FullPageRuleSet,
+  aggressiveChrome = false
+): number {
   if (!rules || rules.enabled === false) return 0
 
   const MARK = "__myScreenshotHidden"
@@ -1118,6 +1134,8 @@ export function rehideFixedElements(rules: FullPageRuleSet): number {
   const contentRatio = 0.45
   const isContentLikeFixed = (el: HTMLElement): boolean => {
     if (el.querySelector(`[data-my-screenshot-scroller="1"]`)) return true
+    // 激进 chrome 模式（spa-like 专家）：顶栏 + 侧边栏一律隐藏，不豁免
+    if (aggressiveChrome) return false
     const rect = el.getBoundingClientRect()
     const areaRatio = (rect.width * rect.height) / Math.max(1, vw * vh)
     const heightRatio = rect.height / Math.max(1, vh)
