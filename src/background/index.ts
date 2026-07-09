@@ -23,6 +23,14 @@ import {
   handleRecordStop
 } from "~src/background/handlers/record"
 import {
+  cancelFullPageTask,
+  finishFullPageTask,
+  getFullPageTask,
+  isFullPageCaptureCancelled,
+  setFullPageTaskTab,
+  startFullPageTask
+} from "~src/background/utils/fullPageTask"
+import {
   clearPendingImage,
   getPendingImage
 } from "~src/background/utils/pendingImage"
@@ -39,13 +47,36 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.CAPTURE_FULL_PAGE: {
-          // 优先级：激进隐藏模式 > 默认滚动拼接
-          const settings = await getSettings()
-          if (settings.aggressiveHideMode) {
-            sendResponse(await handleCaptureFullPageAggressive(request))
-          } else {
-            sendResponse(await handleCaptureFullPage(request))
+          const taskId = startFullPageTask(request.payload?.taskId)
+          request.payload = { ...(request.payload ?? {}), taskId }
+          const tabId = sender.tab?.id
+          setFullPageTaskTab(taskId, tabId)
+          try {
+            const res = await handleCaptureFullPageRouted(request)
+            finishFullPageTask(taskId, res)
+            sendResponse(res)
+          } catch (err) {
+            const res = isFullPageCaptureCancelled(err)
+              ? { ok: false, cancelled: true, error: "长截图已停止" }
+              : {
+                  ok: false,
+                  error: err instanceof Error ? err.message : String(err)
+                }
+            finishFullPageTask(taskId, res)
+            sendResponse(res)
           }
+          break
+        }
+        case MessageType.CAPTURE_FULL_PAGE_CANCEL: {
+          sendResponse({ ok: cancelFullPageTask(), cancelled: true })
+          break
+        }
+        case MessageType.CAPTURE_FULL_PAGE_PROGRESS_GET: {
+          sendResponse({ ok: true, progress: getFullPageTask() })
+          break
+        }
+        case MessageType.CAPTURE_FULL_PAGE_PROGRESS: {
+          sendResponse({ ok: true })
           break
         }
         case MessageType.SELECT_SCROLL_REGION: {
@@ -83,7 +114,11 @@ chrome.runtime.onMessage.addListener(
         case MessageType.GET_PENDING_IMAGE: {
           const img = getPendingImage()
           if (img) {
-            sendResponse({ ok: true, dataUrl: img.dataUrl, filename: img.filename })
+            sendResponse({
+              ok: true,
+              dataUrl: img.dataUrl,
+              filename: img.filename
+            })
           } else {
             sendResponse({ ok: false, error: "没有待编辑的图片" })
           }

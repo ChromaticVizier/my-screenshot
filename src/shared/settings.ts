@@ -127,6 +127,42 @@ export interface SiteScrollRegionRule {
   clientHeight?: number
 }
 
+/**
+ * 整页（长截图）专家路由模式。
+ *  - "auto"：截图前自动探测页面类型并路由到对应专家（默认，推荐）
+ *  - "standard"：强制走标准流程（首帧保留顶栏 + 逐帧隐藏补偿，window 滚动友好）
+ *  - "isolate"：强制走隔离流程（隔离主滚动容器、隐藏容器外所有元素）
+ *  - "spa-like"：强制走「类 SPA」流程（window 可滚但有固定顶栏 / 大侧边栏，
+ *     首帧保留 chrome，后续帧把顶栏 + 侧边栏一并隐藏）
+ * 详见 src/background/handlers/fullPageRouter.ts。
+ */
+export type FullPageMode =
+  | "auto"
+  | "standard"
+  | "isolate"
+  | "spa-like"
+  | "embedded-doc"
+  | "legacy-frame"
+  | "chat"
+
+/**
+ * 长截图「专家」标识（MoE 路由的输出）：
+ *  - "standard"：标准流程（首帧保留 + 逐帧补偿）
+ *  - "isolate"：隔离主滚动容器流程
+ *  - "iframe"：内容主体在某大 iframe 内
+ *  - "spa-like"：window 可滚但带固定顶栏 / 大侧边栏的「类 SPA」页面
+ *  - "embedded-doc"：网页内嵌、canvas 渲染、自定义滚动的表格 / 文档（如网易灵犀）
+ * 与 fullPageRouter / routeLog 共用。
+ */
+export type FullPageExpert =
+  | "standard"
+  | "isolate"
+  | "iframe"
+  | "spa-like"
+  | "embedded-doc"
+  | "legacy-frame"
+  | "chat"
+
 export interface AppSettings {
   /** 延迟截图的等待秒数，默认 3 */
   delaySeconds: number

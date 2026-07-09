@@ -1,0 +1,20 @@
+{
+  "standard": [],
+  "isolate": [
+    [
+      "youdao-oa-portal",
+      "https://oa.corp.youdao.com/",
+      "https://oa.corp.youdao.com/wui/index.html*#/main/portal/*"
+    ]
+  ],
+  "iframe": [
+    [
+      "mail-163-read",
+      "https://mail.163.com/js6/main.jsp*#module=read.ReadModule*"
+    ]
+  ],
+  "spa-like": [],
+  "embedded-doc": [],
+  "legacy-frame": [],
+  "chat": []
+}
