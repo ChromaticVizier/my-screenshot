@@ -6,7 +6,7 @@
  * - 整个页面（fullPage）：popup 立即关闭以让出焦点，background 继续完成滚动拼接长截图
  * - 选择区域（selection）：popup 立刻关闭以让出焦点，背景脚本继续完成选区流程
  */
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
 import { CloudIcon } from "~src/components/icons"
@@ -42,6 +42,7 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
   const [error, setError] = useState<string | null>(null)
   const [fullPageProgress, setFullPageProgress] =
     useState<CaptureFullPageProgressState | null>(null)
+  const displayedPercentRef = useRef(0)
 
   useEffect(() => {
     let alive = true
@@ -59,7 +60,12 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       if (req.type !== MessageType.CAPTURE_FULL_PAGE_PROGRESS || !req.payload) {
         return
       }
-      if (["done", "cancelled", "error"].includes(req.payload.phase)) {
+      if (req.payload.phase === "done") {
+        setFullPageProgress(req.payload)
+        return
+      }
+      if (["cancelled", "error"].includes(req.payload.phase)) {
+        displayedPercentRef.current = 0
         setFullPageProgress(null)
         onBusyChange?.(false)
         if (req.payload.phase === "error") {
@@ -171,11 +177,12 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
         ])
         // 保持扩展 popup 打开，直接切换为进度 UI。
         const taskId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+        displayedPercentRef.current = 0
         setFullPageProgress({
           taskId,
           phase: "capturing",
-          current: 1,
-          total: 100,
+          current: 0,
+          total: 1,
           message: "正在准备截图"
         })
         onBusyChange?.(true)
@@ -183,6 +190,8 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
         captureFullPage({ taskId }).then((res) => {
           setBusy(null)
           onBusyChange?.(false)
+          displayedPercentRef.current = 0
+          setFullPageProgress(null)
           if (!res.ok && !res.cancelled) setError(res.error ?? "长截图失败")
         })
         break
@@ -259,14 +268,19 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
   if (fullPageProgress) {
     const total = Math.max(1, fullPageProgress.total)
     const current = Math.max(0, Math.min(fullPageProgress.current, total))
-    const percent = Math.round((current / total) * 100)
+    const rawPercent = Math.round((current / total) * 100)
     const isStitching = fullPageProgress.phase === "stitching"
+    const isDone = fullPageProgress.phase === "done"
+    const percent = isDone
+      ? 100
+      : Math.max(displayedPercentRef.current, Math.min(rawPercent, 100))
+    displayedPercentRef.current = percent
     return (
       <div className={styles.progressPanel}>
         <div className={styles.progressTitle}>
-          {isStitching ? "正在拼接" : "正在截取整个页面..."}
+          {isDone ? "已完成" : isStitching ? "正在拼接" : "正在截取整个页面..."}
         </div>
-        {!isStitching ? (
+        {!isStitching && !isDone ? (
           <>
             <div className={styles.progressTrack}>
               <div
@@ -288,7 +302,9 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
             </button>
           </>
         ) : (
-          <p className={styles.progressHint}>正在拼接长图，请稍候...</p>
+          <p className={styles.progressHint}>
+            {isDone ? "截图已完成，正在打开结果..." : "正在拼接长图，请稍候..."}
+          </p>
         )}
       </div>
     )

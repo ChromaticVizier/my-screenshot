@@ -14,9 +14,7 @@
  * 滚动进度换算（见 embeddedDoc.ts）：
  *   scrollPos = (thumbTop - trackTop) * gridHeight / thumbHeight
  */
-import {
-  handleCaptureFullPageAggressive
-} from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
 import {
   errorResponse,
   locateFrameOffsetInPage,
@@ -33,6 +31,7 @@ import {
   type EmbeddedScrollProbe
 } from "~src/background/injected/embeddedDoc"
 import { downloadImageBlob } from "~src/background/utils/download"
+import { updateFullPageTaskProgress } from "~src/background/utils/fullPageTask"
 import {
   dataUrlToBitmap,
   stitchToBlob,
@@ -57,7 +56,11 @@ export async function handleCaptureFullPageEmbeddedDoc(
   const settings = await getSettings()
   const format = request.payload?.format ?? settings.imageFormat
   const quality = request.payload?.quality ?? settings.imageQuality
-  const maxHeight = Math.max(0, Math.floor(settings.fullPageRules.maxFullPageHeightPx ?? 0))
+  const maxHeight = Math.max(
+    0,
+    Math.floor(settings.fullPageRules.maxFullPageHeightPx ?? 0)
+  )
+  const taskId = request.payload?.taskId
   // 长截图相邻两帧之间的等待时长（毫秒，用户可调，默认 1500）；canvas 表格滚动后需要
   // 时间重绘，至少留 200ms。
   const frameDelayMs = Math.max(
@@ -190,8 +193,24 @@ export async function handleCaptureFullPageEmbeddedDoc(
     const gridLeftTab = frameOffsetX + gridProbe.gridLeft
     const gridTopTab = frameOffsetY + gridProbe.gridTop
     const gridWidth = gridProbe.gridWidth
+    const estimatedTotal = Math.max(
+      vh,
+      Math.round(
+        gridProbe.gridHeight * (gridProbe.trackHeight / gridProbe.thumbHeight)
+      )
+    )
+    updateFullPageTaskProgress(taskId, {
+      phase: "capturing",
+      current: 0,
+      total:
+        maxHeight > 0 ? Math.min(estimatedTotal, maxHeight) : estimatedTotal,
+      message: "正在滚动并截图"
+    })
     // 网格在视口里实际可见高度（被视口底裁掉的部分不算）
-    const gridVisibleH = Math.max(1, Math.min(gridProbe.gridHeight, vh - gridTopTab))
+    const gridVisibleH = Math.max(
+      1,
+      Math.min(gridProbe.gridHeight, vh - gridTopTab)
+    )
 
     const slices: CaptureSlice[] = []
 
@@ -259,6 +278,16 @@ export async function handleCaptureFullPageEmbeddedDoc(
       prevThumbTop = state.thumbTop
 
       const scrollPos = posOf(state)
+      updateFullPageTaskProgress(taskId, {
+        phase: "capturing",
+        current: Math.min(
+          estimatedTotal,
+          Math.max(1, scrollPos + gridVisibleH)
+        ),
+        total:
+          maxHeight > 0 ? Math.min(estimatedTotal, maxHeight) : estimatedTotal,
+        message: "正在滚动并截图"
+      })
       if (gridFrameIndex === 0) {
         // 第一张网格帧排到首帧之下（canvas y = vh）
         contentOffsetY = Math.max(0, Math.round(vh - scrollPos))
@@ -285,13 +314,22 @@ export async function handleCaptureFullPageEmbeddedDoc(
       if (maxHeight > 0 && effectiveHeight >= maxHeight) break
 
       // thumb 到底 → 停
-      if (state.thumbTop + state.thumbHeight >= state.trackTop + state.trackHeight - 2) {
+      if (
+        state.thumbTop + state.thumbHeight >=
+        state.trackTop + state.trackHeight - 2
+      ) {
         break
       }
     }
 
     if (maxHeight > 0) effectiveHeight = Math.min(effectiveHeight, maxHeight)
 
+    updateFullPageTaskProgress(taskId, {
+      phase: "stitching",
+      current: 1,
+      total: 1,
+      message: "正在拼接"
+    })
     const blob = await stitchToBlob({
       slices,
       viewportWidth: vw,

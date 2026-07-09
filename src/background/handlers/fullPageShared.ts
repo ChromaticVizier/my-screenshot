@@ -9,6 +9,11 @@
  *
  * 提取到此独立模块，既能在两套实现间复用，也为 capture.ts / 激进流程减负。
  */
+import {
+  measureScrollMetrics,
+  scrollToY,
+  waitForDynamicContent
+} from "~src/background/injected/fullPage"
 import type { CaptureSlice } from "~src/background/utils/imaging"
 import type { CaptureResponse } from "~src/shared/messages"
 import type { SiteScrollRegionRule } from "~src/shared/settings"
@@ -46,6 +51,117 @@ export interface FullPageRouting {
 export const CAPTURE_INTERVAL = 600
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+export async function detectInfiniteScrollForProgress(
+  target: chrome.scripting.InjectionTarget,
+  initialTotalHeight: number,
+  maxFullPageHeightPx: number,
+  probeDistance: number
+): Promise<boolean> {
+  if (maxFullPageHeightPx <= 0) return false
+  const initial = Math.max(1, Math.round(initialTotalHeight))
+  const distance = Math.max(1, Math.round(probeDistance))
+  const probes = [distance, distance * 2]
+  let lastHeight = initial
+
+  try {
+    for (const y of probes) {
+      await chrome.scripting.executeScript({
+        target,
+        func: scrollToY,
+        args: [y]
+      })
+      await chrome.scripting.executeScript({
+        target,
+        func: waitForDynamicContent,
+        args: [800]
+      })
+      const [{ result: metrics }] = await chrome.scripting.executeScript({
+        target,
+        func: measureScrollMetrics
+      })
+      if (!metrics) continue
+      if (metrics.scrollHeight > lastHeight * 1.15) return true
+      lastHeight = Math.max(lastHeight, metrics.scrollHeight)
+    }
+  } catch {
+    return false
+  } finally {
+    try {
+      await chrome.scripting.executeScript({
+        target,
+        func: scrollToY,
+        args: [0]
+      })
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  return false
+}
+
+/**
+ * 估算进度条分母（progressTotal）与是否无限滚动。
+ *
+ * 关键修正：无限滚动页面**不再**把 progressTotal 锁死在 maxFullPageHeightPx。
+ * 旧逻辑一旦判定为无限列表就令 progressTotal = 上限（默认 20000），
+ * 而真实截图往往在触底（stall 检测）时于上限的 ~70% 处结束，
+ * 导致进度条卡在 70% 后直接跳完成。
+ *
+ * 现在无论是否无限，分母都以「当前已测得的内容高度」为基准（截图过程中随
+ * scrollHeight 增长，见 updateFullPageProgressTotalEstimate），并以 maxFullPageHeightPx
+ * 为封顶。这样 targetY / progressTotal 能真实反映滚动进度：
+ *  - 触底结束时 targetY ≈ scrollHeight ≈ progressTotal → ~100%
+ *  - 撞上限结束时 progressTotal 封顶在 maxHeight，targetY → maxHeight → ~100%
+ *
+ * infinite 标志仅用于终止逻辑（无限列表跳过基于 totalHeight 的提前终止，
+ * 只靠 stall / maxHeight 收尾），与分母解耦。
+ */
+export async function estimateFullPageProgressTotal(
+  target: chrome.scripting.InjectionTarget,
+  totalHeight: number,
+  maxFullPageHeightPx: number,
+  probeDistance: number
+): Promise<{ total: number; infinite: boolean }> {
+  const base = Math.max(1, Math.round(totalHeight))
+  const capped =
+    maxFullPageHeightPx > 0 ? Math.min(base, maxFullPageHeightPx) : base
+  if (maxFullPageHeightPx <= 0) return { total: base, infinite: false }
+
+  const infinite = await detectInfiniteScrollForProgress(
+    target,
+    base,
+    maxFullPageHeightPx,
+    probeDistance
+  )
+  return { total: capped, infinite }
+}
+
+export function updateFullPageProgressTotalEstimate(
+  currentEstimate: number,
+  measuredHeight: number,
+  maxFullPageHeightPx: number
+): number {
+  const measured = Math.max(1, Math.round(measuredHeight))
+  const next = Math.max(currentEstimate, measured)
+  if (maxFullPageHeightPx > 0) return Math.min(next, maxFullPageHeightPx)
+  return next
+}
+
+export function makeFullPageCapturingProgress(
+  current: number,
+  total: number,
+  message = "正在滚动并截图"
+): { phase: "capturing"; current: number; total: number; message: string } {
+  const safeTotal = Math.max(1, Math.round(total))
+  return {
+    phase: "capturing",
+    current: Math.max(0, Math.min(safeTotal, Math.round(current))),
+    total: safeTotal,
+    message
+  }
+}
 
 /**
  * 调试开关：每滚动一帧就下载一张原始帧（带 scrollY 文件名）+ 在 console

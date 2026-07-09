@@ -2,10 +2,13 @@ import {
   dumpDebugFrame,
   dumpDebugSlice,
   errorResponse,
+  estimateFullPageProgressTotal,
   hostnameFromUrl,
+  makeFullPageCapturingProgress,
   resolveFrameTarget,
   safeCaptureVisibleTab,
   sleep,
+  updateFullPageProgressTotalEstimate,
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
@@ -20,6 +23,7 @@ import {
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
 import { downloadImageBlob } from "~src/background/utils/download"
+import { updateFullPageTaskProgress } from "~src/background/utils/fullPageTask"
 import {
   dataUrlToBitmap,
   stitchToBlob,
@@ -103,6 +107,7 @@ export async function handleCaptureFullPageChat(
     0,
     Math.round(settings.fullPageFrameDelayMs ?? 1500)
   )
+  const taskId = request.payload?.taskId
   const siteRule =
     routing?.siteRuleOverride !== undefined
       ? routing.siteRuleOverride
@@ -171,8 +176,20 @@ export async function handleCaptureFullPageChat(
       args: [fullPageRules]
     })
 
+    const progressEstimate = await estimateFullPageProgressTotal(
+      scrollerTarget,
+      metrics.totalHeight,
+      maxFullPageHeightPx,
+      metrics.captureHeight
+    )
+    let progressTotal = progressEstimate.total
     let totalHeight = metrics.totalHeight
+    const isInfiniteScroll = progressEstimate.infinite
     let effectiveHeight = Math.max(totalHeight, firstSourceHeight)
+    updateFullPageTaskProgress(
+      taskId,
+      makeFullPageCapturingProgress(0, progressTotal)
+    )
     const slices: CaptureSlice[] = []
 
     const firstDataUrl = await safeCaptureVisibleTab(tab.windowId, {
@@ -212,6 +229,10 @@ export async function handleCaptureFullPageChat(
     let lastSlice: CaptureSlice | null = null
 
     while (true) {
+      updateFullPageTaskProgress(
+        taskId,
+        makeFullPageCapturingProgress(targetY, progressTotal)
+      )
       const [{ result: actualY }] = await chrome.scripting.executeScript({
         target: scrollerTarget,
         func: scrollToY,
@@ -254,6 +275,15 @@ export async function handleCaptureFullPageChat(
       if (measuredHeight > totalHeight) {
         totalHeight = measuredHeight
         effectiveHeight = Math.max(effectiveHeight, totalHeight)
+        progressTotal = updateFullPageProgressTotalEstimate(
+          progressTotal,
+          measuredHeight,
+          maxFullPageHeightPx
+        )
+        updateFullPageTaskProgress(
+          taskId,
+          makeFullPageCapturingProgress(scrollY, progressTotal)
+        )
       }
 
       try {
@@ -332,7 +362,10 @@ export async function handleCaptureFullPageChat(
         break
       }
 
-      if (scrollY + metrics.captureHeight >= totalHeight) {
+      if (
+        !isInfiniteScroll &&
+        scrollY + metrics.captureHeight >= totalHeight
+      ) {
         effectiveHeight = Math.max(
           scrollY + metrics.captureHeight,
           totalHeight,
@@ -377,6 +410,12 @@ export async function handleCaptureFullPageChat(
       effectiveHeight,
       lastScrollY + metrics.captureHeight
     )
+    updateFullPageTaskProgress(taskId, {
+      phase: "stitching",
+      current: 1,
+      total: 1,
+      message: "正在拼接"
+    })
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,

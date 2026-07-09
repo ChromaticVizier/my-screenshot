@@ -13,11 +13,14 @@ import {
   dumpDebugFrame,
   dumpDebugSlice,
   errorResponse,
+  estimateFullPageProgressTotal,
   hostnameFromUrl,
   locateFrameOffsetInPage,
+  makeFullPageCapturingProgress,
   resolveFrameTarget,
   safeCaptureVisibleTab,
   sleep,
+  updateFullPageProgressTotalEstimate,
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import { showCountdown } from "~src/background/injected/countdown"
@@ -267,7 +270,16 @@ export async function handleCaptureFullPage(
       0,
       Math.floor(fullPageRules.maxFullPageHeightPx ?? 0)
     )
+    const progressEstimate = await estimateFullPageProgressTotal(
+      scrollerTarget,
+      metrics.totalHeight,
+      maxFullPageHeightPx,
+      metrics.captureHeight
+    )
+    let progressTotal = progressEstimate.total
     let totalHeight = metrics.totalHeight
+    // 无限滚动：仅用于终止逻辑（跳过基于 totalHeight 的提前终止），与进度分母解耦
+    const isInfiniteScroll = progressEstimate.infinite
     /**
      * 真实可达的页面总高度。
      * preparePage 报告的 totalHeight 可能因 margin/transform 等偏大，
@@ -562,12 +574,10 @@ export async function handleCaptureFullPage(
 
       while (true) {
         assertFullPageTaskNotCancelled(taskId)
-        updateFullPageTaskProgress(taskId, {
-          phase: "capturing",
-          current: Math.min(totalHeight, Math.max(1, targetY)),
-          total: Math.max(1, totalHeight),
-          message: "正在滚动并截图"
-        })
+        updateFullPageTaskProgress(
+          taskId,
+          makeFullPageCapturingProgress(targetY, progressTotal)
+        )
         // 滚到目标位置（可能因为页面底部不足而被夹到 maxScrollY）
         const [{ result: actualY }] = await chrome.scripting.executeScript({
           target: scrollerTarget,
@@ -624,12 +634,15 @@ export async function handleCaptureFullPage(
 
         if (measuredHeight > totalHeight) {
           totalHeight = measuredHeight
-          updateFullPageTaskProgress(taskId, {
-            phase: "capturing",
-            current: Math.min(totalHeight, Math.max(1, scrollY)),
-            total: Math.max(1, totalHeight),
-            message: "正在滚动并截图"
-          })
+          progressTotal = updateFullPageProgressTotalEstimate(
+            progressTotal,
+            measuredHeight,
+            maxFullPageHeightPx
+          )
+          updateFullPageTaskProgress(
+            taskId,
+            makeFullPageCapturingProgress(scrollY, progressTotal)
+          )
           // totalHeight 是新坐标系正文高度，画布还要加上顶栏带 contentOffsetY
           effectiveHeight = Math.max(
             effectiveHeight,
@@ -762,8 +775,9 @@ export async function handleCaptureFullPage(
           break
         }
 
-        // 终止条件 2：当前可视区已到达页面底部
-        if (scrollY + stepHeight >= totalHeight) {
+        // 终止条件 2：当前可视区已到达页面底部。
+        // 已判定为无限列表时，不用动态 totalHeight 作为终点，避免懒加载短暂停顿提前结束。
+        if (!isInfiniteScroll && scrollY + stepHeight >= totalHeight) {
           effectiveHeight = Math.max(
             scrollY + stepHeight + contentOffsetY,
             totalHeight + contentOffsetY,
@@ -778,6 +792,12 @@ export async function handleCaptureFullPage(
         targetY = scrollY + stepHeight
       }
     }
+
+    updateFullPageTaskProgress(
+      taskId,
+      makeFullPageCapturingProgress(progressTotal, progressTotal)
+    )
+    await sleep(120)
 
     // 5) 截完恢复 fixed/sticky 元素
     if (hidingApplied) {
