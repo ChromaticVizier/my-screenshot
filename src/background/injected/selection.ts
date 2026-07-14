@@ -14,6 +14,10 @@ export interface SelectionResult {
   width: number
   height: number
   devicePixelRatio: number
+  /** 选区时页面视口尺寸（CSS 像素）。区域录制裁剪按「选区/视口」比例映射到实际
+   *  捕获帧尺寸，避免 tabCapture 帧分辨率与 dpr 假设不一致导致的错位。 */
+  viewportWidth?: number
+  viewportHeight?: number
 }
 
 export interface PickSelectionArgs {
@@ -154,7 +158,10 @@ export function pickSelection(
         y,
         width: w,
         height: h,
-        devicePixelRatio: window.devicePixelRatio || 1
+        devicePixelRatio: window.devicePixelRatio || 1,
+        viewportWidth: document.documentElement.clientWidth || window.innerWidth,
+        viewportHeight:
+          document.documentElement.clientHeight || window.innerHeight
       }
     }
 

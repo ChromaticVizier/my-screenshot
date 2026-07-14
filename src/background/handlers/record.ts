@@ -301,6 +301,17 @@ export async function handleRecordStartRegionTab(
     const v = await validateTargetTab(tabId)
     if (!v.ok) return v
 
+    // 清理上一次录制可能残留的选区遮罩 / 红色边框，避免同一页面二次录制时
+    // 旧覆盖物拦截交互或叠加导致异常。
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: removeRegionFrame
+      })
+    } catch {
+      /* 忽略 */
+    }
+
     // 注入选区 picker 等用户拖拽
     let selection: SelectionResult | null = null
     try {

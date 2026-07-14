@@ -33,6 +33,8 @@ interface BootRegion {
   width: number
   height: number
   devicePixelRatio: number
+  viewportWidth?: number
+  viewportHeight?: number
 }
 
 interface BootConfig {
@@ -115,6 +117,8 @@ function OffscreenRecorder() {
       let finalized = false
       let cropCancel: (() => void) | null = null
       const chunks: Blob[] = []
+      // 收尾函数：onstop 与停止兜底共用；在 mediaRecorder 建好后赋值。
+      let finalizeRecording: () => Promise<void> = async () => {}
 
       const cleanupTracks = () => {
         try {
@@ -247,10 +251,13 @@ function OffscreenRecorder() {
         mediaRecorder.ondataavailable = (e) => {
           if (e.data && e.data.size > 0) chunks.push(e.data)
         }
-        mediaRecorder.onstop = async () => {
+        finalizeRecording = async () => {
           if (finalized) return
           try {
             setPhase("saving")
+            if (chunks.length === 0) {
+              throw new Error("未录到任何帧（编码失败）")
+            }
             const blob = new Blob(chunks, { type: mimeType })
             blobUrl = URL.createObjectURL(blob)
 
@@ -261,7 +268,6 @@ function OffscreenRecorder() {
             })
 
             setPhase("done")
-            // 给浏览器读取 blob 留时间，再 revoke
             window.setTimeout(() => {
               try {
                 URL.revokeObjectURL(blobUrl)
@@ -279,6 +285,7 @@ function OffscreenRecorder() {
             })
           }
         }
+        mediaRecorder.onstop = finalizeRecording
 
         // 用户在 Chrome 共享栏点「停止」会让 tab 视频 track ended
         tabStream.getVideoTracks().forEach((t) => {
@@ -319,7 +326,19 @@ function OffscreenRecorder() {
         if (!mediaRecorder) return
         if (msg?.type === "recorder/stop") {
           if (mediaRecorder.state !== "inactive") {
-            mediaRecorder.stop()
+            try {
+              mediaRecorder.stop()
+            } catch {
+              /* 忽略 */
+            }
+            // 兜底：某些情况下（如区域录制 generator 轨已结束）onstop 可能不触发，
+            // 2s 后仍未 finalize 就手动收尾，保证用户点“结束录制”一定有反馈。
+            window.setTimeout(() => {
+              if (!finalized) void finalizeRecording()
+            }, 2000)
+          } else if (!finalized) {
+            // 录制轨已提前结束、recorder 已 inactive：直接收尾
+            void finalizeRecording()
           }
         } else if (msg?.type === "recorder/pause") {
           if (mediaRecorder.state === "recording") {
@@ -436,39 +455,69 @@ async function buildCroppedVideoTracks(
   }
 
   const dpr = region.devicePixelRatio || 1
-  const cropX = Math.max(0, Math.round(region.x * dpr))
-  const cropY = Math.max(0, Math.round(region.y * dpr))
-  const cropW = Math.max(2, Math.round(region.width * dpr))
-  const cropH = Math.max(2, Math.round(region.height * dpr))
+  // 录制期页面上留有的红色选区边框（2px + 2px 外阴影），会被 tabCapture 录进去。
+  // 裁剪时向内缩进 3px（略大于边框），确保视频里不残留红框。
+  const FRAME_BORDER = 3
+  const selX = region.x + FRAME_BORDER
+  const selY = region.y + FRAME_BORDER
+  const selW = Math.max(1, region.width - FRAME_BORDER * 2)
+  const selH = Math.max(1, region.height - FRAME_BORDER * 2)
 
   const processor = new win.MediaStreamTrackProcessor({ track: srcTrack })
   const generator = new win.MediaStreamTrackGenerator({ kind: "video" })
 
-  // 首帧时间戳基准：把输出帧的 timestamp 重映射为「相对录制起点」。
-  // 源 tab track 在裁剪管线搭建前已运行，首帧 frame.timestamp 是源时钟里的大
-  // 微秒值；原样透传会让 MediaRecorder 以该大值作为首个 Cluster timecode，
-  // webm 起始偏移巨大 → Duration 计算异常 → 播放器判 0 时长/拒渲染。
-  // 归零后与整页录制（原生轨由 MediaRecorder 自动归零）性质一致，可正常播放。
+  // 首帧时间戳基准：把输出帧 timestamp 重映射为「相对录制起点」，
+  // 保证 webm Cluster timecode 从 0 起、Duration 正常、与音频轨对齐。
   let baseTimestamp: number | null = null
 
   const transformer = new TransformStream<VideoFrame, VideoFrame>({
     transform(frame, controller) {
-      // 安全裁剪：source frame 的 codedWidth/Height 是物理像素
-      // 取交集避免越界（页面尺寸刚好变化时）
+      // 关键修正：不假设「捕获帧尺寸 = 视口CSS × dpr」。tabCapture 的帧分辨率
+      // 可能与该假设不一致（缩放/上限/多屏 dpr 差异），直接用 region×dpr 会错位。
+      // 改为按「选区 / 视口」比例映射到当前帧的实际 codedWidth/Height。
       const fw = frame.codedWidth
       const fh = frame.codedHeight
-      const x = Math.min(cropX, Math.max(0, fw - 2))
-      const y = Math.min(cropY, Math.max(0, fh - 2))
-      const w = Math.min(cropW, fw - x)
-      const h = Math.min(cropH, fh - y)
+      const vpW =
+        region.viewportWidth && region.viewportWidth > 0
+          ? region.viewportWidth
+          : fw / dpr
+      const vpH =
+        region.viewportHeight && region.viewportHeight > 0
+          ? region.viewportHeight
+          : fh / dpr
+      // tabCapture 帧可能与视口不同比例（被「等比缩放 + 居中」letterbox 进帧内）。
+      // 用 object-fit:contain 映射：统一缩放系数取两轴较小者，另一轴产生居中留白偏移。
+      // 之前只按宽度比例缩放、忽略竖直居中偏移，导致整体上移/下移。
+      const scale = Math.min(fw / vpW, fh / vpH)
+      const drawnW = vpW * scale
+      const drawnH = vpH * scale
+      const offX = (fw - drawnW) / 2
+      const offY = (fh - drawnH) / 2
+      let x = Math.round(offX + selX * scale)
+      let y = Math.round(offY + selY * scale)
+      let w = Math.round(selW * scale)
+      let h = Math.round(selH * scale)
+      // 越界裁剪保护
+      x = Math.max(0, Math.min(x, Math.max(0, fw - 2)))
+      y = Math.max(0, Math.min(y, Math.max(0, fh - 2)))
+      w = Math.max(2, Math.min(w, fw - x))
+      h = Math.max(2, Math.min(h, fh - y))
+      // VP8/VP9 要求帧宽高为偶数；奇数会导致每帧编码失败、webm 损坏。
+      // 对齐到偶数（起点向下取偶、尺寸向下取偶，并保证仍在帧内）。
+      x -= x % 2
+      y -= y % 2
+      w -= w % 2
+      h -= h % 2
+      if (w < 2) w = 2
+      if (h < 2) h = 2
+      if (x + w > fw) w = fw - x - ((fw - x) % 2)
+      if (y + h > fh) h = fh - y - ((fh - y) % 2)
       const srcTs = frame.timestamp ?? 0
       if (baseTimestamp === null) baseTimestamp = srcTs
       const relTs = Math.max(0, srcTs - baseTimestamp)
       try {
         const cropped = new VideoFrame(frame, {
           visibleRect: { x, y, width: w, height: h },
-          // 相对录制起点的时间戳：保证 webm Cluster timecode 从 0 起，
-          // 且与音频轨（各自 getUserMedia 时钟）muxing 时基对齐。
           timestamp: relTs
         })
         controller.enqueue(cropped)

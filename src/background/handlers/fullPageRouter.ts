@@ -288,12 +288,21 @@ export async function handleCaptureFullPageRouted(
     // auto：特殊站点优先于手动滚动区，避免手动规则把 POPo 文档等 SPA 壳误打回标准流程。
     const manualSiteRule = settings.siteScrollRegions[hostname]
     const isolateSpecialCase = matchFullPageSpecialCase("isolate", tab.url)
+    // iframe 专家的特殊站点（钉钉文档等）也在探测前直接命中，避免依赖 classify
+    // 的 dominantIframe 判定（areaRatio 阈值 / 探测时序偶发差异可能漏判）。
+    const iframeSpecialCase = matchFullPageSpecialCase("iframe", tab.url)
     if (isolateSpecialCase) {
       decision = {
         expert: "isolate",
         reason: `命中特殊处理名单：${isolateSpecialCase.id}`
       }
       if (manualSiteRule) routing = { siteRuleOverride: manualSiteRule }
+    } else if (iframeSpecialCase) {
+      decision = {
+        expert: "iframe",
+        reason: `命中特殊处理名单：${iframeSpecialCase.id}`
+      }
+      // frameUrl 由具体特殊处理 handler 自行实时定位，这里无需 routing
     } else if (manualSiteRule) {
       decision = { expert: "standard", reason: "站点手动滚动区，沿用标准流程" }
     } else {
