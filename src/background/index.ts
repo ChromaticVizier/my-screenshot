@@ -50,7 +50,7 @@ chrome.runtime.onMessage.addListener(
           const tabId = sender.tab?.id
           setFullPageTaskTab(taskId, tabId)
           try {
-            const res = await handleCaptureFullPageRouted(request)
+            const res = await handleCaptureFullPageRouted(request, tabId)
             finishFullPageTask(taskId, res)
             sendResponse(res)
           } catch (err) {
@@ -78,7 +78,7 @@ chrome.runtime.onMessage.addListener(
           break
         }
         case MessageType.SELECT_SCROLL_REGION: {
-          sendResponse(await handleSelectScrollRegion(request))
+          sendResponse(await handleSelectScrollRegion(request, sender.tab?.id))
           break
         }
         case MessageType.CLEAR_SCROLL_REGION: {
@@ -128,7 +128,7 @@ chrome.runtime.onMessage.addListener(
             await chrome.downloads.download({
               url: dataUrl,
               filename,
-              saveAs: false
+              saveAs: true
             })
             clearPendingImage()
             sendResponse({ ok: true })

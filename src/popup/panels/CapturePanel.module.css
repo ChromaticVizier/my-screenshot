@@ -149,40 +149,47 @@
 
 /* 底部 */
 .footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  padding-top: 10px;
+  gap: 10px;
+  padding-top: 12px;
   border-top: 1px solid #eef0f3;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .footerLabel {
-  font-size: 12px;
+  font-size: 13px;
   color: #6b7280;
 }
 
 .storageBtn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  justify-self: start;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 14px;
   color: #2c3e50;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .storageBtn:hover {
+  background: #f0f2f5;
   color: #4a90e2;
 }
 
 .settingsBtn {
-  margin-left: 8px;
-  width: 22px;
-  height: 22px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: 7px;
+  font-size: 18px;
   color: #6b7280;
   transition: background 0.15s ease;
 }

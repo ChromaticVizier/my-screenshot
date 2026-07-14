@@ -92,6 +92,10 @@ export interface StitchParams {
    *  内部滚动容器 / 类 SPA 模式下，后续帧只绘制内容列，侧栏槽等区域不会被绘制，
    *  应填成网页背景色而非白色，避免长图周边出现白边。 */
   backgroundColor?: string
+  /** 重叠区保留「较早帧」（倒序绘制，早帧压在上层）。
+   *  用于飞书文档等虚拟化渲染页面：新滚入的帧顶部可能尚未渲染完（瞬时空白），
+   *  若晚帧覆盖早帧会在接缝处压出白条；改为早帧在上可避免。默认 false（晚帧在上）。 */
+  drawEarlierOnTop?: boolean
 }
 
 /**
@@ -109,11 +113,22 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
     devicePixelRatio: dpr,
     format = "png",
     quality,
-    backgroundColor
+    backgroundColor,
+    drawEarlierOnTop = false
   } = params
 
+  const sliceBottom = slices.reduce((max, slice) => {
+    const sourceCssHeight =
+      slice.sourceHeight ?? slice.bitmap.height / Math.max(1, dpr)
+    return Math.max(max, slice.scrollY + sourceCssHeight)
+  }, 0)
+  const stitchedHeight = Math.max(
+    1,
+    Math.min(totalHeight, sliceBottom > 0 ? sliceBottom : totalHeight)
+  )
+
   const canvasW = Math.round(viewportWidth * dpr)
-  const canvasH = Math.round(totalHeight * dpr)
+  const canvasH = Math.round(stitchedHeight * dpr)
   const canvas = new OffscreenCanvas(canvasW, canvasH)
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("无法创建 OffscreenCanvas 2D 上下文")
@@ -125,7 +140,9 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   ctx.fillStyle = backgroundColor || "#ffffff"
   ctx.fillRect(0, 0, canvasW, canvasH)
 
-  for (const slice of slices) {
+  // 重叠区保留较早帧时倒序绘制：早帧最后画、压在上层。
+  const orderedSlices = drawEarlierOnTop ? [...slices].reverse() : slices
+  for (const slice of orderedSlices) {
     const dx = Math.max(0, Math.round((slice.destX ?? 0) * dpr))
     const dy = Math.round(slice.scrollY * dpr)
     const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))

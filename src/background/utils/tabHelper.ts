@@ -16,14 +16,29 @@ export interface ActiveTabResult {
 }
 
 /** 获取当前活动标签页，并校验是否允许截图 */
-export async function getCapturableActiveTab(): Promise<
+export async function getCapturableActiveTab(
+  fallbackTabId?: number
+): Promise<
   | { ok: true; tab: chrome.tabs.Tab }
   | { ok: false; error: string }
 > {
-  const [tab] = await chrome.tabs.query({
-    active: true,
-    lastFocusedWindow: true
-  })
+  let tab: chrome.tabs.Tab | undefined
+
+  if (fallbackTabId != null) {
+    try {
+      tab = await chrome.tabs.get(fallbackTabId)
+    } catch {
+      tab = undefined
+    }
+  }
+
+  if (!tab) {
+    const [activeTab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true
+    })
+    tab = activeTab
+  }
 
   if (!tab || tab.id == null) {
     return { ok: false, error: "未找到活动标签页" }

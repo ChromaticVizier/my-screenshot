@@ -401,13 +401,51 @@ function Options() {
         </div>
 
         <div className={styles.field}>
+          <label className={styles.label} htmlFor="filenameTemplate">
+            默认文件名格式
+          </label>
+          <div className={styles.control}>
+            <input
+              id="filenameTemplate"
+              className={styles.input}
+              type="text"
+              value={settings.filenameTemplate}
+              placeholder="{title}-{date}-{mode}"
+              onChange={(e) => update({ filenameTemplate: e.target.value })}
+            />
+            <span className={styles.hint}>
+              支持 {'{title}'}、{'{date}'}、{'{mode}'}，扩展名会自动追加。
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="screenshotDefaultSavePath">
+            截图默认存储路径
+          </label>
+          <div className={styles.control}>
+            <input
+              id="screenshotDefaultSavePath"
+              className={styles.input}
+              type="text"
+              value={settings.screenshotDefaultSavePath}
+              placeholder="例如 screenshots 或 work/jira"
+              onChange={(e) => update({ screenshotDefaultSavePath: e.target.value })}
+            />
+            <span className={styles.hint}>
+              Chrome 扩展只能写入浏览器下载目录内的相对路径，不支持任意系统绝对路径。
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.field}>
           <label className={styles.label} htmlFor="imageFormat">
             图片格式
           </label>
           <div className={styles.control}>
             <select
               id="imageFormat"
-              className={styles.input}
+              className={styles.select}
               value={settings.imageFormat}
               onChange={(e) =>
                 update({ imageFormat: e.target.value as "png" | "jpeg" })
@@ -481,7 +519,7 @@ function Options() {
           <label className={styles.label}>长截图模式</label>
           <div className={styles.control}>
             <select
-              className={styles.input}
+              className={styles.select}
               value={settings.fullPageMode}
               onChange={(e) =>
                 update({ fullPageMode: e.target.value as FullPageMode })

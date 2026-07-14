@@ -1,4 +1,6 @@
+import { handleCaptureFullPageFeishuDoc } from "~src/background/handlers/captureFullPageFeishuDoc"
 import { handleCaptureFullPageMail163Read } from "~src/background/handlers/captureFullPageMail163Read"
+import { handleCaptureFullPagePopoDoc } from "~src/background/handlers/captureFullPagePopoDoc"
 import { handleCaptureFullPageYoudaoOaPortal } from "~src/background/handlers/captureFullPageYoudaoOaPortal"
 import type { FullPageRouting } from "~src/background/handlers/fullPageShared"
 import type {
@@ -34,6 +36,8 @@ const SPECIAL_CASE_HANDLERS: Partial<
 > = {
   standard: {},
   isolate: {
+    "feishu-doc": handleCaptureFullPageFeishuDoc,
+    "popo-docs": handleCaptureFullPagePopoDoc,
     "youdao-oa-portal": handleCaptureFullPageYoudaoOaPortal
   },
   iframe: {
@@ -133,6 +137,17 @@ function matchString(pattern: string, url: URL): boolean {
   if (pattern === url.href || pattern === url.hostname) return true
 
   const normalized = pattern.includes("://") ? pattern : `https://${pattern}`
+
+  // 含通配符：直接对完整 href 做 glob。
+  // 不能走 new URL() 再拆 host/path —— URL 解析会把 host 里的 `*` 编码成 `%2A`
+  // （如 `*.feishu.cn` → `%2a.feishu.cn`），host 通配彻底失效；且 pathname 不含
+  // hash，带 `#...` 的 pattern 也会漏配。glob 整个 href 同时覆盖 host / path / hash。
+  if (pattern.includes("*")) {
+    return (
+      wildcardMatch(normalized, url.href) || wildcardMatch(pattern, url.href)
+    )
+  }
+
   try {
     const p = new URL(normalized)
     const sameHost = wildcardMatch(p.hostname, url.hostname)

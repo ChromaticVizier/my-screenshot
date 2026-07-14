@@ -30,7 +30,7 @@ export async function downloadImageBlob(
 ): Promise<number> {
   const { blob, tabTitle, ext } = options
   const dataUrl = await blobToDataUrl(blob)
-  const filename = buildScreenshotFilename({ tabTitle, ext })
+  const filename = await buildScreenshotFilename({ tabTitle, ext })
 
   const settings = await getSettings()
   if (settings.cropBeforeDownload) {
@@ -43,7 +43,7 @@ export async function downloadImageBlob(
   return chrome.downloads.download({
     url: dataUrl,
     filename,
-    saveAs: false
+    saveAs: true
   })
 }
 

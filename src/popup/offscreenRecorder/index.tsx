@@ -54,7 +54,52 @@ type Phase = "loading" | "recording" | "saving" | "done" | "error"
 function OffscreenRecorder() {
   const [phase, setPhase] = useState<Phase>("loading")
   const [errMsg, setErrMsg] = useState<string>("")
+  const [paused, setPaused] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const startedRef = useRef(false)
+  // 录制起点（MediaRecorder.start() 瞬间）与暂停累计时长，供窗口内计时使用
+  const startTimeRef = useRef(0)
+  const pausedAccumRef = useRef(0)
+  const pauseStartRef = useRef(0)
+
+  // 计时：仅在 recording 且未暂停时推进
+  useEffect(() => {
+    if (phase !== "recording" || paused) return
+    const tick = () => {
+      if (startTimeRef.current > 0) {
+        setElapsedMs(
+          Math.max(0, Date.now() - startTimeRef.current - pausedAccumRef.current)
+        )
+      }
+    }
+    tick()
+    const id = window.setInterval(tick, 250)
+    return () => window.clearInterval(id)
+  }, [phase, paused])
+
+  const handlePauseToggle = () => {
+    if (paused) {
+      // 恢复：累计本次暂停时长
+      if (pauseStartRef.current > 0) {
+        pausedAccumRef.current += Date.now() - pauseStartRef.current
+        pauseStartRef.current = 0
+      }
+      setPaused(false)
+      chrome.runtime
+        .sendMessage({ type: "recorder/resume" })
+        .catch(() => undefined)
+    } else {
+      pauseStartRef.current = Date.now()
+      setPaused(true)
+      chrome.runtime
+        .sendMessage({ type: "recorder/pause" })
+        .catch(() => undefined)
+    }
+  }
+
+  const handleStop = () => {
+    chrome.runtime.sendMessage({ type: "record/stop" }).catch(() => undefined)
+  }
 
   useEffect(() => {
     if (startedRef.current) return
@@ -246,6 +291,8 @@ function OffscreenRecorder() {
 
         // 不传 timeslice：让 MediaRecorder 在 stop() 时一次性产出完整 webm
         mediaRecorder.start()
+        // 记录真实起点，供窗口内计时使用
+        startTimeRef.current = Date.now()
         // 把"真正的起点"回传 background，覆盖 bootstrap 时设的 startedAt
         // （后者包含创建窗口+加载popup+getUserMedia 等约 1s 准备时间，
         //  否则控制栏计时会比实际视频时长多约 1 秒）
@@ -288,11 +335,51 @@ function OffscreenRecorder() {
     }
   }, [])
 
+  const fmtTime = (ms: number) => {
+    const total = Math.floor(ms / 1000)
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    return `${m}:${String(s).padStart(2, "0")}`
+  }
+
   return (
     <div className={styles.window}>
-      <div className={styles.title}>录屏中</div>
+      <div className={styles.header}>
+        <span className={styles.dot} data-paused={paused} />
+        <span className={styles.title}>
+          {phase === "recording"
+            ? paused
+              ? "已暂停"
+              : "录制中"
+            : phase === "saving"
+              ? "保存中…"
+              : phase === "done"
+                ? "已保存"
+                : phase === "error"
+                  ? "录制失败"
+                  : "启动中…"}
+        </span>
+        <span className={styles.timer}>{fmtTime(elapsedMs)}</span>
+      </div>
+
+      {phase === "recording" && (
+        <div className={styles.controls}>
+          <button
+            type="button"
+            className={styles.ctrlBtn}
+            onClick={handlePauseToggle}>
+            {paused ? "继续" : "暂停"}
+          </button>
+          <button
+            type="button"
+            className={`${styles.ctrlBtn} ${styles.stopBtn}`}
+            onClick={handleStop}>
+            结束录制
+          </button>
+        </div>
+      )}
+
       {phase === "loading" && <div className={styles.body}>启动中…</div>}
-      {phase === "recording" && <div className={styles.body}>录制中</div>}
       {phase === "saving" && <div className={styles.body}>保存中…</div>}
       {phase === "done" && <div className={styles.body}>已保存 ✓</div>}
       {phase === "error" && (
@@ -357,6 +444,13 @@ async function buildCroppedVideoTracks(
   const processor = new win.MediaStreamTrackProcessor({ track: srcTrack })
   const generator = new win.MediaStreamTrackGenerator({ kind: "video" })
 
+  // 首帧时间戳基准：把输出帧的 timestamp 重映射为「相对录制起点」。
+  // 源 tab track 在裁剪管线搭建前已运行，首帧 frame.timestamp 是源时钟里的大
+  // 微秒值；原样透传会让 MediaRecorder 以该大值作为首个 Cluster timecode，
+  // webm 起始偏移巨大 → Duration 计算异常 → 播放器判 0 时长/拒渲染。
+  // 归零后与整页录制（原生轨由 MediaRecorder 自动归零）性质一致，可正常播放。
+  let baseTimestamp: number | null = null
+
   const transformer = new TransformStream<VideoFrame, VideoFrame>({
     transform(frame, controller) {
       // 安全裁剪：source frame 的 codedWidth/Height 是物理像素
@@ -367,11 +461,15 @@ async function buildCroppedVideoTracks(
       const y = Math.min(cropY, Math.max(0, fh - 2))
       const w = Math.min(cropW, fw - x)
       const h = Math.min(cropH, fh - y)
+      const srcTs = frame.timestamp ?? 0
+      if (baseTimestamp === null) baseTimestamp = srcTs
+      const relTs = Math.max(0, srcTs - baseTimestamp)
       try {
         const cropped = new VideoFrame(frame, {
           visibleRect: { x, y, width: w, height: h },
-          // 保留时间戳：MediaRecorder 写 webm Cluster timecode 的依据
-          timestamp: frame.timestamp ?? 0
+          // 相对录制起点的时间戳：保证 webm Cluster timecode 从 0 起，
+          // 且与音频轨（各自 getUserMedia 时钟）muxing 时基对齐。
+          timestamp: relTs
         })
         controller.enqueue(cropped)
       } catch (err) {

@@ -140,6 +140,22 @@
   border-color: #4a90e2;
 }
 
+.select {
+  width: auto;
+  min-width: 180px;
+  padding: 7px 10px;
+  border: 1px solid #cfd6df;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.select:focus {
+  border-color: #4a90e2;
+}
+
 .textarea {
   width: 100%;
   padding: 8px 10px;

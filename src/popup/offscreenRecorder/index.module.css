@@ -1,7 +1,8 @@
 .window {
   width: 100%;
-  min-height: 140px;
-  padding: 18px 20px;
+  min-height: 120px;
+  padding: 16px 18px;
+  box-sizing: border-box;
   font-family:
     -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
@@ -9,12 +10,82 @@
   background: #ffffff;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e0392b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot[data-paused="true"] {
+  background: #b0b6bf;
+  animation: none;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .title {
   font-size: 15px;
   font-weight: 600;
+}
+
+.timer {
+  margin-left: auto;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: #4b5563;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+}
+
+.ctrlBtn {
+  flex: 1;
+  min-height: 36px;
+  border: 1px solid #cfd6df;
+  border-radius: 8px;
+  background: #f5f7fa;
+  color: #2c3e50;
+  font-size: 14px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.ctrlBtn:hover {
+  background: #e9edf2;
+}
+
+.stopBtn {
+  background: #e0392b;
+  border-color: #e0392b;
+  color: #ffffff;
+}
+
+.stopBtn:hover {
+  background: #c9301f;
+  border-color: #c9301f;
 }
 
 .body {
