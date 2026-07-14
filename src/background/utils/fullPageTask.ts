@@ -71,8 +71,8 @@ export function cancelFullPageTask(): boolean {
     return false
   }
   activeTask.cancelled = true
-  activeTask.phase = "cancelled"
-  activeTask.message = "已停止"
+  activeTask.phase = "capturing"
+  activeTask.message = "正在停止并拼接已截取内容"
   broadcastFullPageProgress()
   return true
 }
@@ -108,7 +108,7 @@ export function finishFullPageTask(
     activeTask.message = "已停止"
   } else if (result.ok) {
     activeTask.phase = "done"
-    activeTask.message = "已完成"
+    activeTask.message = activeTask.cancelled ? "已停止，已生成当前截图" : "已完成"
     activeTask.current = activeTask.total
   } else {
     activeTask.phase = "error"
@@ -123,6 +123,14 @@ export function finishFullPageTask(
     },
     result.ok ? 800 : 1600
   )
+}
+
+export function isFullPageTaskStopRequested(taskId?: string): boolean {
+  return !!taskId && !!activeTask && activeTask.taskId === taskId && activeTask.cancelled
+}
+
+export function shouldStopFullPageCapture(taskId?: string): boolean {
+  return isFullPageTaskStopRequested(taskId)
 }
 
 export function isFullPageCaptureCancelled(err: unknown): boolean {

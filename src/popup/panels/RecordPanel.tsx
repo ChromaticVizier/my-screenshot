@@ -8,14 +8,11 @@
  *
  * 未接入（后续支持）：
  *   - 「桌面」「摄像头」「区域录制」
- *   - 「云端」存储位置切换
  */
 import { useEffect, useState } from "react"
 
 import {
   ChevronDownIcon,
-  ChevronRightIcon,
-  CloudIcon,
   HDIcon,
   MicMutedIcon,
   MicOnIcon,
@@ -172,13 +169,8 @@ function RecordPanel() {
           onChange={(v) => updateOption("resolution", v as RecordResolution)}
         />
         <SelectButton
-          icon={<CloudIcon width={14} height={14} />}
-          value="cloud"
-          options={[{ value: "cloud", label: "云端" }]}
-          onChange={() => undefined}
-        />
-        <SelectButton
           value={options.format}
+          readOnly
           options={[
             { value: "webm", label: "WebM" },
             // MP4 暂不可用：Chrome MediaRecorder 在多数版本不支持
@@ -190,10 +182,6 @@ function RecordPanel() {
             updateOption("format", v as RecordFileFormat)
           }}
         />
-        <button type="button" className={styles.moreBtn}>
-          更多
-          <ChevronRightIcon width={14} height={14} />
-        </button>
       </div>
 
       {/* 错误提示 */}
@@ -260,14 +248,30 @@ interface SelectButtonProps {
   value: string
   options: SelectOption[]
   onChange: (v: string) => void
+  /** 只读：仅展示当前值字符，不显示下拉箭头与原生 select */
+  readOnly?: boolean
 }
 
 /**
  * 用原生 <select> 实现下拉，省去自己实现菜单的复杂度。
  * 上面包一层覆盖样式按钮，hover/click 显示原生菜单。
  */
-function SelectButton({ icon, value, options, onChange }: SelectButtonProps) {
+function SelectButton({
+  icon,
+  value,
+  options,
+  onChange,
+  readOnly
+}: SelectButtonProps) {
   const current = options.find((o) => o.value === value)
+  if (readOnly) {
+    return (
+      <span className={styles.optionBtn}>
+        {icon}
+        <span>{current?.label ?? value}</span>
+      </span>
+    )
+  }
   return (
     <label className={styles.optionBtn}>
       {icon}

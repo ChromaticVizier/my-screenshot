@@ -23,7 +23,10 @@ import {
   type PreparePageSnapshot
 } from "~src/background/injected/fullPage"
 import { downloadImageBlob } from "~src/background/utils/download"
-import { updateFullPageTaskProgress } from "~src/background/utils/fullPageTask"
+import {
+  shouldStopFullPageCapture,
+  updateFullPageTaskProgress
+} from "~src/background/utils/fullPageTask"
 import {
   dataUrlToBitmap,
   stitchToBlob,
@@ -229,6 +232,7 @@ export async function handleCaptureFullPageChat(
     let lastSlice: CaptureSlice | null = null
 
     while (true) {
+      if (shouldStopFullPageCapture(taskId)) break
       updateFullPageTaskProgress(
         taskId,
         makeFullPageCapturingProgress(targetY, progressTotal)
@@ -389,7 +393,7 @@ export async function handleCaptureFullPageChat(
       /* finally 兜底 */
     }
 
-    if (lastBitmap && lastSlice) {
+    if (lastBitmap && lastSlice && !shouldStopFullPageCapture(taskId)) {
       const lastDataUrl = await safeCaptureVisibleTab(tab.windowId, {
         format: "png"
       })

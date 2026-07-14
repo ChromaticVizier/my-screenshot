@@ -61,6 +61,7 @@ import {
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
   assertFullPageTaskNotCancelled,
+  shouldStopFullPageCapture,
   updateFullPageTaskProgress
 } from "~src/background/utils/fullPageTask"
 import {
@@ -207,7 +208,10 @@ export async function handleCaptureFullPageAggressive(
     // 是否走「保留首帧」分支：主 frame（非子 iframe）一律保留首帧。
     // 含两种子情形：内部滚动容器（网易邮箱 / Confluence / gitlab）与 window 滚动
     //（带固定顶栏 / 侧栏的页面）。子 frame（iframe 专家）仍走原隔离流程。
-    const preserveFirstFrame = !scrollerIsSubFrame
+    const preserveFirstFrame =
+      (!scrollerIsSubFrame || routing?.preserveFirstFrameForSubFrame) &&
+      !routing?.forceIsolatedScroller &&
+      !routing?.isolateMainScroller
 
     // 后续帧循环的起始 scrollTop（保留首帧时从首帧已展示内容之后接着拍）
     let firstTargetY = 0
@@ -221,6 +225,24 @@ export async function handleCaptureFullPageAggressive(
       args: [0]
     })
     await sleep(120)
+
+    if (routing?.hideChromeBeforeFirstFrame && scrollerIsSubFrame) {
+      try {
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: hideFixedElements,
+          args: [fullPageRules]
+        })
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: detectAndHidePseudoSticky,
+          args: [fullPageRules]
+        })
+        hidingApplied = true
+      } catch {
+        /* 不致命 */
+      }
+    }
 
     if (preserveFirstFrame) {
       /* ===== 阶段 2A：保留首帧（顶栏 / 侧栏等固定元素只在第一帧出现）=====
@@ -345,17 +367,39 @@ export async function handleCaptureFullPageAggressive(
 
         const cropLeft = Math.max(Math.round(srcX), insetLeft)
         const cropRight = Math.min(Math.round(srcX + srcW), insetRight)
-        // 画布对齐用「原始」captureY / captureHeight（首帧坐标系）
-        contentOffsetY = Math.max(0, Math.round(metrics.captureY))
-        framesDestX = cropLeft
+        const subFrameCropLeft = Math.max(0, Math.round(srcX))
+        const subFrameCropRight = Math.max(
+          subFrameCropLeft + 1,
+          Math.min(
+            Math.round(srcX + srcW),
+            vw - Math.max(0, Math.round(frameOffsetX))
+          )
+        )
+        // 画布对齐用「原始」captureY / captureHeight（首帧坐标系）。
+        // 子 iframe 时首帧里的内容顶部在视口 y = frameOffsetY + captureY（iframe 局部），
+        // 故次帧的画布纵向偏移必须叠加 frameOffsetY，否则次帧上移 frameOffsetY 覆盖首帧末尾。
+        contentOffsetY = Math.max(
+          0,
+          Math.round(metrics.captureY) +
+            (scrollerIsSubFrame ? Math.round(frameOffsetY) : 0)
+        )
+        framesDestX = scrollerIsSubFrame
+          ? Math.round(frameOffsetX) + subFrameCropLeft
+          : cropLeft
         frameCrop = {
-          x: cropLeft,
+          x: scrollerIsSubFrame ? subFrameCropLeft : cropLeft,
           y: srcY,
-          w: Math.max(1, cropRight - cropLeft),
+          w: scrollerIsSubFrame
+            ? Math.max(1, subFrameCropRight - subFrameCropLeft)
+            : Math.max(1, cropRight - cropLeft),
           h: srcH
         }
-        // 首帧已展示 scroller 顶部 captureHeight 高内容；后续帧从其后接着拍，减重叠避缝隙
-        const seamOverlap = Math.round(metrics.captureHeight * seamOverlapRatio)
+        // 首帧已展示 scroller 顶部 captureHeight 高内容；后续帧从其后接着拍，减重叠避缝隙。
+        // 子 iframe（POPo 文档）内容连续，重叠会把次帧顶部半行/边界阴影画到首帧末尾形成遮挡带，
+        // 故不重叠：次帧从 captureHeight 处无缝续拍。
+        const seamOverlap = scrollerIsSubFrame
+          ? 0
+          : Math.round(metrics.captureHeight * seamOverlapRatio)
         firstTargetY = Math.max(
           0,
           Math.round(metrics.captureHeight) - seamOverlap
@@ -385,21 +429,25 @@ export async function handleCaptureFullPageAggressive(
       /* ===== 阶段 2B：隔离主滚动容器，隐藏其它所有元素（原流程）===== */
       // 2.1) scroller 所在 frame：链隔离（隐藏 scroller 祖先链外的兄弟）
       //      + 隐藏容器内部的 fixed/sticky 与 JS 伪 sticky（避免内部吸顶元素逐帧重复）。
-      await chrome.scripting.executeScript({
-        target: scrollerTarget,
-        func: isolateScroller,
-        args: [fullPageRules]
-      })
-      await chrome.scripting.executeScript({
-        target: scrollerTarget,
-        func: hideFixedElements,
-        args: [fullPageRules]
-      })
-      await chrome.scripting.executeScript({
-        target: scrollerTarget,
-        func: detectAndHidePseudoSticky,
-        args: [fullPageRules]
-      })
+      if (!routing?.forceIsolatedScroller) {
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: isolateScroller,
+          args: [fullPageRules]
+        })
+      }
+      if (!routing?.skipFrameChromeHiding) {
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: hideFixedElements,
+          args: [fullPageRules]
+        })
+        await chrome.scripting.executeScript({
+          target: scrollerTarget,
+          func: detectAndHidePseudoSticky,
+          args: [fullPageRules]
+        })
+      }
       // 2.2) 子 frame 模式：主 frame 上只保留承载 scroller 的 iframe 链
       if (scrollerIsSubFrame && siteRule?.frameUrl) {
         try {
@@ -497,6 +545,19 @@ export async function handleCaptureFullPageAggressive(
         : null
     }
 
+    const cropToSelectedScroller =
+      routing?.forceIsolatedScroller && metrics.scrollerIsElement
+    if (cropToSelectedScroller) {
+      metrics.viewportWidth = metrics.captureWidth
+      metrics.viewportHeight = metrics.captureHeight
+      frameCrop = {
+        x: metrics.captureX,
+        y: metrics.captureY,
+        w: metrics.captureWidth,
+        h: metrics.captureHeight
+      }
+    }
+
     /* ===== 阶段 3：滚动 + 多次截图（首帧不再特殊处理，所有帧统一）===== */
     // stepHeight 取 viewport × (1 - overlap)，让相邻帧重叠以补全 scroller 底部
     // padding / box-shadow / mask 不渲染的那段内容。overlap 比例用户可调。
@@ -542,7 +603,7 @@ export async function handleCaptureFullPageAggressive(
     let frameIndex = 0
 
     while (!singleFrame) {
-      assertFullPageTaskNotCancelled(taskId)
+      if (shouldStopFullPageCapture(taskId)) break
       updateFullPageTaskProgress(
         taskId,
         makeFullPageCapturingProgress(targetY, progressTotal)
@@ -779,6 +840,10 @@ export async function handleCaptureFullPageAggressive(
       }
     }
 
+    if (slices.length === 0) {
+      assertFullPageTaskNotCancelled(taskId)
+      throw new Error("未截取到任何内容")
+    }
     // 5) 拼接
     // 最终封顶：即便循环因其它条件退出也不让画布超过用户设置的高度上限。
     if (maxFullPageHeightPx > 0) {
@@ -796,7 +861,6 @@ export async function handleCaptureFullPageAggressive(
       total: 1,
       message: "正在拼接"
     })
-    assertFullPageTaskNotCancelled(taskId)
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
@@ -804,7 +868,8 @@ export async function handleCaptureFullPageAggressive(
       devicePixelRatio: metrics.devicePixelRatio,
       format,
       quality,
-      backgroundColor: pageBackground
+      backgroundColor: pageBackground,
+      drawEarlierOnTop: routing?.stitchEarlierFrameOnTop ?? false
     })
 
     // 释放 bitmap

@@ -2,7 +2,6 @@ import {
   BrowserIcon,
   ClockIcon,
   FullPageIcon,
-  ImageIcon,
   ScreenIcon,
   SelectionIcon,
   TextIcon
@@ -43,12 +42,6 @@ export const CAPTURE_LIST_ACTIONS: CaptureAction[] = [
     key: "desktop",
     label: "整个屏幕或应用窗口",
     icon: <ScreenIcon />,
-    variant: "list"
-  },
-  {
-    key: "annotate",
-    label: "标注本地或剪贴板图片",
-    icon: <ImageIcon />,
     variant: "list"
   },
   {

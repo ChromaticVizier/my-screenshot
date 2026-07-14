@@ -56,6 +56,7 @@ import { pickSelection } from "~src/background/injected/selection"
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
   assertFullPageTaskNotCancelled,
+  shouldStopFullPageCapture,
   updateFullPageTaskProgress
 } from "~src/background/utils/fullPageTask"
 import {
@@ -573,7 +574,7 @@ export async function handleCaptureFullPage(
       let frameIndex = 0
 
       while (true) {
-        assertFullPageTaskNotCancelled(taskId)
+        if (shouldStopFullPageCapture(taskId)) break
         updateFullPageTaskProgress(
           taskId,
           makeFullPageCapturingProgress(targetY, progressTotal)
@@ -799,6 +800,10 @@ export async function handleCaptureFullPage(
     )
     await sleep(120)
 
+    if (slices.length === 0) {
+      assertFullPageTaskNotCancelled(taskId)
+      throw new Error("未截取到任何内容")
+    }
     // 5) 截完恢复 fixed/sticky 元素
     if (hidingApplied) {
       try {
@@ -860,7 +865,6 @@ export async function handleCaptureFullPage(
       total: 1,
       message: "正在拼接"
     })
-    assertFullPageTaskNotCancelled(taskId)
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,
@@ -965,10 +969,11 @@ export async function handleCaptureFullPage(
  *   - 胜出后向其它 frame 注入 abortScrollRegionPicker 拆遮罩
  * ============================================================ */
 export async function handleSelectScrollRegion(
-  _request: SelectScrollRegionRequest
+  _request: SelectScrollRegionRequest,
+  fallbackTabId?: number
 ): Promise<CaptureResponse> {
   try {
-    const tabRes = await getCapturableActiveTab()
+    const tabRes = await getCapturableActiveTab(fallbackTabId)
     if (!tabRes.ok) return { ok: false, error: tabRes.error }
     const tab = tabRes.tab
     const tabId = tab.id!

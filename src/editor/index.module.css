@@ -1,13 +1,14 @@
 .page {
   min-height: 100vh;
   background: #1a1a2e;
-  display: flex;
-  flex-direction: column;
   color: #eee;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -25,10 +26,14 @@
 
 .actions {
   display: flex;
+  align-items: center;
   gap: 10px;
 }
 
 .toolbarRow {
+  position: sticky;
+  top: 57px;
+  z-index: 19;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -75,6 +80,33 @@
   background: #1677ff;
 }
 
+.zoomControl {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #0f172a;
+}
+
+.zoomBtn {
+  width: 28px;
+  height: 26px;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.zoomBtn:hover {
+  background: #1e293b;
+}
+
+.zoomValue {
+  min-width: 52px;
+  text-align: center;
+  color: #e5e7eb;
+  font-size: 13px;
+}
+
 .colorSwatch {
   width: 22px;
   height: 22px;
@@ -90,7 +122,8 @@
   box-shadow: 0 0 0 2px #1677ff;
 }
 
-.strokeSelect {
+.strokeSelect,
+.customSizeInput {
   padding: 4px 8px;
   border: 1px solid #334155;
   border-radius: 4px;
@@ -98,6 +131,35 @@
   color: #cbd5e1;
   font-size: 13px;
   cursor: pointer;
+}
+
+.customSizeInput {
+  width: 74px;
+  cursor: text;
+}
+
+.textInputOverlay {
+  position: absolute;
+  z-index: 8;
+  min-height: 64px;
+  padding: 6px 8px;
+  border: 1px solid #38bdf8;
+  border-radius: 4px;
+  outline: none;
+  background: transparent;
+  color: currentColor;
+  line-height: 1.2;
+  resize: both;
+  white-space: pre-wrap;
+}
+
+.annoHit {
+  pointer-events: visiblePainted;
+  cursor: pointer;
+}
+
+.annoHit:hover {
+  filter: drop-shadow(0 0 4px #38bdf8);
 }
 
 .annoLayer {
@@ -118,6 +180,19 @@
 .cropBoxIdle .handle {
   pointer-events: none;
   opacity: 0.4;
+}
+
+.btnPrimary:disabled,
+.btnSecondary:disabled,
+.btnDanger:disabled,
+.toolBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.processing {
+  color: #fde68a;
+  font-size: 13px;
 }
 
 .btnPrimary {
@@ -165,7 +240,6 @@
 }
 
 .canvas {
-  flex: 1;
   overflow: auto;
   display: flex;
   align-items: flex-start;
@@ -180,11 +254,17 @@
 }
 
 .image {
-  max-width: calc(100vw - 40px);
-  max-height: calc(100vh - 100px);
-  object-fit: contain;
+  object-fit: fill;
   display: block;
   user-select: none;
+}
+
+.mosaicCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
 }
 
 .overlay {
@@ -199,11 +279,13 @@
 .mask {
   position: absolute;
   background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  cursor: crosshair;
 }
 
 .cropBox {
   position: absolute;
-  border: 2px solid #1677ff;
+  border: 1px dashed #38bdf8;
   box-sizing: border-box;
   cursor: move;
   pointer-events: auto;
@@ -211,64 +293,77 @@
 
 .handle {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  background: #fff;
-  border: 2px solid #1677ff;
-  border-radius: 2px;
   pointer-events: auto;
 }
 
+/* 四角：可见小方块，置于边条之上，覆盖对应斜向缩放 */
+.handleTL,
+.handleTR,
+.handleBL,
+.handleBR {
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 1px solid #38bdf8;
+  border-radius: 2px;
+  z-index: 2;
+}
+
 .handleTL {
-  top: -5px;
-  left: -5px;
-  cursor: nw-resize;
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
 }
 
 .handleTR {
-  top: -5px;
-  right: -5px;
-  cursor: ne-resize;
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
 }
 
 .handleBL {
-  bottom: -5px;
-  left: -5px;
-  cursor: sw-resize;
+  bottom: -7px;
+  left: -7px;
+  cursor: nesw-resize;
 }
 
 .handleBR {
-  bottom: -5px;
-  right: -5px;
-  cursor: se-resize;
+  bottom: -7px;
+  right: -7px;
+  cursor: nwse-resize;
 }
 
+/* 四边：贯穿整条边的隐形拖拽条——鼠标悬浮在边任意位置都能拖动 */
 .handleT {
   top: -5px;
-  left: 50%;
-  margin-left: -5px;
-  cursor: n-resize;
+  left: 0;
+  right: 0;
+  height: 10px;
+  cursor: ns-resize;
 }
 
 .handleB {
   bottom: -5px;
-  left: 50%;
-  margin-left: -5px;
-  cursor: s-resize;
+  left: 0;
+  right: 0;
+  height: 10px;
+  cursor: ns-resize;
 }
 
 .handleL {
-  top: 50%;
   left: -5px;
-  margin-top: -5px;
-  cursor: w-resize;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
 }
 
 .handleR {
-  top: 50%;
   right: -5px;
-  margin-top: -5px;
-  cursor: e-resize;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: ew-resize;
 }
 
 .loading,

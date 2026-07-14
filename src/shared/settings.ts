@@ -76,6 +76,8 @@ export interface SiteScrollRegionRule {
   rect?: { top: number; left: number; width: number; height: number }
   scrollHeight?: number
   clientHeight?: number
+  /** 选中的是虚拟化 canvas 表格（飞书多维表格等）：由 canvas grid 专用流程截图 */
+  canvasGrid?: boolean
 }
 
 /**
@@ -119,6 +121,10 @@ export interface AppSettings {
   delaySeconds: number
   /** 截图保存格式：png（无损、体积大）/ jpeg（有损、可降质压缩）。默认 png */
   imageFormat: "png" | "jpeg"
+  /** 默认文件名模板。支持 {title} {date} {mode} 占位符。 */
+  filenameTemplate: string
+  /** 截图默认存储路径。Chrome downloads API 仅支持下载目录内的相对路径。 */
+  screenshotDefaultSavePath: string
   /** jpeg 质量（1~100），仅在 imageFormat=jpeg 时生效。默认 92 */
   imageQuality: number
   /** 整页截图判别规则 */
@@ -153,6 +159,8 @@ export const DEFAULT_FULL_PAGE_RULES: FullPageRuleSet = {
 export const DEFAULT_SETTINGS: AppSettings = {
   delaySeconds: 3,
   imageFormat: "png",
+  filenameTemplate: "{title}-{date}",
+  screenshotDefaultSavePath: "",
   imageQuality: 92,
   fullPageRules: DEFAULT_FULL_PAGE_RULES,
   siteScrollRegions: {},
@@ -187,6 +195,11 @@ function normalizeSettings(stored: Partial<AppSettings>): AppSettings {
     fullPageRules: mergeFullPageRules(stored.fullPageRules),
     siteScrollRegions: stored.siteScrollRegions ?? {},
     imageFormat: stored.imageFormat ?? DEFAULT_SETTINGS.imageFormat,
+    filenameTemplate:
+      stored.filenameTemplate ?? DEFAULT_SETTINGS.filenameTemplate,
+    screenshotDefaultSavePath:
+      stored.screenshotDefaultSavePath ??
+      DEFAULT_SETTINGS.screenshotDefaultSavePath,
     imageQuality: stored.imageQuality ?? DEFAULT_SETTINGS.imageQuality,
     cropBeforeDownload:
       stored.cropBeforeDownload ?? DEFAULT_SETTINGS.cropBeforeDownload,

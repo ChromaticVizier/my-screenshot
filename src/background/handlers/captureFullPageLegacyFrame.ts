@@ -8,6 +8,7 @@ import {
 import { downloadImageBlob } from "~src/background/utils/download"
 import {
   assertFullPageTaskNotCancelled,
+  shouldStopFullPageCapture,
   updateFullPageTaskProgress
 } from "~src/background/utils/fullPageTask"
 import {
@@ -111,7 +112,7 @@ export async function handleCaptureFullPageLegacyFrame(
     let prevY = -1
     let frameIndex = 0
     while (targetY < totalHeight) {
-      assertFullPageTaskNotCancelled(taskId)
+      if (shouldStopFullPageCapture(taskId)) break
       updateFullPageTaskProgress(taskId, {
         phase: "capturing",
         current: Math.min(totalHeight, Math.max(1, targetY)),
@@ -137,7 +138,6 @@ export async function handleCaptureFullPageLegacyFrame(
       const dataUrl = await safeCaptureVisibleTab(tab.windowId, {
         format: "png"
       })
-      assertFullPageTaskNotCancelled(taskId)
       const bitmap = await dataUrlToBitmap(dataUrl)
       slices.push(
         makeSlice(bitmap, scrollY, metrics, frameOffsetX, frameOffsetY, false)
@@ -164,7 +164,6 @@ export async function handleCaptureFullPageLegacyFrame(
       total: 1,
       message: "正在拼接"
     })
-    assertFullPageTaskNotCancelled(taskId)
     const blob = await stitchToBlob({
       slices,
       viewportWidth: metrics.viewportWidth,

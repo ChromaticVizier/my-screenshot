@@ -18,6 +18,7 @@
  */
 import { handleCaptureFullPage } from "~src/background/handlers/capture"
 import { handleCaptureFullPageAggressive } from "~src/background/handlers/captureFullPageAggressive"
+import { handleCaptureFullPageCanvasGrid } from "~src/background/handlers/captureFullPageCanvasGrid"
 import { handleCaptureFullPageChat } from "~src/background/handlers/captureFullPageChat"
 import { handleCaptureFullPageEmbeddedDoc } from "~src/background/handlers/captureFullPageEmbeddedDoc"
 import { handleCaptureFullPageLegacyFrame } from "~src/background/handlers/captureFullPageLegacyFrame"
@@ -210,17 +211,30 @@ async function maybeShowDebugToast(
  * 由 background/index.ts 在收到 CAPTURE_FULL_PAGE 时调用。
  */
 export async function handleCaptureFullPageRouted(
-  request: CaptureFullPageRequest
+  request: CaptureFullPageRequest,
+  fallbackTabId?: number
 ): Promise<CaptureResponse> {
   const settings = await getSettings()
   const mode = settings.fullPageMode
 
   // 取标签页：探测、调试浮层都需要 tabId（具体专家内部会再取一次，开销可忽略）
-  const tabRes = await getCapturableActiveTab()
+  const tabRes = await getCapturableActiveTab(fallbackTabId)
   if (!tabRes.ok) return { ok: false, error: tabRes.error }
   const tab = tabRes.tab
   const tabId = tab.id!
   const hostname = hostnameFromUrl(tab.url) ?? ""
+
+  // 用户手动选中的「虚拟化 canvas 表格」滚动区：无原生滚动，直接走 canvas grid 流程。
+  const manualRuleEarly = settings.siteScrollRegions[hostname]
+  if (manualRuleEarly?.canvasGrid) {
+    try {
+      return await handleCaptureFullPageCanvasGrid(request, {
+        siteRuleOverride: manualRuleEarly
+      })
+    } catch (err) {
+      return errorResponse(err)
+    }
+  }
 
   // ===== 1) 确定专家决策 =====
   let decision: RouteDecision
@@ -271,9 +285,16 @@ export async function handleCaptureFullPageRouted(
       }
     }
   } else {
-    // auto：用户手动选过的站点滚动区优先级最高，沿用 4aede4f 的 iframe 隔离流程。
+    // auto：特殊站点优先于手动滚动区，避免手动规则把 POPo 文档等 SPA 壳误打回标准流程。
     const manualSiteRule = settings.siteScrollRegions[hostname]
-    if (manualSiteRule) {
+    const isolateSpecialCase = matchFullPageSpecialCase("isolate", tab.url)
+    if (isolateSpecialCase) {
+      decision = {
+        expert: "isolate",
+        reason: `命中特殊处理名单：${isolateSpecialCase.id}`
+      }
+      if (manualSiteRule) routing = { siteRuleOverride: manualSiteRule }
+    } else if (manualSiteRule) {
       decision = { expert: "standard", reason: "站点手动滚动区，沿用标准流程" }
     } else {
       signals = await probe(tabId)
@@ -362,7 +383,7 @@ export async function handleCaptureFullPageRouted(
   try {
     switch (decision.expert) {
       case "isolate":
-        return await handleCaptureFullPageAggressive(request)
+        return await handleCaptureFullPageAggressive(request, routing)
       case "iframe":
         return await handleCaptureFullPageAggressive(request, routing)
       case "embedded-doc":

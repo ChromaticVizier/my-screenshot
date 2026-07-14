@@ -45,6 +45,32 @@ export interface FullPageRouting {
    * 因此顶栏/侧栏会自然只出现在首帧。
    */
   skipFrameChromeHiding?: boolean
+  /**
+   * 特殊站点补丁：强制走纯隔离裁切，不保留首帧整窗。
+   * 用于手动选中主体滚动区后，页面顶栏/遮罩会进入首帧或造成接缝的 SPA 文档页。
+   */
+  forceIsolatedScroller?: boolean
+  /**
+   * 特殊站点补丁：首帧保留整窗，后续帧只裁切 scroller。
+   * 用于 POPo 文档这类左侧栏只应出现一次、正文 iframe 需要独立滚动拼接的页面。
+   */
+  preserveFirstFrameForSubFrame?: boolean
+  /**
+   * 特殊站点补丁：首帧截图前先隐藏目标 frame 内的 fixed/sticky chrome。
+   * 保留主 frame 左侧栏，但去掉内嵌文档工具栏、悬浮阴影。
+   */
+  hideChromeBeforeFirstFrame?: boolean
+  /**
+   * 特殊站点补丁：主 frame 内的滚动容器强制走「隔离主滚动容器」流程（不保留首帧）。
+   * 隔离 scroller 祖先链外的兄弟 + 一次性隐藏容器内 fixed/sticky，
+   * 避免内嵌 Bitable/看板等吸顶头部逐帧重复形成接缝遮挡（飞书文档）。
+   */
+  isolateMainScroller?: boolean
+  /**
+   * 拼接时重叠区保留「较早帧」（早帧压在上层）。
+   * 飞书文档等虚拟化渲染页面：新滚入帧顶部可能瞬时空白，晚帧覆盖会压出白条。
+   */
+  stitchEarlierFrameOnTop?: boolean
 }
 
 /** captureVisibleTab 限频间隔（ms），Chrome 限制约 2 次/秒，留一点裕量 */

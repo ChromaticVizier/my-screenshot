@@ -30,11 +30,6 @@
  *     - background 关闭中转窗口、清除活跃 tab 标记、清理会话
  */
 import {
-  injectRecorderControlBar,
-  removeRecorderControlBar,
-  type InjectedControlBarArgs
-} from "~src/background/injected/recorder"
-import {
   injectRegionFrame,
   pickSelection,
   removeRegionFrame,
@@ -115,26 +110,11 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
   if (details.tabId !== activeTargetTabId) return
 
-  // 跳转完成后控制栏 / 边框 DOM 必然已被销毁，重新注入
-  void reinjectControlBar(details.tabId)
+  // 控制栏已移到悬浮窗口，无需重注；仅区域边框需随页面导航重注
   if (activeRegion) {
     void reinjectRegionFrame(details.tabId, activeRegion)
   }
 })
-
-async function reinjectControlBar(tabId: number): Promise<void> {
-  if (recordingStartTime === 0) return
-  const args: InjectedControlBarArgs = { startTime: recordingStartTime }
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: injectRecorderControlBar,
-      args: [args]
-    })
-  } catch {
-    /* 浏览器内部页 / 已关闭等情况，忽略 */
-  }
-}
 
 async function reinjectRegionFrame(
   tabId: number,
@@ -219,15 +199,7 @@ async function bootstrapRecorder(params: {
 
   const startedAt = Date.now()
 
-  // 1) 注入控制栏 UI
-  const controlBarArgs: InjectedControlBarArgs = { startTime: startedAt }
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    func: injectRecorderControlBar,
-    args: [controlBarArgs]
-  })
-
-  // 2) 写 storage
+  // 1) 写 storage
   const boot: RecorderBootConfig = {
     streamId,
     tabId,
@@ -235,7 +207,7 @@ async function bootstrapRecorder(params: {
     microphone,
     systemAudio,
     resolution,
-    filename: buildRecordingFilename({ tabTitle, ext: "webm" }),
+    filename: await buildRecordingFilename({ tabTitle, ext: "webm" }),
     ...(region ? { region } : {})
   }
   await chrome.storage.local.set({
@@ -243,19 +215,22 @@ async function bootstrapRecorder(params: {
     [RECORDING_TAB_TITLE_KEY]: tabTitle
   })
 
-  // 3) 中转窗口
+  // 2) 中转窗口：作为悬浮录屏控制窗，可见并置于屏幕右上角供用户操作
   const recorderUrl =
     chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
+  const RECORDER_W = 320
+  const RECORDER_H = 200
+  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H)
   let recorderWindowId: number | undefined
   try {
     const win = await chrome.windows.create({
       url: recorderUrl,
       type: "popup",
-      width: 320,
-      height: 200,
-      left: 0,
-      top: 0,
-      focused: false
+      width: RECORDER_W,
+      height: RECORDER_H,
+      left: pos.left,
+      top: pos.top,
+      focused: true
     })
     recorderWindowId = win?.id
   } catch (err) {
@@ -263,9 +238,6 @@ async function bootstrapRecorder(params: {
       ok: false,
       error: err instanceof Error ? err.message : String(err)
     }
-  }
-  if (recorderWindowId != null) {
-    await moveWindowOffscreen(recorderWindowId).catch(() => undefined)
   }
 
   await setRecordSession({
@@ -368,35 +340,26 @@ export async function handleRecordStartRegionTab(
   }
 }
 
-/** 把指定窗口挪到所有显示器并集之外，避免被用户看到 */
-async function moveWindowOffscreen(windowId: number): Promise<void> {
-  let outsideTop = 5000
-  let safeLeft = 0
+/** 计算悬浮录屏控制窗的位置：放在主显示器工作区右上角 */
+async function computeFloatingWindowPos(
+  width: number,
+  height: number
+): Promise<{ left: number; top: number }> {
+  const margin = 20
   try {
     const displays = await chrome.system.display.getInfo()
-    let maxBottom = 0
-    let minLeft = Number.POSITIVE_INFINITY
-    for (const d of displays) {
-      const bottom = d.bounds.top + d.bounds.height
-      if (bottom > maxBottom) maxBottom = bottom
-      if (d.bounds.left < minLeft) minLeft = d.bounds.left
+    const primary = displays.find((d) => d.isPrimary) ?? displays[0]
+    if (primary) {
+      const wa = primary.workArea
+      return {
+        left: Math.max(wa.left, wa.left + wa.width - width - margin),
+        top: wa.top + margin
+      }
     }
-    outsideTop = maxBottom + 50
-    safeLeft = Number.isFinite(minLeft) ? minLeft : 0
   } catch {
-    /* 拿不到则用兜底正值 */
+    /* 拿不到显示器信息则用兜底位置 */
   }
-  try {
-    await chrome.windows.update(windowId, {
-      left: safeLeft,
-      top: outsideTop,
-      width: 320,
-      height: 200,
-      focused: false
-    })
-  } catch {
-    /* 忽略 */
-  }
+  return { left: margin, top: margin }
 }
 
 /* ============================================================
@@ -421,16 +384,8 @@ export async function handleRecordStop(
   }
 }
 
-/** 主动清理目标 tab 上的控制栏 + 区域边框 */
+/** 主动清理目标 tab 上的区域边框（控制栏已移至悬浮窗口，无需清理） */
 async function cleanupTargetTab(tabId: number): Promise<void> {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: removeRecorderControlBar
-    })
-  } catch {
-    /* 忽略 */
-  }
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -462,9 +417,7 @@ export async function handleRecorderStarted(
     recordingStartTime = startedAt
     await setRecordSession({ startedAt })
 
-    if (activeTargetTabId != null) {
-      await reinjectControlBar(activeTargetTabId)
-    }
+    // 控制栏计时已由悬浮窗口自行维护，无需回注目标 tab
     return { ok: true }
   } catch (err) {
     return {

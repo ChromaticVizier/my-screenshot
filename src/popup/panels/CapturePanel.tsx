@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { getCapturableActiveTab } from "~src/background/utils/tabHelper"
-import { CloudIcon } from "~src/components/icons"
+import { DesktopIcon, SettingsIcon } from "~src/components/icons"
 import {
   CAPTURE_CARD_ACTIONS,
   CAPTURE_LIST_ACTIONS
@@ -81,6 +81,10 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
       chrome.runtime.onMessage.removeListener(listener)
     }
   }, [])
+
+  const handleChooseLocalLocation = () => {
+    chrome.runtime.openOptionsPage()
+  }
 
   const handleSelectScrollRegion = async () => {
     if (busy) return
@@ -362,17 +366,19 @@ function CapturePanel({ onBusyChange }: CapturePanelProps) {
 
       {/* 底部存储位置 + 设置入口 */}
       <div className={styles.footer}>
-        <span className={styles.footerLabel}>把截屏存储到</span>
-        <button type="button" className={styles.storageBtn}>
-          <CloudIcon width={14} height={14} />
-          <span>云端</span>
+        <button
+          type="button"
+          className={styles.storageBtn}
+          onClick={handleChooseLocalLocation}>
+          <DesktopIcon width={18} height={18} />
+          <span>选择本地位置</span>
         </button>
         <button
           type="button"
           className={styles.settingsBtn}
           title="打开设置"
           onClick={() => chrome.runtime.openOptionsPage()}>
-          ⚙
+          <SettingsIcon width={18} height={18} />
         </button>
       </div>
     </div>

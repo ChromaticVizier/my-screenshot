@@ -2,6 +2,17 @@
   "standard": [],
   "isolate": [
     [
+      "feishu-doc",
+      "https://*.feishu.cn/wiki/*",
+      "https://*.feishu.cn/docx/*",
+      "https://*.feishu.cn/docs/*",
+      "https://*.feishu.cn/base/*"
+    ],
+    [
+      "popo-docs",
+      "https://docs.popo.netease.com/team/pc/rd_space/pageDetail/*"
+    ],
+    [
       "youdao-oa-portal",
       "https://oa.corp.youdao.com/",
       "https://oa.corp.youdao.com/wui/index.html*#/main/portal/*"

@@ -17,6 +17,13 @@ const baseProps: IconProps = {
   strokeLinejoin: "round"
 }
 
+export const SettingsIcon = (props: IconProps) => (
+  <svg {...baseProps} {...props}>
+    <path d="M12 3l7.79 4.5v9L12 21l-7.79-4.5v-9z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+)
+
 export const CameraIcon = (props: IconProps) => (
   <svg {...baseProps} {...props}>
     <path d="M3 7h4l2-2h6l2 2h4v12H3z" />
@@ -80,12 +87,6 @@ export const TextIcon = (props: IconProps) => (
   <svg {...baseProps} {...props}>
     <path d="M4 5V3h6M20 5V3h-6M4 19v2h6M20 19v2h-6" />
     <path d="M8 9h8M8 13h6" />
-  </svg>
-)
-
-export const CloudIcon = (props: IconProps) => (
-  <svg {...baseProps} {...props}>
-    <path d="M7 17h10a4 4 0 0 0 .5-7.97 6 6 0 0 0-11.6 1.5A3.5 3.5 0 0 0 7 17z" />
   </svg>
 )
 
