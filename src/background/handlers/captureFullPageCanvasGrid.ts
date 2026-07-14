@@ -12,16 +12,17 @@
  */
 import {
   errorResponse,
+  locateFrameOffsetInPage,
   makeFullPageCapturingProgress,
+  resolveFrameTarget,
   safeCaptureVisibleTab,
   sleep,
   type FullPageRouting
 } from "~src/background/handlers/fullPageShared"
 import {
-  measureCanvasGridOffset,
   prepareCanvasGrid,
   restoreCanvasGrid,
-  scrollCanvasGridTo,
+  scrollCanvasGridStepDown,
   type CanvasGridMetrics
 } from "~src/background/injected/canvasGrid"
 import { downloadImageBlob } from "~src/background/utils/download"
@@ -42,14 +43,16 @@ import type {
 } from "~src/shared/messages"
 import { getSettings } from "~src/shared/settings"
 
-/** 检测当前页是否存在可滚动 canvas 表格（供路由/回退判断） */
+/** 检测某页（或其子 frame）是否存在可滚动 canvas 表格（供路由/回退判断） */
 export async function detectCanvasGrid(
   tabId: number,
-  selector?: string
+  selector?: string,
+  frameUrl?: string
 ): Promise<CanvasGridMetrics | null> {
   try {
+    const target = await resolveFrameTarget(tabId, frameUrl)
     const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId },
+      target,
       func: prepareCanvasGrid,
       args: [selector ?? ""]
     })
@@ -70,6 +73,33 @@ export async function handleCaptureFullPageCanvasGrid(
   const tabId = tab.id!
   // 用户手动选中的 canvas selector（若有）：优先精确定位该 canvas
   const selector = routing?.siteRuleOverride?.selector || ""
+  // canvas 可能在跨域 iframe 内（如 POPo 内嵌网易灵犀表格）。若手动规则记录了
+  // frameUrl，注入目标定位到该 frame，并测出 iframe 在主 frame 中的偏移，
+  // 用于把「frame 局部 canvas 矩形」换算成整窗裁切坐标。
+  const frameUrl = routing?.siteRuleOverride?.frameUrl
+  const injectTarget = await resolveFrameTarget(tabId, frameUrl)
+  const isSubFrame =
+    !!frameUrl &&
+    !!injectTarget.frameIds &&
+    injectTarget.frameIds.length > 0 &&
+    injectTarget.frameIds[0] !== 0
+  let frameOffsetX = 0
+  let frameOffsetY = 0
+  if (isSubFrame && frameUrl) {
+    try {
+      const [{ result: off }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: locateFrameOffsetInPage,
+        args: [frameUrl]
+      })
+      if (off && typeof off === "object") {
+        frameOffsetX = off.x ?? 0
+        frameOffsetY = off.y ?? 0
+      }
+    } catch {
+      /* 取不到偏移则按 0 处理 */
+    }
+  }
 
   const settings = await getSettings()
   const taskId = request.payload?.taskId
@@ -86,7 +116,7 @@ export async function handleCaptureFullPageCanvasGrid(
     let metrics = prepared ?? null
     if (!metrics) {
       const [{ result }] = await chrome.scripting.executeScript({
-        target: { tabId },
+        target: injectTarget,
         func: prepareCanvasGrid,
         args: [selector]
       })
@@ -117,14 +147,15 @@ export async function handleCaptureFullPageCanvasGrid(
     })
 
     const slices: CaptureSlice[] = []
+    // 把 frame 局部坐标换算成整窗裁切坐标
     const crop = {
-      x: metrics.canvasX,
-      y: metrics.canvasY,
+      x: Math.max(0, Math.round(frameOffsetX + metrics.canvasX)),
+      y: Math.max(0, Math.round(frameOffsetY + metrics.canvasY)),
       w: metrics.canvasW
     }
 
-    // 2) 首帧（含列头）：整块 canvas
-    let offset = await scrollTopAndRead(tabId, selector)
+    // 2) 首帧（含列头）：prepare 已滚到顶部，偏移为 0
+    let offset = 0
     const firstUrl = await safeCaptureVisibleTab(tab.windowId, { format: "png" })
     assertFullPageTaskNotCancelled(taskId)
     if (!firstUrl) throw new Error("截图失败：返回数据为空")
@@ -138,8 +169,7 @@ export async function handleCaptureFullPageCanvasGrid(
       sourceHeight: viewportH
     })
 
-    // 3) 逐帧：滚到下一偏移，裁掉列头后拼接
-    let target = step
+    // 3) 逐帧：单调向下步进，裁掉列头后拼接
     let prevOffset = offset
     let stall = 0
     const MAX_FRAMES = 400
@@ -148,17 +178,22 @@ export async function handleCaptureFullPageCanvasGrid(
     for (let i = 0; i < MAX_FRAMES; i++) {
       if (shouldStopFullPageCapture(taskId)) break
 
-      const [{ result: actual }] = await chrome.scripting.executeScript({
-        target: { tabId },
-        func: scrollCanvasGridTo,
-        args: [target, selector]
+      // 单调向下步进一屏（内部单次短滚动，快速返回，便于响应强制停止）
+      const [{ result: stepRes }] = await chrome.scripting.executeScript({
+        target: injectTarget,
+        func: scrollCanvasGridStepDown,
+        args: [selector]
       })
-      offset = typeof actual === "number" ? actual : offset
-      await sleep(120)
+      offset =
+        stepRes && typeof stepRes.offset === "number" ? stepRes.offset : offset
+      const atBottom = !!(stepRes && stepRes.atBottom)
+      await sleep(140)
+
+      if (shouldStopFullPageCapture(taskId)) break
 
       // 触底：偏移无法再推进
       if (offset <= prevOffset + 2) {
-        if (++stall >= 2) break
+        if (atBottom || ++stall >= 2) break
       } else {
         stall = 0
       }
@@ -170,7 +205,7 @@ export async function handleCaptureFullPageCanvasGrid(
       slices.push({
         bitmap,
         scrollY: offset + headerH,
-        destX: 0,
+        destX: crop.x,
         sourceX: crop.x,
         sourceY: crop.y + headerH,
         sourceWidth: crop.w,
@@ -191,15 +226,15 @@ export async function handleCaptureFullPageCanvasGrid(
       if (maxFullPageHeightPx > 0 && offset + viewportH >= maxFullPageHeightPx) {
         break
       }
+      if (atBottom) break
 
       prevOffset = offset
-      target = offset + step
     }
 
     // 4) 还原
     try {
       await chrome.scripting.executeScript({
-        target: { tabId },
+        target: injectTarget,
         func: restoreCanvasGrid
       })
     } catch {
@@ -243,34 +278,12 @@ export async function handleCaptureFullPageCanvasGrid(
   } catch (err) {
     try {
       await chrome.scripting.executeScript({
-        target: { tabId },
+        target: injectTarget,
         func: restoreCanvasGrid
       })
     } catch {
       /* 忽略 */
     }
     return errorResponse(err)
-  }
-}
-
-/** 滚回顶部并读取偏移（首帧对齐用） */
-async function scrollTopAndRead(
-  tabId: number,
-  selector: string
-): Promise<number> {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: scrollCanvasGridTo,
-      args: [0, selector]
-    })
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: measureCanvasGridOffset,
-      args: [selector]
-    })
-    return typeof result === "number" ? result : 0
-  } catch {
-    return 0
   }
 }

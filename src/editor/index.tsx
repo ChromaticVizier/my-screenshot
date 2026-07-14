@@ -93,6 +93,27 @@ function filenameForQuality(filename: string, preset: ExportQuality): string {
   return filename.replace(/\.(png|jpe?g)$/i, ".jpeg")
 }
 
+/** 清洗文件名：去除零宽/控制字符与非法路径字符，保证非空且带扩展名。
+ *  钉钉/飞书等文档标题常含零宽不可见字符，chrome.downloads 会报 "invalid filename"。 */
+function sanitizeFilename(name: string): string {
+  const fallback = "screenshot.png"
+  if (!name) return fallback
+  // 保留目录分隔（download 相对路径），逐段清洗
+  const cleaned = name
+    // 零宽 / BOM / 双向控制符
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, "")
+    // ASCII 控制字符
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    // Windows/通用非法字符（保留 / 作为目录分隔）
+    .replace(/[<>:"\\|?*]/g, "_")
+    .split("/")
+    .map((seg) => seg.trim().replace(/^\.+|\.+$/g, ""))
+    .filter((seg) => seg.length > 0)
+    .join("/")
+  if (!cleaned) return fallback
+  return /\.(png|jpe?g)$/i.test(cleaned) ? cleaned : `${cleaned}.png`
+}
+
 function moveAnnotation(a: Annotation, dx: number, dy: number): Annotation {
   if (a.type === "rect") return { ...a, x: a.x + dx, y: a.y + dy }
   if (a.type === "text") return { ...a, x: a.x + dx, y: a.y + dy }
@@ -256,6 +277,12 @@ function Editor() {
   const [error, setError] = useState<string | null>(null)
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 })
   const [crop, setCrop] = useState<CropRect | null>(null)
+  /** 进入裁剪模式前的裁剪框，用于“取消”恢复 */
+  const [cropBeforeEdit, setCropBeforeEdit] = useState<CropRect | null>(null)
+  /** 裁剪历史：每次确认裁剪压入裁剪前的完整状态，供撤销回退 */
+  const [cropHistory, setCropHistory] = useState<
+    { dataUrl: string; imgSize: { w: number; h: number }; annotations: Annotation[] }[]
+  >([])
   const [quality, setQuality] = useState(92)
   const [exportQuality, setExportQuality] = useState<ExportQuality>("original")
 
@@ -624,10 +651,85 @@ function Editor() {
   }, [draft])
 
   const doUndo = useCallback(() => {
+    // 优先撤销最近一次裁剪，回退到裁剪前的完整图与标注
+    if (cropHistory.length > 0) {
+      const prev = cropHistory[cropHistory.length - 1]
+      setCropHistory((h) => h.slice(0, -1))
+      setDataUrl(prev.dataUrl)
+      setImgSize(prev.imgSize)
+      setAnnotations(prev.annotations)
+      setCrop(null)
+      setCropBeforeEdit(null)
+      setSelectedAnnoId(null)
+      setMosaicPreviewVersion((v) => v + 1)
+      return
+    }
     setAnnotations((arr) => arr.slice(0, -1))
     setSelectedAnnoId(null)
     setMosaicPreviewVersion((v) => v + 1)
-  }, [])
+  }, [cropHistory])
+
+  const cancelCropEdit = useCallback(() => {
+    setCrop(cropBeforeEdit)
+    setCropBeforeEdit(null)
+    setDragState(null)
+    setMode("none")
+  }, [cropBeforeEdit])
+
+  const confirmCropEdit = useCallback(async () => {
+    if (!crop || crop.w < 1 || crop.h < 1 || !dataUrl) {
+      setError("请先拖动选择裁剪区域")
+      return
+    }
+    setProcessingMessage("正在应用裁剪，请稍候...")
+    try {
+      const img = new Image()
+      img.src = dataUrl
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error("图片加载失败"))
+      })
+      const rect = {
+        x: Math.max(0, Math.round(crop.x)),
+        y: Math.max(0, Math.round(crop.y)),
+        w: Math.max(1, Math.round(crop.w)),
+        h: Math.max(1, Math.round(crop.h))
+      }
+      const out = document.createElement("canvas")
+      out.width = rect.w
+      out.height = rect.h
+      const ctx = out.getContext("2d")
+      if (!ctx) throw new Error("无法创建裁剪画布")
+      ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h)
+
+      // 压入裁剪前的完整状态，供“撤销”回退到上一级
+      setCropHistory((h) => [
+        ...h,
+        { dataUrl, imgSize: { ...imgSize }, annotations: [...annotations] }
+      ])
+
+      // 已有标注保留在新图中：裁剪框外丢弃，框内坐标平移到新原点。
+      setAnnotations((arr) =>
+        arr
+          .map((a) => moveAnnotation(a, -rect.x, -rect.y))
+          .filter((a) => {
+            const b = selectionBounds(a)
+            return b.x + b.w > 0 && b.y + b.h > 0 && b.x < rect.w && b.y < rect.h
+          })
+      )
+      setDataUrl(out.toDataURL("image/png"))
+      setImgSize({ w: rect.w, h: rect.h })
+      setCrop(null)
+      setCropBeforeEdit(null)
+      setSelectedAnnoId(null)
+      setMosaicPreviewVersion((v) => v + 1)
+      setMode("none")
+      setProcessingMessage(null)
+    } catch (err) {
+      setProcessingMessage(null)
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }, [crop, dataUrl, imgSize, annotations])
 
   const doDeleteSelected = useCallback(() => {
     if (!selectedAnnoId) return
@@ -646,55 +748,82 @@ function Editor() {
   }, [annotations.length])
 
   // ============ 导出 ============
-  /** 加载源图 + burn-in 标注 + 裁剪 → dataUrl */
-  const renderExport = useCallback(async (): Promise<string | null> => {
-    if (!dataUrl) return null
-    const img = new Image()
-    img.src = dataUrl
-    await new Promise<void>((r, j) => {
-      img.onload = () => r()
-      img.onerror = () => j(new Error("图片加载失败"))
+  /** 加载源图 + burn-in 标注 + 裁剪 → dataUrl。ignoreCrop=true 时导出整幅（跳过裁剪）。 */
+  const renderExport = useCallback(
+    async (ignoreCrop = false): Promise<string | null> => {
+      if (!dataUrl) return null
+      const img = new Image()
+      img.src = dataUrl
+      await new Promise<void>((r, j) => {
+        img.onload = () => r()
+        img.onerror = () => j(new Error("图片加载失败"))
+      })
+      const full = document.createElement("canvas")
+      full.width = imgSize.w
+      full.height = imgSize.h
+      const fctx = full.getContext("2d")!
+      fctx.drawImage(img, 0, 0)
+      for (const a of annotations) bakeAnnotation(fctx, a, img)
+
+      const sourceRect =
+        ignoreCrop || !crop ? { x: 0, y: 0, w: imgSize.w, h: imgSize.h } : crop
+      const preset = getQualityPreset(exportQuality)
+      const out = document.createElement("canvas")
+      out.width = Math.max(1, Math.round(sourceRect.w * preset.scale))
+      out.height = Math.max(1, Math.round(sourceRect.h * preset.scale))
+      const octx = out.getContext("2d")!
+      octx.imageSmoothingEnabled = true
+      octx.imageSmoothingQuality = "high"
+      octx.drawImage(
+        full,
+        Math.round(sourceRect.x),
+        Math.round(sourceRect.y),
+        Math.round(sourceRect.w),
+        Math.round(sourceRect.h),
+        0,
+        0,
+        out.width,
+        out.height
+      )
+      if (preset.mime === "image/jpeg") {
+        return out.toDataURL(preset.mime, preset.quality)
+      }
+      const isJpeg = /\.jpe?g$/i.test(filename)
+      return isJpeg
+        ? out.toDataURL("image/jpeg", quality / 100)
+        : out.toDataURL("image/png")
+    },
+    [dataUrl, crop, imgSize, annotations, filename, quality, exportQuality]
+  )
+
+  const getExportBlob = useCallback(
+    async (ignoreCrop = false): Promise<Blob | null> => {
+      const url = await renderExport(ignoreCrop)
+      if (!url) return null
+      return await (await fetch(url)).blob()
+    },
+    [renderExport]
+  )
+
+  /** 统一下载：Blob URL + chrome.downloads（避免超大 dataURL 经消息传递被丢弃），
+   *  文件名清洗防止 "invalid filename"，成功后清理并关闭编辑器 tab。 */
+  const downloadBlob = useCallback((blob: Blob, rawName: string) => {
+    const url = URL.createObjectURL(blob)
+    const name = sanitizeFilename(rawName)
+    chrome.downloads.download({ url, filename: name, saveAs: true }, () => {
+      const err = chrome.runtime.lastError
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      if (err) {
+        setProcessingMessage(null)
+        setError(`下载失败：${err.message ?? "未知错误"}`)
+        return
+      }
+      chrome.runtime.sendMessage(
+        { type: MessageType.EDITOR_DISCARD },
+        () => closeEditorTab()
+      )
     })
-    const full = document.createElement("canvas")
-    full.width = imgSize.w
-    full.height = imgSize.h
-    const fctx = full.getContext("2d")!
-    fctx.drawImage(img, 0, 0)
-    for (const a of annotations) bakeAnnotation(fctx, a, img)
-
-    const sourceRect = crop ?? { x: 0, y: 0, w: imgSize.w, h: imgSize.h }
-    const preset = getQualityPreset(exportQuality)
-    const out = document.createElement("canvas")
-    out.width = Math.max(1, Math.round(sourceRect.w * preset.scale))
-    out.height = Math.max(1, Math.round(sourceRect.h * preset.scale))
-    const octx = out.getContext("2d")!
-    octx.imageSmoothingEnabled = true
-    octx.imageSmoothingQuality = "high"
-    octx.drawImage(
-      full,
-      Math.round(sourceRect.x),
-      Math.round(sourceRect.y),
-      Math.round(sourceRect.w),
-      Math.round(sourceRect.h),
-      0,
-      0,
-      out.width,
-      out.height
-    )
-    if (preset.mime === "image/jpeg") {
-      return out.toDataURL(preset.mime, preset.quality)
-    }
-    const isJpeg = /\.jpe?g$/i.test(filename)
-    return isJpeg
-      ? out.toDataURL("image/jpeg", quality / 100)
-      : out.toDataURL("image/png")
-  }, [dataUrl, crop, imgSize, annotations, filename, quality, exportQuality])
-
-  const getExportBlob = useCallback(async (): Promise<Blob | null> => {
-    const url = await renderExport()
-    if (!url) return null
-    return await (await fetch(url)).blob()
-  }, [renderExport])
+  }, [])
 
   const doCopy = useCallback(async () => {
     if (processingMessage) return
@@ -717,85 +846,36 @@ function Editor() {
     if (processingMessage) return
     setProcessingMessage("正在处理大图并准备下载，请稍候...")
     try {
-      // 直接在编辑器页用 Blob URL 下载：避免把超大 dataURL 通过 sendMessage 传给
-      // background 时超出消息体积上限而被静默丢弃（表现为“点了没反应/不下载”）。
       const blob = await getExportBlob()
       if (!blob) {
         setProcessingMessage(null)
         setError("裁剪失败：未能生成图片")
         return
       }
-      const url = URL.createObjectURL(blob)
-      const name = filenameForQuality(filename, exportQuality)
-      chrome.downloads.download({ url, filename: name, saveAs: true }, () => {
-        const err = chrome.runtime.lastError
-        window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
-        if (err) {
-          setProcessingMessage(null)
-          setError(`下载失败：${err.message ?? "未知错误"}`)
-          return
-        }
-        // 通知 background 清理 pendingImage，再关闭编辑器 tab
-        chrome.runtime.sendMessage(
-          { type: MessageType.EDITOR_DISCARD },
-          () => closeEditorTab()
-        )
-      })
+      downloadBlob(blob, filenameForQuality(filename, exportQuality))
     } catch (err) {
       setProcessingMessage(null)
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [getExportBlob, filename, processingMessage, exportQuality])
+  }, [getExportBlob, downloadBlob, filename, processingMessage, exportQuality])
 
   const doDownloadOriginal = useCallback(async () => {
     if (!dataUrl || processingMessage) return
     setProcessingMessage("正在处理大图并准备下载，请稍候...")
     try {
-      if (annotations.length === 0) {
-        chrome.runtime.sendMessage(
-          { type: MessageType.EDITOR_DOWNLOAD, payload: { dataUrl, filename } },
-          () => closeEditorTab()
-        )
+      // 跳过裁剪：导出整幅（含标注），走统一 Blob 下载 + 文件名清洗
+      const blob = await getExportBlob(true)
+      if (!blob) {
+        setProcessingMessage(null)
+        setError("下载失败：未能生成图片")
         return
       }
-      const img = new Image()
-      img.src = dataUrl
-      await new Promise<void>((r, j) => {
-        img.onload = () => r()
-        img.onerror = () => j(new Error("图片加载失败"))
-      })
-      const full = document.createElement("canvas")
-      full.width = imgSize.w
-      full.height = imgSize.h
-      const fctx = full.getContext("2d")!
-      fctx.drawImage(img, 0, 0)
-      for (const a of annotations) bakeAnnotation(fctx, a, img)
-      const preset = getQualityPreset(exportQuality)
-      let url: string
-      if (preset.scale !== 1 || preset.mime === "image/jpeg") {
-        const out = document.createElement("canvas")
-        out.width = Math.max(1, Math.round(imgSize.w * preset.scale))
-        out.height = Math.max(1, Math.round(imgSize.h * preset.scale))
-        const octx = out.getContext("2d")!
-        octx.imageSmoothingEnabled = true
-        octx.imageSmoothingQuality = "high"
-        octx.drawImage(full, 0, 0, out.width, out.height)
-        url = out.toDataURL(preset.mime, preset.quality)
-      } else {
-        const isJpeg = /\.jpe?g$/i.test(filename)
-        url = isJpeg
-          ? full.toDataURL("image/jpeg", quality / 100)
-          : full.toDataURL("image/png")
-      }
-      chrome.runtime.sendMessage(
-        { type: MessageType.EDITOR_DOWNLOAD, payload: { dataUrl: url, filename: filenameForQuality(filename, exportQuality) } },
-        () => closeEditorTab()
-      )
+      downloadBlob(blob, filenameForQuality(filename, exportQuality))
     } catch (err) {
       setProcessingMessage(null)
       setError(err instanceof Error ? err.message : String(err))
     }
-  }, [dataUrl, annotations, imgSize, filename, quality, processingMessage, exportQuality])
+  }, [dataUrl, getExportBlob, downloadBlob, filename, processingMessage, exportQuality])
 
   const doDiscard = useCallback(() => {
     chrome.runtime.sendMessage(
@@ -975,6 +1055,30 @@ function Editor() {
       </div>
 
       <div className={styles.toolbarRow}>
+        {mode === "crop" ? (
+          <div className={styles.cropToolActions}>
+            <span className={styles.toolLabel}>
+              {crop && crop.w > 0 && crop.h > 0
+                ? `裁剪区域 ${Math.round(crop.w)} × ${Math.round(crop.h)}`
+                : "拖动鼠标选择裁剪区域"}
+            </span>
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              disabled={!crop || crop.w < 1 || crop.h < 1 || !!processingMessage}
+              onClick={confirmCropEdit}>
+              确认
+            </button>
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              disabled={!!processingMessage}
+              onClick={cancelCropEdit}>
+              取消
+            </button>
+          </div>
+        ) : (
+          <>
         <div className={styles.toolGroup}>
           <span className={styles.toolLabel}>工具</span>
           {(
@@ -994,7 +1098,10 @@ function Editor() {
               className={`${styles.toolBtn} ${mode === m ? styles.toolBtnActive : ""}`}
               onClick={() => {
                 // 进入裁剪模式：清空裁剪框，先显示整幅深色遮罩，等用户拖出裁剪框
-                if (m === "crop") setCrop(null)
+                if (m === "crop") {
+                  setCropBeforeEdit(crop)
+                  setCrop(null)
+                }
                 setMode(m)
                 setSelectedAnnoId(null)
               }}>
@@ -1106,7 +1213,7 @@ function Editor() {
             type="button"
             className={styles.toolBtn}
             onClick={doUndo}
-            disabled={annotations.length === 0}>
+            disabled={annotations.length === 0 && cropHistory.length === 0}>
             撤销
           </button>
           <button
@@ -1124,6 +1231,8 @@ function Editor() {
             清空标注
           </button>
         </div>
+          </>
+        )}
       </div>
 
       <div

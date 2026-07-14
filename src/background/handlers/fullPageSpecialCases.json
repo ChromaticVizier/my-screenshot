@@ -20,6 +20,13 @@
   ],
   "iframe": [
     [
+      "dingtalk-doc",
+      "https://docs.dingtalk.com/i/nodes/*",
+      "https://alidocs.dingtalk.com/i/nodes/*",
+      "https://docs.dingtalk.com/notable/*",
+      "https://docs.dingtalk.com/document/*"
+    ],
+    [
       "mail-163-read",
       "https://mail.163.com/js6/main.jsp*#module=read.ReadModule*"
     ]

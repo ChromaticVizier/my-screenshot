@@ -220,7 +220,17 @@ export function pickScrollRegion(): Promise<PickedScrollRegion | null> {
 
     root.appendChild(shade)
     root.appendChild(box)
-    root.appendChild(tip)
+    // 提示条只在顶层 frame 显示：picker 会注入到每个 frame（含 iframe），
+    // 若每个 frame 各自渲染提示条会出现多个。顶层渲染一个即可，
+    // 子 frame 仍保留高亮框 / 点击选择能力。
+    const isTopFrame = (() => {
+      try {
+        return window.top === window.self
+      } catch {
+        return false
+      }
+    })()
+    if (isTopFrame) root.appendChild(tip)
     document.documentElement.appendChild(root)
 
     let current: HTMLElement | null = null

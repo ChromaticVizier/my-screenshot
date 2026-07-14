@@ -1,3 +1,4 @@
+import { handleCaptureFullPageDingtalkDoc } from "~src/background/handlers/captureFullPageDingtalkDoc"
 import { handleCaptureFullPageFeishuDoc } from "~src/background/handlers/captureFullPageFeishuDoc"
 import { handleCaptureFullPageMail163Read } from "~src/background/handlers/captureFullPageMail163Read"
 import { handleCaptureFullPagePopoDoc } from "~src/background/handlers/captureFullPagePopoDoc"
@@ -41,6 +42,7 @@ const SPECIAL_CASE_HANDLERS: Partial<
     "youdao-oa-portal": handleCaptureFullPageYoudaoOaPortal
   },
   iframe: {
+    "dingtalk-doc": handleCaptureFullPageDingtalkDoc,
     "mail-163-read": handleCaptureFullPageMail163Read
   },
   "spa-like": {},

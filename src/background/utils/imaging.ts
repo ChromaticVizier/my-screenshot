@@ -77,6 +77,9 @@ export interface CaptureSlice {
    *  用于「首帧整窗 + 后续帧裁切 scroller」混排：后续帧需对齐到 scroller 在
    *  画布中的左侧位置，而非一律贴左，否则与首帧里的 scroller 内容横向错位。 */
   destX?: number
+  /** 从 slice 顶部裁掉的 CSS 像素，并让目标 Y 顺延同样距离。
+   *  用于去掉滚动量化导致的帧顶部重复内容。 */
+  trimTop?: number
 }
 
 export interface StitchParams {
@@ -143,17 +146,23 @@ export async function stitchToBlob(params: StitchParams): Promise<Blob> {
   // 重叠区保留较早帧时倒序绘制：早帧最后画、压在上层。
   const orderedSlices = drawEarlierOnTop ? [...slices].reverse() : slices
   for (const slice of orderedSlices) {
+    const trimTop = Math.max(0, slice.trimTop ?? 0)
+    const trimPx = Math.round(trimTop * dpr)
     const dx = Math.max(0, Math.round((slice.destX ?? 0) * dpr))
-    const dy = Math.round(slice.scrollY * dpr)
+    const dy = Math.round((slice.scrollY + trimTop) * dpr)
     const sx = Math.max(0, Math.round((slice.sourceX ?? 0) * dpr))
-    const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr))
+    const sy = Math.max(0, Math.round((slice.sourceY ?? 0) * dpr)) + trimPx
     const sw = Math.min(
       slice.bitmap.width - sx,
       Math.round((slice.sourceWidth ?? viewportWidth) * dpr)
     )
     const sh = Math.min(
       slice.bitmap.height - sy,
-      Math.round((slice.sourceHeight ?? slice.bitmap.height / dpr) * dpr)
+      Math.max(
+        0,
+        Math.round((slice.sourceHeight ?? slice.bitmap.height / dpr) * dpr) -
+          trimPx
+      )
     )
     if (sw <= 0 || sh <= 0) continue
     // 注意：bitmap 自身宽高是设备像素。
