@@ -146,14 +146,14 @@ function RecordPanel() {
           title={options.systemAudio ? "系统声音：开" : "系统声音：关"}
           onClick={() => updateOption("systemAudio", !options.systemAudio)}
         />
-        <ToggleIconButton
+        {/* <ToggleIconButton
           on={options.microphone}
           iconOn={<MicOnIcon width={16} height={16} />}
           iconOff={<MicMutedIcon width={16} height={16} />}
           label="麦克风"
           title={options.microphone ? "麦克风：开" : "麦克风：关"}
           onClick={() => updateOption("microphone", !options.microphone)}
-        />
+        /> */}
       </div>
 
       {/* 配置选项 */}
