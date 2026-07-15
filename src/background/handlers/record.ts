@@ -218,8 +218,8 @@ async function bootstrapRecorder(params: {
   // 2) 中转窗口：作为悬浮录屏控制窗，可见并置于屏幕右上角供用户操作
   const recorderUrl =
     chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
-  const RECORDER_W = 320
-  const RECORDER_H = 200
+  const RECORDER_W = 340
+  const RECORDER_H = 132
   const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H)
   let recorderWindowId: number | undefined
   try {
@@ -383,8 +383,11 @@ export async function handleRecordStop(
     const stopMsg: RecorderStopRequest = { type: MessageType.RECORDER_STOP }
     await chrome.runtime.sendMessage(stopMsg).catch(() => undefined)
 
-    if (activeTargetTabId != null) {
-      await cleanupTargetTab(activeTargetTabId)
+    // Service Worker 可能已被回收导致 activeTargetTabId 丢失（尤其从 popup 停止时），
+    // 此时从存储的 boot 配置兜底取目标 tab，确保区域红框被清除。
+    const targetTabId = await resolveTargetTabId()
+    if (targetTabId != null) {
+      await cleanupTargetTab(targetTabId)
     }
     return { ok: true }
   } catch (err) {
@@ -392,6 +395,18 @@ export async function handleRecordStop(
       ok: false,
       error: err instanceof Error ? err.message : String(err)
     }
+  }
+}
+
+/** 取当前录制目标 tabId：优先内存态，丢失则从存储的 boot 配置恢复。 */
+async function resolveTargetTabId(): Promise<number | null> {
+  if (activeTargetTabId != null) return activeTargetTabId
+  try {
+    const store = await chrome.storage.local.get(RECORDER_BOOT_KEY)
+    const boot = store[RECORDER_BOOT_KEY] as RecorderBootConfig | undefined
+    return boot?.tabId ?? null
+  } catch {
+    return null
   }
 }
 
@@ -459,8 +474,9 @@ export async function handleRecorderFinish(
 
   // 兜底再清一次目标 tab 上的覆盖物（handleRecordStop 通常已清，但 stop 链路
   // 可能由其它路径触发，例如用户点 Chrome 共享栏的「停止共享」按钮）
-  if (activeTargetTabId != null) {
-    await cleanupTargetTab(activeTargetTabId)
+  const finishTargetTabId = await resolveTargetTabId()
+  if (finishTargetTabId != null) {
+    await cleanupTargetTab(finishTargetTabId)
   }
 
   // 解绑活跃 tab 标记 + 清理会话状态

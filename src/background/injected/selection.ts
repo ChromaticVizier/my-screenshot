@@ -159,9 +159,13 @@ export function pickSelection(
         width: w,
         height: h,
         devicePixelRatio: window.devicePixelRatio || 1,
-        viewportWidth: document.documentElement.clientWidth || window.innerWidth,
+        // 用 innerWidth/innerHeight（含滚动条区域）而非 clientWidth/clientHeight：
+        // tabCapture 捕获的是完整内视口、选区 clientX/Y 也相对完整内视口。用
+        // clientWidth（去掉了竖直滚动条宽度）会使缩放系数偏大并引入错误居中偏移，
+        // 导致裁剪整体右/下溢出边界。
+        viewportWidth: window.innerWidth || document.documentElement.clientWidth,
         viewportHeight:
-          document.documentElement.clientHeight || window.innerHeight
+          window.innerHeight || document.documentElement.clientHeight
       }
     }
 

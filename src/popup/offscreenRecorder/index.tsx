@@ -156,7 +156,29 @@ function OffscreenRecorder() {
           throw new Error("未找到录制启动配置")
         }
 
-        // 2) 用 streamId 拿 MediaStream
+        // 2) 麦克风：必须在「tab 捕获」之前申请。
+        //    一旦先用 mandatory chromeMediaSource:"tab" 调过 getUserMedia，
+        //    同文档内再请求普通麦克风常被静默拒绝、且不弹权限框。
+        //    此窗口为可见且 focused 的顶层扩展页，此时请求可正常弹出授权框。
+        if (boot.microphone) {
+          try {
+            micStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            })
+          } catch (err) {
+            // 用户拒绝或无设备：提示但不中断录制（继续录视频/系统声音）
+            setErrMsg(
+              "麦克风不可用：" +
+                (err instanceof Error ? err.message : String(err))
+            )
+          }
+        }
+
+        // 3) 用 streamId 拿 tab MediaStream
         //    注：chromeMediaSource:"tab" 是 Chrome 私有约束，不走 getDisplayMedia
         //    分辨率上限：仅整页录制时应用；区域录制会经 WebCodecs 裁剪，
         //    源用原生分辨率以保证裁剪坐标精度
@@ -197,17 +219,6 @@ function OffscreenRecorder() {
           }
         }
 
-        // 3) 麦克风
-        if (boot.microphone) {
-          try {
-            micStream = await navigator.mediaDevices.getUserMedia({
-              audio: { echoCancellation: true, noiseSuppression: true }
-            })
-          } catch (err) {
-            console.warn("[recorder] 麦克风获取失败", err)
-          }
-        }
-
         // 4) 组装最终 MediaStream
         //    - 视频：整页录制 → 直接用 tab 视频；区域录制 → 通过 canvas 裁剪
         //    - 音频：tab 音频（systemAudio）+ 麦克风（按选项叠加）
@@ -225,11 +236,35 @@ function OffscreenRecorder() {
         }
 
         const tracks: MediaStreamTrack[] = [...finalVideoTracks]
-        if (boot.systemAudio) {
-          tabStream.getAudioTracks().forEach((t) => tracks.push(t))
-        }
-        if (micStream) {
-          micStream.getAudioTracks().forEach((t) => tracks.push(t))
+        // 音频：MediaRecorder 只编码「第一条」音轨。若同时有系统声音与麦克风，
+        // 用 WebAudio 把两路混成单条音轨；只有一路时直接用原生音轨。
+        const micAudio = micStream ? micStream.getAudioTracks() : []
+        const tabAudio =
+          boot.systemAudio && tabStream.getAudioTracks().length > 0
+            ? tabStream.getAudioTracks()
+            : []
+        if (micAudio.length > 0 && tabAudio.length > 0) {
+          try {
+            const mixCtx = new AudioContext()
+            // 新建 AudioContext 可能处于 suspended，需 resume 才有采样输出
+            if (mixCtx.state === "suspended") await mixCtx.resume()
+            const dest = mixCtx.createMediaStreamDestination()
+            mixCtx
+              .createMediaStreamSource(new MediaStream([tabAudio[0]]))
+              .connect(dest)
+            mixCtx
+              .createMediaStreamSource(new MediaStream([micAudio[0]]))
+              .connect(dest)
+            const mixed = dest.stream.getAudioTracks()[0]
+            tracks.push(mixed ?? micAudio[0])
+          } catch {
+            // 混音失败退回麦克风（保证人声不丢）
+            tracks.push(micAudio[0])
+          }
+        } else if (micAudio.length > 0) {
+          tracks.push(micAudio[0])
+        } else if (tabAudio.length > 0) {
+          tracks.push(tabAudio[0])
         }
 
         combinedStream = new MediaStream(tracks)
