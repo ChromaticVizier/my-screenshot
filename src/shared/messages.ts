@@ -49,11 +49,7 @@ export const MessageType = {
    *  控制栏计时与实际视频时长会差约 1 秒；以此消息为准重置起点） */
   RECORDER_STARTED: "recorder/started",
   /** 中转窗口 → background：录制完成（已自行下载） */
-  RECORDER_FINISH: "recorder/finish",
-
-  /* ====== 麦克风授权 ====== */
-  /** 授权窗口 → background：麦克风授权结果（getUserMedia 成功/失败） */
-  MIC_PERMISSION_RESULT: "mic/permissionResult"
+  RECORDER_FINISH: "recorder/finish"
 } as const
 
 export type MessageType = (typeof MessageType)[keyof typeof MessageType]
@@ -246,17 +242,6 @@ export interface RecorderFinishRequest {
   }
 }
 
-/* ---------- 麦克风授权：授权窗口 → background ---------- */
-export interface MicPermissionResultRequest {
-  type: typeof MessageType.MIC_PERMISSION_RESULT
-  payload: {
-    /** 是否获得麦克风授权 */
-    granted: boolean
-    /** 失败原因（未授权/无设备等） */
-    error?: string
-  }
-}
-
 /** 通用响应 */
 export interface CaptureResponse {
   ok: boolean
@@ -294,4 +279,3 @@ export type ExtensionRequest =
   | RecorderResumeRequest
   | RecorderStartedRequest
   | RecorderFinishRequest
-  | MicPermissionResultRequest

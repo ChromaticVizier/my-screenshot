@@ -13,7 +13,6 @@ import { TAB_ITEMS } from "~src/constants/tabs"
 import Editor from "~src/editor"
 import DesktopCaptureWindow from "~src/popup/desktop"
 import FullPageProgressWindow from "~src/popup/fullPageProgress"
-import MicPermissionWindow from "~src/popup/micPermission"
 import OffscreenRecorder from "~src/popup/offscreenRecorder"
 import CapturePanel from "~src/popup/panels/CapturePanel"
 import RecordPanel from "~src/popup/panels/RecordPanel"
@@ -38,7 +37,6 @@ function Popup() {
   if (action === "desktopCapture") return <DesktopCaptureWindow />
   if (action === "fullPageProgress") return <FullPageProgressWindow />
   if (action === "offscreenRecorder") return <OffscreenRecorder />
-  if (action === "micPermission") return <MicPermissionWindow />
   if (action === "editor") return <Editor />
   return <MainPopup />
 }

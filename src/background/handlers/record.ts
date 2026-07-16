@@ -37,7 +37,6 @@ import {
 } from "~src/background/injected/selection"
 import {
   MessageType,
-  type MicPermissionResultRequest,
   type RecorderFinishRequest,
   type RecorderStartedRequest,
   type RecorderStopRequest,
@@ -50,7 +49,6 @@ import {
   clearRecordSession,
   getRecordOptions,
   getRecordSession,
-  setRecordOptions,
   setRecordSession,
   type RecordResolution
 } from "~src/shared/recordOptions"
@@ -201,31 +199,12 @@ async function bootstrapRecorder(params: {
 
   const startedAt = Date.now()
 
-  // 0) 麦克风授权门禁
-  //    getUserMedia 的授权弹窗在 type:"popup" 的扩展窗口里没有 UI 载体，
-  //    Windows 版 Chrome/Edge 下会静默失败、不弹框。因此先在一个 type:"normal"
-  //    的独立授权窗口里请求麦克风（该窗口具备完整权限 UI），授权通过后
-  //    扩展 origin 已获授权，随后中转窗口内的 getUserMedia 即可静默成功。
-  //    - 无论此前是否已授权都会走一遍，用于刷新授权状态
-  //    - 未获授权：录制继续（视频/系统声音），并把选项复位为关
-  let micGranted = microphone
-  if (microphone) {
-    micGranted = await requestMicPermission()
-    if (!micGranted) {
-      try {
-        await setRecordOptions({ microphone: false })
-      } catch {
-        /* 忽略 */
-      }
-    }
-  }
-
   // 1) 写 storage
   const boot: RecorderBootConfig = {
     streamId,
     tabId,
     tabTitle,
-    microphone: micGranted,
+    microphone,
     systemAudio,
     resolution,
     filename: await buildRecordingFilename({ tabTitle, ext: "webm" }),
@@ -241,7 +220,10 @@ async function bootstrapRecorder(params: {
     chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
   const RECORDER_W = 340
   const RECORDER_H = 132
-  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H)
+  // 开启麦克风时，中转窗口会触发浏览器麦克风授权弹窗。该弹窗锚定在窗口左上角
+  // 并向右延伸（宽约 ~480px），若窗口贴屏幕右缘会导致弹窗溢出到屏幕外。
+  // 因此开麦时把窗口整体左移，为授权弹窗预留横向空间。
+  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H, microphone)
   let recorderWindowId: number | undefined
   try {
     const win = await chrome.windows.create({
@@ -372,19 +354,28 @@ export async function handleRecordStartRegionTab(
   }
 }
 
-/** 计算悬浮录屏控制窗的位置：放在主显示器工作区右上角 */
+/** 计算悬浮录屏控制窗的位置：默认放在主显示器工作区右上角。
+ *  开启麦克风授权时，为授权弹窗（锚定窗口左上、向右延展）预留横向空间，
+ *  把窗口左移，避免弹窗溢出到屏幕右侧之外。 */
 async function computeFloatingWindowPos(
   width: number,
-  height: number
+  height: number,
+  needsMicPermission = false
 ): Promise<{ left: number; top: number }> {
   const margin = 20
+  // 麦克风授权弹窗的大致宽度，用于确保窗口左移后弹窗仍能完整显示在屏幕内
+  const PERMISSION_DIALOG_W = 480
   try {
     const displays = await chrome.system.display.getInfo()
     const primary = displays.find((d) => d.isPrimary) ?? displays[0]
     if (primary) {
       const wa = primary.workArea
+      // 需为弹窗预留的横向占用宽度（取窗口宽与弹窗宽的较大值）
+      const reserveW = needsMicPermission
+        ? Math.max(width, PERMISSION_DIALOG_W)
+        : width
       return {
-        left: Math.max(wa.left, wa.left + wa.width - width - margin),
+        left: Math.max(wa.left + margin, wa.left + wa.width - reserveW - margin),
         top: wa.top + margin
       }
     }
@@ -395,85 +386,8 @@ async function computeFloatingWindowPos(
 }
 
 /* ============================================================
- * 麦克风授权门禁
- *
- * 在一个 type:"normal" 的独立扩展窗口（popup.html?action=micPermission）里
- * 调 getUserMedia 弹出授权框。normal 窗口具备完整权限 UI，能在 Windows 版
- * Chrome/Edge 下正常弹框；popup 类型窗口没有该 UI 载体会静默失败。
- * 窗口靠屏幕左侧摆放，使向右延展的授权弹窗不至溢出屏幕外。
+ * 2) 停止录制：广播 + 主动清理目标 tab 控制栏 / 边框
  * ============================================================ */
-let pendingMicResolve: ((granted: boolean) => void) | null = null
-let micPermissionWindowId: number | null = null
-
-function requestMicPermission(): Promise<boolean> {
-  const url =
-    chrome.runtime.getURL("popup.html") + "?action=micPermission"
-  const W = 420
-  const H = 220
-
-  return new Promise<boolean>((resolve) => {
-    let settled = false
-    const finish = (granted: boolean) => {
-      if (settled) return
-      settled = true
-      pendingMicResolve = null
-      if (micPermissionWindowId != null) {
-        chrome.windows.remove(micPermissionWindowId).catch(() => undefined)
-        micPermissionWindowId = null
-      }
-      resolve(granted)
-    }
-    pendingMicResolve = finish
-
-    void (async () => {
-      const pos = await computeMicPermissionWindowPos(W, H)
-      try {
-        const win = await chrome.windows.create({
-          url,
-          type: "normal",
-          width: W,
-          height: H,
-          left: pos.left,
-          top: pos.top,
-          focused: true
-        })
-        micPermissionWindowId = win?.id ?? null
-      } catch {
-        finish(false)
-      }
-    })()
-
-    // 兜底：用户久不操作 / 窗口异常，60s 后按未授权处理
-    setTimeout(() => finish(false), 60_000)
-  })
-}
-
-/** 授权窗口位置：贴主显示器工作区左上角，让向右展开的授权弹窗不溢出屏幕 */
-async function computeMicPermissionWindowPos(
-  width: number,
-  height: number
-): Promise<{ left: number; top: number }> {
-  const margin = 40
-  try {
-    const displays = await chrome.system.display.getInfo()
-    const primary = displays.find((d) => d.isPrimary) ?? displays[0]
-    if (primary) {
-      const wa = primary.workArea
-      return { left: wa.left + margin, top: wa.top + margin }
-    }
-  } catch {
-    /* 忽略 */
-  }
-  return { left: margin, top: margin }
-}
-
-/** 授权窗口回传结果 → 结束门禁 Promise */
-export function handleMicPermissionResult(
-  request: MicPermissionResultRequest
-): SimpleResponse {
-  pendingMicResolve?.(request.payload.granted)
-  return { ok: true }
-}
 export async function handleRecordStop(
   _request: RecordStopRequest
 ): Promise<SimpleResponse> {
