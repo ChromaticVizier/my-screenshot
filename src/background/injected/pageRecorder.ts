@@ -518,37 +518,44 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
 
   w[FLAG] = { cleanup }
 
-  /* ---------- WebCodecs 裁剪（区域录制） ---------- */
+  /* ---------- 区域裁剪（canvas 方案） ----------
+   * 注入脚本运行在内容脚本「隔离世界」，此环境下 WebCodecs 的
+   * MediaStreamTrackProcessor/Generator 管线常不产出帧（能力检测通过但无输出），
+   * 导致区域录制录不到内容。改用 <video> + canvas.drawImage + canvas.captureStream
+   * 在隔离世界稳定可用；webm 可播放性由停止时的 Duration 补写保证。
+   */
   const buildCroppedVideoTracks = (
     src: MediaStream,
     region: PageRecorderRegion
   ): MediaStreamTrack[] => {
     const srcTrack = src.getVideoTracks()[0]
     if (!srcTrack) throw new Error("源视频轨道为空")
-    const winAny = window as unknown as {
-      MediaStreamTrackProcessor?: new (init: {
-        track: MediaStreamTrack
-      }) => { readable: ReadableStream<VideoFrame> }
-      MediaStreamTrackGenerator?: new (init: {
-        kind: "video"
-      }) => MediaStreamTrack & { writable: WritableStream<VideoFrame> }
-    }
-    if (!winAny.MediaStreamTrackProcessor || !winAny.MediaStreamTrackGenerator) {
-      throw new Error("当前浏览器不支持 WebCodecs Insertable Streams（需 Chrome 94+）")
-    }
+
     const dpr = region.devicePixelRatio || 1
+    // 录制期页面残留的红色选区边框（约 2px+外阴影）会被录进去，向内缩进 3px 遮掉
     const FRAME_BORDER = 3
     const selX = region.x + FRAME_BORDER
     const selY = region.y + FRAME_BORDER
     const selW = Math.max(1, region.width - FRAME_BORDER * 2)
     const selH = Math.max(1, region.height - FRAME_BORDER * 2)
-    const processor = new winAny.MediaStreamTrackProcessor({ track: srcTrack })
-    const generator = new winAny.MediaStreamTrackGenerator({ kind: "video" })
-    let baseTs: number | null = null
-    const transformer = new TransformStream<VideoFrame, VideoFrame>({
-      transform(frame, controller) {
-        const fw = frame.codedWidth
-        const fh = frame.codedHeight
+
+    const video = document.createElement("video")
+    video.muted = true
+    video.playsInline = true
+    video.srcObject = new MediaStream([srcTrack])
+
+    const canvas = document.createElement("canvas")
+    const ctx = canvas.getContext("2d")
+    if (!ctx) throw new Error("无法创建 canvas 上下文")
+
+    let rafId = 0
+    let stopped = false
+
+    const draw = () => {
+      if (stopped) return
+      const fw = video.videoWidth
+      const fh = video.videoHeight
+      if (fw > 0 && fh > 0) {
         const vpW =
           region.viewportWidth && region.viewportWidth > 0
             ? region.viewportWidth
@@ -557,56 +564,66 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
           region.viewportHeight && region.viewportHeight > 0
             ? region.viewportHeight
             : fh / dpr
+        // object-fit:contain 映射（等比缩放 + 居中留白）
         const scale = Math.min(fw / vpW, fh / vpH)
-        const drawnW = vpW * scale
-        const drawnH = vpH * scale
-        const offX = (fw - drawnW) / 2
-        const offY = (fh - drawnH) / 2
-        let x = Math.round(offX + selX * scale)
-        let y = Math.round(offY + selY * scale)
-        let cw = Math.round(selW * scale)
-        let ch = Math.round(selH * scale)
-        x = Math.max(0, Math.min(x, Math.max(0, fw - 2)))
-        y = Math.max(0, Math.min(y, Math.max(0, fh - 2)))
-        cw = Math.max(2, Math.min(cw, fw - x))
-        ch = Math.max(2, Math.min(ch, fh - y))
-        x -= x % 2
-        y -= y % 2
-        cw -= cw % 2
-        ch -= ch % 2
-        if (cw < 2) cw = 2
-        if (ch < 2) ch = 2
-        if (x + cw > fw) cw = fw - x - ((fw - x) % 2)
-        if (y + ch > fh) ch = fh - y - ((fh - y) % 2)
-        const srcTs = frame.timestamp ?? 0
-        if (baseTs === null) baseTs = srcTs
-        const relTs = Math.max(0, srcTs - baseTs)
+        const offX = (fw - vpW * scale) / 2
+        const offY = (fh - vpH * scale) / 2
+        let sx = Math.round(offX + selX * scale)
+        let sy = Math.round(offY + selY * scale)
+        let sw = Math.round(selW * scale)
+        let sh = Math.round(selH * scale)
+        sx = Math.max(0, Math.min(sx, Math.max(0, fw - 2)))
+        sy = Math.max(0, Math.min(sy, Math.max(0, fh - 2)))
+        sw = Math.max(2, Math.min(sw, fw - sx))
+        sh = Math.max(2, Math.min(sh, fh - sy))
+        // 偶数对齐（VP8/VP9 要求）
+        sw -= sw % 2
+        sh -= sh % 2
+        if (sw < 2) sw = 2
+        if (sh < 2) sh = 2
+        if (canvas.width !== sw || canvas.height !== sh) {
+          canvas.width = sw
+          canvas.height = sh
+        }
         try {
-          const cropped = new VideoFrame(frame, {
-            visibleRect: { x, y, width: cw, height: ch },
-            timestamp: relTs
-          })
-          controller.enqueue(cropped)
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
         } catch {
           /* 跳过异常帧 */
-        } finally {
-          frame.close()
         }
       }
+      rafId = requestAnimationFrame(draw)
+    }
+
+    // 先给 canvas 一个初始尺寸，保证 captureStream 有有效轨道
+    canvas.width = Math.max(2, Math.round(selW * dpr))
+    canvas.height = Math.max(2, Math.round(selH * dpr))
+    const outStream = canvas.captureStream(30)
+
+    void video.play().then(() => {
+      rafId = requestAnimationFrame(draw)
     })
-    const abort = new AbortController()
-    processor.readable
-      .pipeThrough(transformer, { signal: abort.signal })
-      .pipeTo(generator.writable, { signal: abort.signal })
-      .catch(() => undefined)
+
     cropCancel = () => {
+      stopped = true
       try {
-        abort.abort()
+        cancelAnimationFrame(rafId)
+      } catch {
+        /* 忽略 */
+      }
+      try {
+        outStream.getTracks().forEach((t) => t.stop())
+      } catch {
+        /* 忽略 */
+      }
+      try {
+        video.pause()
+        video.srcObject = null
       } catch {
         /* 忽略 */
       }
     }
-    return [generator]
+
+    return outStream.getVideoTracks()
   }
 
   /* ---------- 启动录制 ---------- */
@@ -654,16 +671,6 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
 
       tabStream = await navigator.mediaDevices.getUserMedia(constraints)
 
-      // 系统声音：tabCapture 会静音页面，接回 destination 让用户仍能听到
-      if (args.systemAudio) {
-        try {
-          const ac = new AudioContext()
-          ac.createMediaStreamSource(tabStream).connect(ac.destination)
-        } catch {
-          /* 忽略 */
-        }
-      }
-
       // 等麦克风结果（streamId 已消费，不会过期）
       if (micPromise) {
         await micPromise
@@ -678,32 +685,48 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
         videoTracks = tabStream.getVideoTracks()
       }
 
-      // 音频轨：mic + systemAudio 混成单条
+      // 音频：统一用一个 AudioContext 处理，避免以下两个坑：
+      //   1) tabCapture 会静音页面：必须把 tab 音频接回 destination 用户才听得到
+      //   2) 隔离世界里把「原始 tab 音频轨」直接喂 MediaRecorder 常导致编码乱码，
+      //      必须经 WebAudio 图重新产出一条干净轨道再录
+      //   同时 mic 也并入同一张图，混成单条录制音轨（MediaRecorder 只编第一条）。
       const tracks: MediaStreamTrack[] = [...videoTracks]
-      const micAudio = micStream ? micStream.getAudioTracks() : []
-      const tabAudio =
+      const micAudioTrack = micStream?.getAudioTracks()[0] ?? null
+      const tabAudioTrack =
         args.systemAudio && tabStream.getAudioTracks().length > 0
-          ? tabStream.getAudioTracks()
-          : []
-      if (micAudio.length > 0 && tabAudio.length > 0) {
+          ? tabStream.getAudioTracks()[0]
+          : null
+
+      if (tabAudioTrack || micAudioTrack) {
         try {
-          const mixCtx = new AudioContext()
-          if (mixCtx.state === "suspended") await mixCtx.resume()
-          const dest = mixCtx.createMediaStreamDestination()
-          mixCtx
-            .createMediaStreamSource(new MediaStream([tabAudio[0]]))
-            .connect(dest)
-          mixCtx
-            .createMediaStreamSource(new MediaStream([micAudio[0]]))
-            .connect(dest)
-          tracks.push(dest.stream.getAudioTracks()[0] ?? micAudio[0])
+          const ac = new AudioContext()
+          if (ac.state === "suspended") await ac.resume()
+          const recDest = ac.createMediaStreamDestination()
+
+          if (tabAudioTrack) {
+            const tabSrc = ac.createMediaStreamSource(
+              new MediaStream([tabAudioTrack])
+            )
+            // → 扬声器（用户实时听得到）
+            tabSrc.connect(ac.destination)
+            // → 录制目标（干净轨道）
+            tabSrc.connect(recDest)
+          }
+          if (micAudioTrack) {
+            const micSrc = ac.createMediaStreamSource(
+              new MediaStream([micAudioTrack])
+            )
+            // 麦克风只进录制，不回放到扬声器（否则用户会听到自己回声）
+            micSrc.connect(recDest)
+          }
+
+          const recAudio = recDest.stream.getAudioTracks()[0]
+          if (recAudio) tracks.push(recAudio)
         } catch {
-          tracks.push(micAudio[0])
+          // WebAudio 失败兜底：退回原始轨道（至少保住音频，可能编码不佳）
+          if (micAudioTrack) tracks.push(micAudioTrack)
+          else if (tabAudioTrack) tracks.push(tabAudioTrack)
         }
-      } else if (micAudio.length > 0) {
-        tracks.push(micAudio[0])
-      } else if (tabAudio.length > 0) {
-        tracks.push(tabAudio[0])
       }
 
       combinedStream = new MediaStream(tracks)
