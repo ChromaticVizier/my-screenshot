@@ -157,34 +157,33 @@ function OffscreenRecorder() {
           throw new Error("未找到录制启动配置")
         }
 
-        // 2) 麦克风：必须在「tab 捕获」之前申请。
-        //    一旦先用 mandatory chromeMediaSource:"tab" 调过 getUserMedia，
-        //    同文档内再请求普通麦克风常被静默拒绝、且不弹权限框。
-        //    此窗口为可见且 focused 的顶层扩展页，此时请求可正常弹出授权框。
-        if (boot.microphone) {
-          try {
-            micStream = await navigator.mediaDevices.getUserMedia({
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-              }
-            })
-          } catch (err) {
-            // 用户拒绝或无设备：提示但不中断录制（继续录视频/系统声音）。
-            // 同时把麦克风选项复位为关，让面板开关保持关闭状态。
-            micStream = null
-            try {
-              await setRecordOptions({ microphone: false })
-            } catch {
-              /* 忽略 */
-            }
-            setErrMsg(
-              "麦克风不可用：" +
-                (err instanceof Error ? err.message : String(err))
-            )
-          }
-        }
+        // 2) 麦克风：**先发起请求（弹授权框）但不 await**。
+        //    - 仍保持「麦克风先于 tab 捕获发起」的顺序：一旦 mandatory
+        //      chromeMediaSource:"tab" 的 getUserMedia 成为活动流，同文档内再请求
+        //      普通麦克风常被静默拒绝、且不弹权限框。此处麦克风请求先进入排队。
+        //    - 关键：**不在此处 await**。streamId 生命周期很短，若先等待麦克风
+        //      授权（用户操作耗时；Mac 浏览器全屏时还叠加切换 Space 的动画），
+        //      streamId 会在授权期间过期，随后 tab getUserMedia 失败、录制刚开始
+        //      就结束。因此把 streamId 的消费提前到窗口加载即刻完成，麦克风授权
+        //      结果稍后再取。
+        let micResult: MediaStream | null = null
+        let micError: unknown = null
+        const micPromise = boot.microphone
+          ? navigator.mediaDevices
+              .getUserMedia({
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
+              })
+              .then((s) => {
+                micResult = s
+              })
+              .catch((e) => {
+                micError = e
+              })
+          : null
 
         // 3) 用 streamId 拿 tab MediaStream
         //    注：chromeMediaSource:"tab" 是 Chrome 私有约束，不走 getDisplayMedia
@@ -224,6 +223,29 @@ function OffscreenRecorder() {
             source.connect(audioCtx.destination)
           } catch {
             /* 音频上下文创建失败不影响录制 */
+          }
+        }
+
+        // 3.5) streamId 此刻已消费完毕（不会再过期），现在安心等待麦克风授权结果。
+        //      拒绝或无设备：提示但不中断录制（继续录视频/系统声音），并把选项
+        //      复位为关，让面板开关保持关闭状态。
+        if (micPromise) {
+          await micPromise
+          if (micError) {
+            micStream = null
+            try {
+              await setRecordOptions({ microphone: false })
+            } catch {
+              /* 忽略 */
+            }
+            setErrMsg(
+              "麦克风不可用：" +
+                (micError instanceof Error
+                  ? micError.message
+                  : String(micError))
+            )
+          } else {
+            micStream = micResult
           }
         }
 
