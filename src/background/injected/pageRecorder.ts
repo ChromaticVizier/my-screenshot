@@ -96,7 +96,10 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
     fontFamily: "system-ui, -apple-system, 'PingFang SC', sans-serif",
     fontSize: "13px",
     boxShadow: "0 6px 20px rgba(0, 0, 0, 0.35)",
-    userSelect: "none"
+    userSelect: "none",
+    cursor: "move",
+    opacity: "1",
+    transition: "opacity 0.35s ease"
   } satisfies Partial<CSSStyleDeclaration>)
 
   const dot = document.createElement("span")
@@ -167,6 +170,57 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
     time.textContent = fmtTime(Date.now() - startTime - pausedAccumMs)
   }, 250)
 
+  /* ---------- 拖拽移动 ---------- */
+  let dragging = false
+  let dragDX = 0
+  let dragDY = 0
+  const onBarPointerDown = (e: PointerEvent) => {
+    // 点在按钮上不触发拖拽
+    if (e.target === pauseBtn || e.target === stopBtn) return
+    dragging = true
+    const rect = bar.getBoundingClientRect()
+    dragDX = e.clientX - rect.left
+    dragDY = e.clientY - rect.top
+    // 从 bottom 锚定切换为 top/left 绝对定位，便于自由移动
+    bar.style.bottom = "auto"
+    bar.style.left = rect.left + "px"
+    bar.style.top = rect.top + "px"
+    e.preventDefault()
+  }
+  const onPointerMove = (e: PointerEvent) => {
+    wake()
+    if (!dragging) return
+    let nx = e.clientX - dragDX
+    let ny = e.clientY - dragDY
+    nx = Math.max(0, Math.min(nx, window.innerWidth - bar.offsetWidth))
+    ny = Math.max(0, Math.min(ny, window.innerHeight - bar.offsetHeight))
+    bar.style.left = nx + "px"
+    bar.style.top = ny + "px"
+  }
+  const onPointerUp = () => {
+    dragging = false
+  }
+  bar.addEventListener("pointerdown", onBarPointerDown)
+  window.addEventListener("pointermove", onPointerMove, true)
+  window.addEventListener("pointerup", onPointerUp, true)
+
+  /* ---------- 录制中自动淡出（悬停/移动/拖拽时恢复） ---------- */
+  let fadeEnabled = false
+  let fadeTimer = 0
+  const wake = () => {
+    bar.style.opacity = "1"
+    window.clearTimeout(fadeTimer)
+    if (!fadeEnabled) return
+    fadeTimer = window.setTimeout(() => {
+      if (!dragging) bar.style.opacity = "0.25"
+    }, 2500)
+  }
+  bar.addEventListener("pointerenter", () => {
+    bar.style.opacity = "1"
+    window.clearTimeout(fadeTimer)
+  })
+  bar.addEventListener("pointerleave", wake)
+
   /* ---------- 收尾 ---------- */
   const cleanupTracks = () => {
     try {
@@ -182,6 +236,9 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   const removeBar = () => {
     try {
       window.clearInterval(timerId)
+      window.clearTimeout(fadeTimer)
+      window.removeEventListener("pointermove", onPointerMove, true)
+      window.removeEventListener("pointerup", onPointerUp, true)
       bar.remove()
       document.querySelectorAll(`[${BAR_ATTR}]`).forEach((el) => el.remove())
     } catch {
@@ -658,6 +715,9 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
       label.textContent = "录制中"
       pauseBtn.style.display = "inline-flex"
       stopBtn.style.display = "inline-flex"
+      // 启用自动淡出（首个空闲周期后变淡，悬停/移动恢复）
+      fadeEnabled = true
+      wake()
 
       // 回传真实起点，覆盖 bootstrap 时的估计值
       try {
