@@ -59,10 +59,12 @@ export function startCurrentTabRecording(): Promise<SimpleResponse> {
 
           // 第 2 步：申请 streamId
           //   targetTabId  = 要捕获的 tab
-          //   不传 consumerTabId → streamId 可被任意扩展上下文消费
-          //                       （后续在中转窗口里调 getUserMedia）
+          //   consumerTabId = 目标 tab 自己 —— streamId 将在目标页面的注入脚本
+          //                   （内容脚本，页面源）里被 getUserMedia 消费。
+          //                   这样麦克风授权弹窗、录制控制栏都在页面内，避免
+          //                   独立扩展窗口（Mac 全屏下会被丢到单独 Space）。
           chrome.tabCapture.getMediaStreamId(
-            { targetTabId: tabId },
+            { targetTabId: tabId, consumerTabId: tabId },
             (streamId: string) => {
               const lastErr2 = chrome.runtime.lastError
               if (lastErr2 || !streamId) {
@@ -146,7 +148,7 @@ export function startRegionTabRecording(): Promise<SimpleResponse> {
           const tabId = tab.id
 
           chrome.tabCapture.getMediaStreamId(
-            { targetTabId: tabId },
+            { targetTabId: tabId, consumerTabId: tabId },
             (streamId: string) => {
               const lastErr2 = chrome.runtime.lastError
               if (lastErr2 || !streamId) {

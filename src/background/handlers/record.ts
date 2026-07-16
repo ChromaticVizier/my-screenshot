@@ -30,11 +30,11 @@
  *     - background 关闭中转窗口、清除活跃 tab 标记、清理会话
  */
 import {
-  injectRegionFrame,
   pickSelection,
   removeRegionFrame,
   type SelectionResult
 } from "~src/background/injected/selection"
+import { injectPageRecorder } from "~src/background/injected/pageRecorder"
 import {
   MessageType,
   type RecorderFinishRequest,
@@ -49,6 +49,7 @@ import {
   clearRecordSession,
   getRecordOptions,
   getRecordSession,
+  RESOLUTION_MAX_PIXELS,
   setRecordSession,
   type RecordResolution
 } from "~src/shared/recordOptions"
@@ -110,26 +111,9 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
   if (details.tabId !== activeTargetTabId) return
 
-  // 控制栏已移到悬浮窗口，无需重注；仅区域边框需随页面导航重注
-  if (activeRegion) {
-    void reinjectRegionFrame(details.tabId, activeRegion)
-  }
+  // 页内录制器随页面导航一并销毁（其 pagehide 会抢救已录内容并下载、清理会话），
+  // 因此导航后无需、也不应重注区域红框（否则会在新页面留下无主的红框）。
 })
-
-async function reinjectRegionFrame(
-  tabId: number,
-  region: SelectionResult
-): Promise<void> {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: injectRegionFrame,
-      args: [region]
-    })
-  } catch {
-    /* 忽略 */
-  }
-}
 
 function setActiveTab(
   tabId: number,
@@ -199,7 +183,8 @@ async function bootstrapRecorder(params: {
 
   const startedAt = Date.now()
 
-  // 1) 写 storage
+  // 1) 记录目标 tab 标题（用于生成文件名，供导航后兜底恢复）
+  const filename = await buildRecordingFilename({ tabTitle, ext: "webm" })
   const boot: RecorderBootConfig = {
     streamId,
     tabId,
@@ -207,7 +192,7 @@ async function bootstrapRecorder(params: {
     microphone,
     systemAudio,
     resolution,
-    filename: await buildRecordingFilename({ tabTitle, ext: "webm" }),
+    filename,
     ...(region ? { region } : {})
   }
   await chrome.storage.local.set({
@@ -215,28 +200,32 @@ async function bootstrapRecorder(params: {
     [RECORDING_TAB_TITLE_KEY]: tabTitle
   })
 
-  // 2) 中转窗口：作为悬浮录屏控制窗，可见并置于屏幕右上角供用户操作
-  const recorderUrl =
-    chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
-  const RECORDER_W = 340
-  const RECORDER_H = 132
-  // 开启麦克风时，中转窗口会触发浏览器麦克风授权弹窗。该弹窗锚定在窗口左上角
-  // 并向右延伸（宽约 ~480px），若窗口贴屏幕右缘会导致弹窗溢出到屏幕外。
-  // 因此开麦时把窗口整体左移，为授权弹窗预留横向空间。
-  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H, microphone)
-  let recorderWindowId: number | undefined
+  // 2) 把整条录制管线注入目标 tab（页面源）执行：
+  //    麦克风授权弹窗、控制栏都在页面内，Mac 全屏也无需切屏、无独立系统窗口。
+  const cap = RESOLUTION_MAX_PIXELS[resolution]
   try {
-    const win = await chrome.windows.create({
-      url: recorderUrl,
-      type: "popup",
-      width: RECORDER_W,
-      height: RECORDER_H,
-      left: pos.left,
-      top: pos.top,
-      focused: true
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: injectPageRecorder,
+      args: [
+        {
+          streamId,
+          microphone,
+          systemAudio,
+          // 区域录制用原生分辨率保证裁剪精度，不设上限
+          maxWidth: region ? undefined : cap?.width,
+          maxHeight: region ? undefined : cap?.height,
+          region: region ?? null,
+          filename,
+          startTime: startedAt
+        }
+      ]
     })
-    recorderWindowId = win?.id
   } catch (err) {
+    await chrome.storage.local.remove([
+      RECORDER_BOOT_KEY,
+      RECORDING_TAB_TITLE_KEY
+    ])
     return {
       ok: false,
       error: err instanceof Error ? err.message : String(err)
@@ -245,8 +234,7 @@ async function bootstrapRecorder(params: {
 
   await setRecordSession({
     recording: true,
-    startedAt,
-    recorderWindowId
+    startedAt
   })
   setActiveTab(tabId, startedAt, region)
 
@@ -354,37 +342,6 @@ export async function handleRecordStartRegionTab(
   }
 }
 
-/** 计算悬浮录屏控制窗的位置：默认放在主显示器工作区右上角。
- *  开启麦克风授权时，为授权弹窗（锚定窗口左上、向右延展）预留横向空间，
- *  把窗口左移，避免弹窗溢出到屏幕右侧之外。 */
-async function computeFloatingWindowPos(
-  width: number,
-  height: number,
-  needsMicPermission = false
-): Promise<{ left: number; top: number }> {
-  const margin = 20
-  // 麦克风授权弹窗的大致宽度，用于确保窗口左移后弹窗仍能完整显示在屏幕内
-  const PERMISSION_DIALOG_W = 480
-  try {
-    const displays = await chrome.system.display.getInfo()
-    const primary = displays.find((d) => d.isPrimary) ?? displays[0]
-    if (primary) {
-      const wa = primary.workArea
-      // 需为弹窗预留的横向占用宽度（取窗口宽与弹窗宽的较大值）
-      const reserveW = needsMicPermission
-        ? Math.max(width, PERMISSION_DIALOG_W)
-        : width
-      return {
-        left: Math.max(wa.left + margin, wa.left + wa.width - reserveW - margin),
-        top: wa.top + margin
-      }
-    }
-  } catch {
-    /* 拿不到显示器信息则用兜底位置 */
-  }
-  return { left: margin, top: margin }
-}
-
 /* ============================================================
  * 2) 停止录制：广播 + 主动清理目标 tab 控制栏 / 边框
  * ============================================================ */
@@ -392,13 +349,16 @@ export async function handleRecordStop(
   _request: RecordStopRequest
 ): Promise<SimpleResponse> {
   try {
-    const stopMsg: RecorderStopRequest = { type: MessageType.RECORDER_STOP }
-    await chrome.runtime.sendMessage(stopMsg).catch(() => undefined)
-
-    // Service Worker 可能已被回收导致 activeTargetTabId 丢失（尤其从 popup 停止时），
-    // 此时从存储的 boot 配置兜底取目标 tab，确保区域红框被清除。
+    // 录制器现在是目标 tab 内的注入脚本（内容脚本）。chrome.runtime.sendMessage
+    // 到达不了内容脚本，必须用 chrome.tabs.sendMessage 定向下发停止指令。
+    // 收到后由页内脚本 stop → 补 Duration → 下载 → 回传 recorder/finish 清理会话。
     const targetTabId = await resolveTargetTabId()
     if (targetTabId != null) {
+      const stopMsg: RecorderStopRequest = { type: MessageType.RECORDER_STOP }
+      await chrome.tabs
+        .sendMessage(targetTabId, stopMsg)
+        .catch(() => undefined)
+      // 清理页面上残留的区域红框（页内录制器会自行移除控制栏）
       await cleanupTargetTab(targetTabId)
     }
     return { ok: true }
