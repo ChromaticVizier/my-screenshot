@@ -220,7 +220,10 @@ async function bootstrapRecorder(params: {
     chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
   const RECORDER_W = 340
   const RECORDER_H = 132
-  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H)
+  // 开启麦克风时，中转窗口会触发浏览器麦克风授权弹窗。该弹窗锚定在窗口左上角
+  // 并向右延伸（宽约 ~480px），若窗口贴屏幕右缘会导致弹窗溢出到屏幕外。
+  // 因此开麦时把窗口整体左移，为授权弹窗预留横向空间。
+  const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H, microphone)
   let recorderWindowId: number | undefined
   try {
     const win = await chrome.windows.create({
@@ -351,19 +354,28 @@ export async function handleRecordStartRegionTab(
   }
 }
 
-/** 计算悬浮录屏控制窗的位置：放在主显示器工作区右上角 */
+/** 计算悬浮录屏控制窗的位置：默认放在主显示器工作区右上角。
+ *  开启麦克风授权时，为授权弹窗（锚定窗口左上、向右延展）预留横向空间，
+ *  把窗口左移，避免弹窗溢出到屏幕右侧之外。 */
 async function computeFloatingWindowPos(
   width: number,
-  height: number
+  height: number,
+  needsMicPermission = false
 ): Promise<{ left: number; top: number }> {
   const margin = 20
+  // 麦克风授权弹窗的大致宽度，用于确保窗口左移后弹窗仍能完整显示在屏幕内
+  const PERMISSION_DIALOG_W = 480
   try {
     const displays = await chrome.system.display.getInfo()
     const primary = displays.find((d) => d.isPrimary) ?? displays[0]
     if (primary) {
       const wa = primary.workArea
+      // 需为弹窗预留的横向占用宽度（取窗口宽与弹窗宽的较大值）
+      const reserveW = needsMicPermission
+        ? Math.max(width, PERMISSION_DIALOG_W)
+        : width
       return {
-        left: Math.max(wa.left, wa.left + wa.width - width - margin),
+        left: Math.max(wa.left + margin, wa.left + wa.width - reserveW - margin),
         top: wa.top + margin
       }
     }

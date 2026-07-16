@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from "react"
 
 import {
   RESOLUTION_MAX_PIXELS,
+  setRecordOptions,
   type RecordResolution
 } from "~src/shared/recordOptions"
 
@@ -170,7 +171,14 @@ function OffscreenRecorder() {
               }
             })
           } catch (err) {
-            // 用户拒绝或无设备：提示但不中断录制（继续录视频/系统声音）
+            // 用户拒绝或无设备：提示但不中断录制（继续录视频/系统声音）。
+            // 同时把麦克风选项复位为关，让面板开关保持关闭状态。
+            micStream = null
+            try {
+              await setRecordOptions({ microphone: false })
+            } catch {
+              /* 忽略 */
+            }
             setErrMsg(
               "麦克风不可用：" +
                 (err instanceof Error ? err.message : String(err))
