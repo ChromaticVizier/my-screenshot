@@ -15,6 +15,7 @@ import {
 } from "~src/background/handlers/capture"
 import { handleCaptureFullPageRouted } from "~src/background/handlers/fullPageRouter"
 import {
+  handleMicPermissionResult,
   handleRecorderFinish,
   handleRecorderStarted,
   handleRecordStartCurrentTab,
@@ -163,6 +164,10 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.RECORDER_STARTED: {
           sendResponse(await handleRecorderStarted(request))
+          break
+        }
+        case MessageType.MIC_PERMISSION_RESULT: {
+          sendResponse(handleMicPermissionResult(request))
           break
         }
         case MessageType.RECORDER_STOP:
