@@ -97,9 +97,7 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
     fontSize: "13px",
     boxShadow: "0 6px 20px rgba(0, 0, 0, 0.35)",
     userSelect: "none",
-    cursor: "move",
-    opacity: "1",
-    transition: "opacity 0.35s ease"
+    cursor: "move"
   } satisfies Partial<CSSStyleDeclaration>)
 
   const dot = document.createElement("span")
@@ -149,6 +147,7 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   }
   const pauseBtn = makeBtn("#4a90e2", "❚❚", "暂停")
   const stopBtn = makeBtn("#cf3a3a", "■", "停止并保存")
+  const collapseBtn = makeBtn("rgba(255,255,255,0.18)", "–", "收起")
   pauseBtn.style.display = "none"
   stopBtn.style.display = "none"
 
@@ -157,7 +156,47 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   bar.appendChild(time)
   bar.appendChild(pauseBtn)
   bar.appendChild(stopBtn)
+  bar.appendChild(collapseBtn)
   document.documentElement.appendChild(bar)
+
+  /* ---------- 收起 / 展开 ---------- */
+  // 收起态：只留一个小圆点，避免遮挡录制内容；再次点击展开。
+  let collapsed = false
+  const expandedChildren = [dot, label, time, pauseBtn, stopBtn]
+  const setCollapsed = (next: boolean) => {
+    collapsed = next
+    if (collapsed) {
+      expandedChildren.forEach((el) => {
+        ;(el as HTMLElement).style.display = "none"
+      })
+      Object.assign(bar.style, {
+        padding: "8px",
+        gap: "0"
+      } satisfies Partial<CSSStyleDeclaration>)
+      collapseBtn.textContent = "●"
+      collapseBtn.title = "展开"
+      collapseBtn.style.background = "#e0392b"
+    } else {
+      dot.style.display = ""
+      label.style.display = ""
+      time.style.display = ""
+      // 暂停/停止按钮仅在录制阶段显示
+      const showCtrl = !finalized && !!mediaRecorder
+      pauseBtn.style.display = showCtrl ? "inline-flex" : "none"
+      stopBtn.style.display = showCtrl ? "inline-flex" : "none"
+      Object.assign(bar.style, {
+        padding: "8px 14px",
+        gap: "10px"
+      } satisfies Partial<CSSStyleDeclaration>)
+      collapseBtn.textContent = "–"
+      collapseBtn.title = "收起"
+      collapseBtn.style.background = "rgba(255,255,255,0.18)"
+    }
+  }
+  collapseBtn.addEventListener("click", (e) => {
+    e.stopPropagation()
+    setCollapsed(!collapsed)
+  })
 
   const fmtTime = (ms: number) => {
     const total = Math.max(0, Math.floor(ms / 1000))
@@ -176,7 +215,12 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   let dragDY = 0
   const onBarPointerDown = (e: PointerEvent) => {
     // 点在按钮上不触发拖拽
-    if (e.target === pauseBtn || e.target === stopBtn) return
+    if (
+      e.target === pauseBtn ||
+      e.target === stopBtn ||
+      e.target === collapseBtn
+    )
+      return
     dragging = true
     const rect = bar.getBoundingClientRect()
     dragDX = e.clientX - rect.left
@@ -188,7 +232,6 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
     e.preventDefault()
   }
   const onPointerMove = (e: PointerEvent) => {
-    wake()
     if (!dragging) return
     let nx = e.clientX - dragDX
     let ny = e.clientY - dragDY
@@ -203,23 +246,6 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   bar.addEventListener("pointerdown", onBarPointerDown)
   window.addEventListener("pointermove", onPointerMove, true)
   window.addEventListener("pointerup", onPointerUp, true)
-
-  /* ---------- 录制中自动淡出（悬停/移动/拖拽时恢复） ---------- */
-  let fadeEnabled = false
-  let fadeTimer = 0
-  const wake = () => {
-    bar.style.opacity = "1"
-    window.clearTimeout(fadeTimer)
-    if (!fadeEnabled) return
-    fadeTimer = window.setTimeout(() => {
-      if (!dragging) bar.style.opacity = "0.25"
-    }, 2500)
-  }
-  bar.addEventListener("pointerenter", () => {
-    bar.style.opacity = "1"
-    window.clearTimeout(fadeTimer)
-  })
-  bar.addEventListener("pointerleave", wake)
 
   /* ---------- 收尾 ---------- */
   const cleanupTracks = () => {
@@ -236,7 +262,6 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
   const removeBar = () => {
     try {
       window.clearInterval(timerId)
-      window.clearTimeout(fadeTimer)
       window.removeEventListener("pointermove", onPointerMove, true)
       window.removeEventListener("pointerup", onPointerUp, true)
       bar.remove()
@@ -713,11 +738,11 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
 
       mediaRecorder.start()
       label.textContent = "录制中"
-      pauseBtn.style.display = "inline-flex"
-      stopBtn.style.display = "inline-flex"
-      // 启用自动淡出（首个空闲周期后变淡，悬停/移动恢复）
-      fadeEnabled = true
-      wake()
+      // 展开态才显示暂停/停止；收起态保持最小化
+      if (!collapsed) {
+        pauseBtn.style.display = "inline-flex"
+        stopBtn.style.display = "inline-flex"
+      }
 
       // 回传真实起点，覆盖 bootstrap 时的估计值
       try {
