@@ -685,11 +685,15 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
         videoTracks = tabStream.getVideoTracks()
       }
 
-      // 音频：统一用一个 AudioContext 处理，避免以下两个坑：
-      //   1) tabCapture 会静音页面：必须把 tab 音频接回 destination 用户才听得到
-      //   2) 隔离世界里把「原始 tab 音频轨」直接喂 MediaRecorder 常导致编码乱码，
-      //      必须经 WebAudio 图重新产出一条干净轨道再录
-      //   同时 mic 也并入同一张图，混成单条录制音轨（MediaRecorder 只编第一条）。
+      // ---------- 音频 ----------
+      // 关键：注入脚本跑在页面「隔离世界」，本次录制的用户手势发生在扩展 popup、
+      // 而非本页面文档，因此这里新建的 AudioContext 会处于 suspended（无页面激活），
+      // 输出为空 —— 这会同时导致「回放静音」和「录到的音频轨为空/乱码」。
+      // 所以：
+      //   · 回放系统声音改用 <audio> 播放实时采集流（实时采集流的播放不受
+      //     autoplay 限制，无需 AudioContext）；
+      //   · 录制音轨优先直接用「原始轨道」，只有 mic+系统声音都在时才用 WebAudio
+      //     混音，并对 suspended 情况兜底为直接用麦克风原始轨。
       const tracks: MediaStreamTrack[] = [...videoTracks]
       const micAudioTrack = micStream?.getAudioTracks()[0] ?? null
       const tabAudioTrack =
@@ -697,36 +701,68 @@ export function injectPageRecorder(args: PageRecorderArgs): void {
           ? tabStream.getAudioTracks()[0]
           : null
 
-      if (tabAudioTrack || micAudioTrack) {
+      // 回放系统声音：tabCapture 会静音页面，用 <audio> 把采集到的 tab 音频播出来。
+      // 用 clone() 的独立轨道回放，避免与送去 MediaRecorder 的同一轨道相互抢占
+      // 导致录到的音频出现卡顿 / 乱码。
+      if (tabAudioTrack) {
         try {
-          const ac = new AudioContext()
-          if (ac.state === "suspended") await ac.resume()
-          const recDest = ac.createMediaStreamDestination()
-
-          if (tabAudioTrack) {
-            const tabSrc = ac.createMediaStreamSource(
-              new MediaStream([tabAudioTrack])
-            )
-            // → 扬声器（用户实时听得到）
-            tabSrc.connect(ac.destination)
-            // → 录制目标（干净轨道）
-            tabSrc.connect(recDest)
+          const monitorTrack = tabAudioTrack.clone()
+          const monitor = document.createElement("audio")
+          monitor.autoplay = true
+          ;(monitor as HTMLAudioElement).srcObject = new MediaStream([
+            monitorTrack
+          ])
+          monitor.style.display = "none"
+          document.documentElement.appendChild(monitor)
+          void monitor.play().catch(() => undefined)
+          const prevCancel = cropCancel
+          cropCancel = () => {
+            try {
+              if (prevCancel) prevCancel()
+            } catch {
+              /* 忽略 */
+            }
+            try {
+              monitor.pause()
+              ;(monitor as HTMLAudioElement).srcObject = null
+              monitor.remove()
+              monitorTrack.stop()
+            } catch {
+              /* 忽略 */
+            }
           }
-          if (micAudioTrack) {
-            const micSrc = ac.createMediaStreamSource(
-              new MediaStream([micAudioTrack])
-            )
-            // 麦克风只进录制，不回放到扬声器（否则用户会听到自己回声）
-            micSrc.connect(recDest)
-          }
-
-          const recAudio = recDest.stream.getAudioTracks()[0]
-          if (recAudio) tracks.push(recAudio)
         } catch {
-          // WebAudio 失败兜底：退回原始轨道（至少保住音频，可能编码不佳）
-          if (micAudioTrack) tracks.push(micAudioTrack)
-          else if (tabAudioTrack) tracks.push(tabAudioTrack)
+          /* 回放失败不影响录制 */
         }
+      }
+
+      // 录制音轨
+      if (micAudioTrack && tabAudioTrack) {
+        // 两路都有：WebAudio 混成单条（MediaRecorder 只编第一条音轨）
+        let mixed: MediaStreamTrack | null = null
+        try {
+          const mixCtx = new AudioContext()
+          if (mixCtx.state === "suspended") await mixCtx.resume()
+          if (mixCtx.state === "running") {
+            const dest = mixCtx.createMediaStreamDestination()
+            mixCtx
+              .createMediaStreamSource(new MediaStream([tabAudioTrack]))
+              .connect(dest)
+            mixCtx
+              .createMediaStreamSource(new MediaStream([micAudioTrack]))
+              .connect(dest)
+            mixed = dest.stream.getAudioTracks()[0] ?? null
+          }
+        } catch {
+          mixed = null
+        }
+        // 混音不可用（context 挂起等）→ 至少保住麦克风人声
+        tracks.push(mixed ?? micAudioTrack)
+      } else if (micAudioTrack) {
+        tracks.push(micAudioTrack)
+      } else if (tabAudioTrack) {
+        // 纯系统声音：直接用原始 tab 音频轨（不经可能挂起的 AudioContext）
+        tracks.push(tabAudioTrack)
       }
 
       combinedStream = new MediaStream(tracks)
