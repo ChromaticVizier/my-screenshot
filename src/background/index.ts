@@ -17,7 +17,9 @@ import { handleCaptureFullPageRouted } from "~src/background/handlers/fullPageRo
 import {
   handleRecorderFinish,
   handleRecorderStarted,
+  handleRecordMicrophonePermissionWindow,
   handleRecordStartCurrentTab,
+  handleRecordStartDesktop,
   handleRecordStartRegionTab,
   handleRecordStop
 } from "~src/background/handlers/record"
@@ -145,6 +147,10 @@ chrome.runtime.onMessage.addListener(
           sendResponse({ ok: true })
           break
         }
+        case MessageType.RECORD_START_DESKTOP: {
+          sendResponse(await handleRecordStartDesktop(request))
+          break
+        }
         case MessageType.RECORD_START_CURRENT_TAB: {
           sendResponse(await handleRecordStartCurrentTab(request))
           break
@@ -157,6 +163,14 @@ chrome.runtime.onMessage.addListener(
           sendResponse(await handleRecordStop(request))
           break
         }
+        case MessageType.RECORD_MICROPHONE_PERMISSION_WINDOW: {
+          sendResponse(await handleRecordMicrophonePermissionWindow("microphone"))
+          break
+        }
+        case MessageType.RECORD_CAMERA_PERMISSION_WINDOW: {
+          sendResponse(await handleRecordMicrophonePermissionWindow("camera"))
+          break
+        }
         case MessageType.RECORDER_FINISH: {
           sendResponse(await handleRecorderFinish(request, sender))
           break
@@ -167,7 +181,9 @@ chrome.runtime.onMessage.addListener(
         }
         case MessageType.RECORDER_STOP:
         case MessageType.RECORDER_PAUSE:
-        case MessageType.RECORDER_RESUME: {
+        case MessageType.RECORDER_RESUME:
+        case MessageType.RECORD_MICROPHONE_REQUEST:
+        case MessageType.RECORDER_MICROPHONE_STATUS: {
           sendResponse({ ok: true })
           break
         }

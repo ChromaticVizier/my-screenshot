@@ -29,13 +29,16 @@ export interface RecordOptions {
   microphone: boolean
   /** 是否录入系统声音 */
   systemAudio: boolean
+  /** 是否叠加摄像头画面 */
+  camera: boolean
 }
 
 export const DEFAULT_RECORD_OPTIONS: RecordOptions = {
   resolution: "720p",
   format: "webm",
   microphone: false,
-  systemAudio: false
+  systemAudio: false,
+  camera: false
 }
 
 /** 会话状态（临时） */

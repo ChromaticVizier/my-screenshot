@@ -10,14 +10,12 @@ export const RECORD_MODE_ACTIONS: RecordAction[] = [
   {
     key: "desktop",
     label: "桌面",
-    icon: <DesktopIcon />,
-    disabled: true
+    icon: <DesktopIcon />
   },
   {
     key: "camera",
     label: "摄像头",
-    icon: <PersonIcon />,
-    disabled: true
+    icon: <PersonIcon />
   },
   {
     key: "currentTab",
