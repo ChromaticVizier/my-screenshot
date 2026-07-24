@@ -38,11 +38,13 @@ interface BootRegion {
 }
 
 interface BootConfig {
-  streamId: string
-  tabId: number
+  streamId?: string
+  source: "tab" | "desktop"
+  tabId?: number
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  camera: boolean
   resolution?: RecordResolution
   filename: string
   /** 区域录制：裁剪矩形（CSS 像素 + dpr）。省略 = 录整个视口 */
@@ -116,6 +118,10 @@ function OffscreenRecorder() {
       let blobUrl = ""
       let finalized = false
       let cropCancel: (() => void) | null = null
+      let playbackCtx: AudioContext | null = null
+      let mixCtx: AudioContext | null = null
+      let mixDest: MediaStreamAudioDestinationNode | null = null
+      let micSource: MediaStreamAudioSourceNode | null = null
       const chunks: Blob[] = []
       // 收尾函数：onstop 与停止兜底共用；在 mediaRecorder 建好后赋值。
       let finalizeRecording: () => Promise<void> = async () => {}
@@ -126,6 +132,8 @@ function OffscreenRecorder() {
           combinedStream?.getTracks().forEach((t) => t.stop())
           tabStreamRef?.getTracks().forEach((t) => t.stop())
           micStream?.getTracks().forEach((t) => t.stop())
+          void playbackCtx?.close().catch(() => undefined)
+          void mixCtx?.close().catch(() => undefined)
         } catch {
           /* 忽略 */
         }
@@ -152,7 +160,7 @@ function OffscreenRecorder() {
         // 1) 读启动配置
         const store = await chrome.storage.local.get(RECORDER_BOOT_KEY)
         const boot = store[RECORDER_BOOT_KEY] as BootConfig | undefined
-        if (!boot?.streamId) {
+        if (boot.source === "tab" && !boot.streamId) {
           throw new Error("未找到录制启动配置")
         }
 
@@ -177,43 +185,59 @@ function OffscreenRecorder() {
             )
           }
         }
-
         // 3) 用 streamId 拿 tab MediaStream
         //    注：chromeMediaSource:"tab" 是 Chrome 私有约束，不走 getDisplayMedia
         //    分辨率上限：仅整页录制时应用；区域录制会经 WebCodecs 裁剪，
         //    源用原生分辨率以保证裁剪坐标精度
-        const videoMandatory: Record<string, string | number> = {
-          chromeMediaSource: "tab",
-          chromeMediaSourceId: boot.streamId
-        }
-        if (!boot.region && boot.resolution) {
-          const cap = RESOLUTION_MAX_PIXELS[boot.resolution]
-          if (cap) {
-            videoMandatory.maxWidth = cap.width
-            videoMandatory.maxHeight = cap.height
+        let tabStream: MediaStream
+        if (boot.source === "desktop") {
+          tabStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: boot.systemAudio
+          })
+          const session = await chrome.storage.local.get("recordSession")
+          const recorderWindowId = session.recordSession?.recorderWindowId
+          if (typeof recorderWindowId === "number") {
+            await chrome.windows.update(recorderWindowId, {
+              width: 340,
+              height: 132
+            })
           }
-        }
-        const constraints = {
-          audio: boot.systemAudio
-            ? {
-                mandatory: {
-                  chromeMediaSource: "tab",
-                  chromeMediaSourceId: boot.streamId
+        } else {
+          const videoMandatory: Record<string, string | number> = {
+            chromeMediaSource: "tab",
+            chromeMediaSourceId: boot.streamId as string
+          }
+          if (!boot.region && boot.resolution) {
+            const cap = RESOLUTION_MAX_PIXELS[boot.resolution]
+            if (cap) {
+              videoMandatory.maxWidth = cap.width
+              videoMandatory.maxHeight = cap.height
+            }
+          }
+          const constraints = {
+            audio: boot.systemAudio
+              ? {
+                  mandatory: {
+                    chromeMediaSource: "tab",
+                    chromeMediaSourceId: boot.streamId as string
+                  }
                 }
-              }
-            : false,
-          video: { mandatory: videoMandatory }
-        } as unknown as MediaStreamConstraints
+              : false,
+            video: { mandatory: videoMandatory }
+          } as unknown as MediaStreamConstraints
 
-        const tabStream = await navigator.mediaDevices.getUserMedia(constraints)
+          tabStream = await navigator.mediaDevices.getUserMedia(constraints)
+        }
         tabStreamRef = tabStream
 
         // 把 tabCapture 拿到的音频接回 destination，让用户依然能听到页面声音
         if (boot.systemAudio) {
           try {
-            const audioCtx = new AudioContext()
-            const source = audioCtx.createMediaStreamSource(tabStream)
-            source.connect(audioCtx.destination)
+            playbackCtx = new AudioContext()
+            if (playbackCtx.state === "suspended") await playbackCtx.resume()
+            const source = playbackCtx.createMediaStreamSource(tabStream)
+            source.connect(playbackCtx.destination)
           } catch {
             /* 音频上下文创建失败不影响录制 */
           }
@@ -236,35 +260,30 @@ function OffscreenRecorder() {
         }
 
         const tracks: MediaStreamTrack[] = [...finalVideoTracks]
-        // 音频：MediaRecorder 只编码「第一条」音轨。若同时有系统声音与麦克风，
-        // 用 WebAudio 把两路混成单条音轨；只有一路时直接用原生音轨。
-        const micAudio = micStream ? micStream.getAudioTracks() : []
         const tabAudio =
           boot.systemAudio && tabStream.getAudioTracks().length > 0
             ? tabStream.getAudioTracks()
             : []
-        if (micAudio.length > 0 && tabAudio.length > 0) {
-          try {
-            const mixCtx = new AudioContext()
-            // 新建 AudioContext 可能处于 suspended，需 resume 才有采样输出
-            if (mixCtx.state === "suspended") await mixCtx.resume()
-            const dest = mixCtx.createMediaStreamDestination()
+        try {
+          mixCtx = new AudioContext()
+          if (mixCtx.state === "suspended") await mixCtx.resume()
+          mixDest = mixCtx.createMediaStreamDestination()
+          if (tabAudio[0]) {
             mixCtx
               .createMediaStreamSource(new MediaStream([tabAudio[0]]))
-              .connect(dest)
-            mixCtx
-              .createMediaStreamSource(new MediaStream([micAudio[0]]))
-              .connect(dest)
-            const mixed = dest.stream.getAudioTracks()[0]
-            tracks.push(mixed ?? micAudio[0])
-          } catch {
-            // 混音失败退回麦克风（保证人声不丢）
-            tracks.push(micAudio[0])
+              .connect(mixDest)
           }
-        } else if (micAudio.length > 0) {
-          tracks.push(micAudio[0])
-        } else if (tabAudio.length > 0) {
-          tracks.push(tabAudio[0])
+          if (micStream?.getAudioTracks()[0]) {
+            micSource = mixCtx.createMediaStreamSource(
+              new MediaStream([micStream.getAudioTracks()[0]])
+            )
+            micSource.connect(mixDest)
+          }
+          const mixed = mixDest.stream.getAudioTracks()[0]
+          if (mixed) tracks.push(mixed)
+        } catch {
+          const fallbackAudio = micStream?.getAudioTracks()[0] ?? tabAudio[0]
+          if (fallbackAudio) tracks.push(fallbackAudio)
         }
 
         combinedStream = new MediaStream(tracks)
@@ -341,7 +360,7 @@ function OffscreenRecorder() {
         try {
           await chrome.runtime.sendMessage({
             type: "recorder/started",
-            payload: { startedAt: Date.now() }
+            payload: { startedAt: Date.now(), microphone: !!micStream }
           })
         } catch {
           /* 忽略 */
@@ -356,7 +375,49 @@ function OffscreenRecorder() {
         return
       }
 
-      /* ---------- 监听消息：停止 / 暂停 / 继续 ---------- */
+      const requestMicrophone = async () => {
+        if (micStream?.getAudioTracks().some((track) => track.readyState === "live")) {
+          await notifyMicrophoneStatus(true)
+          return
+        }
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          })
+          const micTrack = micStream.getAudioTracks()[0]
+          const currentMixCtx = mixCtx
+          const currentMixDest = mixDest
+          if (micTrack && currentMixCtx && currentMixDest) {
+            micSource = currentMixCtx.createMediaStreamSource(new MediaStream([micTrack]))
+            micSource.connect(currentMixDest)
+          }
+          await notifyMicrophoneStatus(!!micTrack)
+        } catch (err) {
+          micStream?.getTracks().forEach((t) => t.stop())
+          micStream = null
+          await notifyMicrophoneStatus(
+            false,
+            err instanceof Error ? err.message : String(err)
+          )
+        }
+      }
+
+      const notifyMicrophoneStatus = async (enabled: boolean, error?: string) => {
+        try {
+          await chrome.runtime.sendMessage({
+            type: "recorder/microphone/status",
+            payload: { enabled, ...(error ? { error } : {}) }
+          })
+        } catch {
+          /* 忽略 */
+        }
+      }
+
+      /* ---------- 监听消息：停止 / 暂停 / 继续 / 麦克风 ---------- */
       const listener = (msg: { type?: string }) => {
         if (!mediaRecorder) return
         if (msg?.type === "recorder/stop") {
@@ -383,6 +444,8 @@ function OffscreenRecorder() {
           if (mediaRecorder.state === "paused") {
             mediaRecorder.resume()
           }
+        } else if (msg?.type === "record/microphone/request") {
+          void requestMicrophone()
         }
       }
       chrome.runtime.onMessage.addListener(listener)
@@ -471,6 +534,15 @@ async function buildCroppedVideoTracks(
   region: BootRegion,
   onSetup: (cancel: () => void) => void
 ): Promise<MediaStreamTrack[]> {
+  const cropped = await buildCroppedBaseVideoTrack(tabStream, region)
+  onSetup(cropped.cancel)
+  return [cropped.track]
+}
+
+async function buildCroppedBaseVideoTrack(
+  tabStream: MediaStream,
+  region: BootRegion
+): Promise<{ track: MediaStreamTrack; cancel: () => void }> {
   const srcTrack = tabStream.getVideoTracks()[0]
   if (!srcTrack) throw new Error("源视频轨道为空")
 
@@ -594,9 +666,7 @@ async function buildCroppedVideoTracks(
       /* 忽略 */
     }
   }
-  onSetup(cancel)
-
-  return [generator]
+  return { track: generator, cancel }
 }
 
 export default OffscreenRecorder

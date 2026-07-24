@@ -1,7 +1,7 @@
 {
   "name": "my-screenshot",
   "displayName": "My screenshot",
-  "version": "0.0.4",
+  "version": "0.0.18",
   "description": "A plugin for screenshot or capture.",
   "author": "fuufhjn Zhao <zhaoyp01@rd.netease.com>",
   "scripts": {
@@ -26,12 +26,14 @@
   "manifest": {
     "permissions": [
       "activeTab",
+      "audioCapture",
       "debugger",
       "downloads",
       "scripting",
       "storage",
       "system.display",
       "tabCapture",
+      "videoCapture",
       "webNavigation"
     ],
     "host_permissions": [

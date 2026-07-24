@@ -23,6 +23,7 @@ import {
 import { RECORD_MODE_ACTIONS } from "~src/constants/recordActions"
 import {
   startCurrentTabRecording,
+  startDesktopRecording,
   startRegionTabRecording,
   stopRecording
 } from "~src/services/record"
@@ -52,8 +53,21 @@ function RecordPanel() {
   useEffect(() => {
     void Promise.all([getRecordOptions(), getRecordSession()]).then(
       ([opts, sess]) => {
-        setOptions(opts)
+        const nextOpts = {
+          ...opts,
+          microphone: false,
+          systemAudio: false,
+          camera: false
+        }
+        setOptions(nextOpts)
         setSession(sess)
+        if (opts.microphone || opts.systemAudio || opts.camera) {
+          void setRecordOptions({
+            microphone: false,
+            systemAudio: false,
+            camera: false
+          })
+        }
       }
     )
     // 录制状态变化（如 recorder 窗口结束录制后清理 session）实时同步到 popup
@@ -69,6 +83,86 @@ function RecordPanel() {
     const next = { ...options, [key]: value }
     setOptions(next)
     await setRecordOptions({ [key]: value } as Partial<RecordOptions>)
+  }
+
+  const requestMicrophonePermission = async () => {
+    setError(null)
+    await chrome.storage.local.remove("__microphonePermissionGranted")
+    const res = await chrome.runtime.sendMessage({
+      type: "record/microphone/permissionWindow"
+    })
+    if (!res?.ok) {
+      setError(res?.error ?? "无法打开麦克风授权窗口")
+      await updateOption("microphone", false)
+      return
+    }
+
+    const startedAt = Date.now()
+    const timer = window.setInterval(() => {
+      void chrome.storage.local.get("__microphonePermissionGranted").then((raw) => {
+        const granted = raw.__microphonePermissionGranted
+        if (granted === true) {
+          window.clearInterval(timer)
+          void updateOption("microphone", true)
+          return
+        }
+        if (granted === false || Date.now() - startedAt > 30000) {
+          window.clearInterval(timer)
+          void updateOption("microphone", false)
+          setError("麦克风授权失败")
+        }
+      })
+    }, 300)
+  }
+
+  const requestCameraPermission = async () => {
+    setError(null)
+    await chrome.storage.local.remove("__cameraPermissionGranted")
+    const res = await chrome.runtime.sendMessage({
+      type: "record/camera/permissionWindow"
+    })
+    if (!res?.ok) {
+      setError(res?.error ?? "无法打开摄像头授权窗口")
+      await updateOption("camera", false)
+      return false
+    }
+
+    const startedAt = Date.now()
+    return await new Promise<boolean>((resolve) => {
+      const timer = window.setInterval(() => {
+        void chrome.storage.local.get("__cameraPermissionGranted").then((raw) => {
+          const granted = raw.__cameraPermissionGranted
+          if (granted === true) {
+            window.clearInterval(timer)
+            void updateOption("camera", true)
+            resolve(true)
+            return
+          }
+          if (granted === false || Date.now() - startedAt > 30000) {
+            window.clearInterval(timer)
+            void updateOption("camera", false)
+            setError("摄像头授权失败")
+            resolve(false)
+          }
+        })
+      }, 300)
+    })
+  }
+
+  const handleMicrophoneClick = () => {
+    if (options.microphone) {
+      void updateOption("microphone", false)
+      return
+    }
+    void requestMicrophonePermission()
+  }
+
+  const handleRecordModeClick = (mode: RecordMode) => {
+    ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_mode_select'], ['mode', mode]]])
+    setActiveMode(mode)
+    if (mode === "camera" && !options.camera) {
+      void requestCameraPermission()
+    }
   }
 
   /* ----- 录制开始/结束 ----- */
@@ -92,17 +186,36 @@ function RecordPanel() {
     }
 
     // 开始录制：根据所选模式分发
-    if (activeMode !== "currentTab" && activeMode !== "regionTab") {
+    if (
+      activeMode !== "desktop" &&
+      activeMode !== "currentTab" &&
+      activeMode !== "regionTab" &&
+      activeMode !== "camera"
+    ) {
       setBusy(false)
-      setError("当前仅支持「当前标签页」与「区域录制(当前标签页)」")
+      setError("当前仅支持「桌面」「当前标签页」「摄像头」与「区域录制(当前标签页)」")
       return
+    }
+
+    if (activeMode === "camera") {
+      if (!options.camera) {
+        const granted = await requestCameraPermission()
+        if (!granted) {
+          setBusy(false)
+          return
+        }
+      } else {
+        await updateOption("camera", true)
+      }
     }
 
     ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_start_click'], ['mode', activeMode]]])
     const res =
-      activeMode === "regionTab"
-        ? await startRegionTabRecording()
-        : await startCurrentTabRecording()
+      activeMode === "desktop"
+        ? await startDesktopRecording()
+        : activeMode === "regionTab"
+          ? await startRegionTabRecording()
+          : await startCurrentTabRecording()
     setBusy(false)
     if (!res.ok) {
       if (res.cancelled) return // 用户主动取消，静默
@@ -125,10 +238,7 @@ function RecordPanel() {
               type="button"
               disabled={action.disabled || session.recording}
               className={`${styles.modeCard} ${active ? styles.modeActive : ""}`}
-              onClick={() => {
-                ;(window as any)._rlog?.push(['_trackCustom', 'event', [['action', 'screenshot_record_mode_select'], ['mode', action.key]]])
-                setActiveMode(action.key)
-              }}>
+              onClick={() => handleRecordModeClick(action.key)}>
               <span className={styles.modeIcon}>{action.icon}</span>
               <span className={styles.modeLabel}>{action.label}</span>
             </button>
@@ -146,14 +256,14 @@ function RecordPanel() {
           title={options.systemAudio ? "系统声音：开" : "系统声音：关"}
           onClick={() => updateOption("systemAudio", !options.systemAudio)}
         />
-        {/* <ToggleIconButton
+        <ToggleIconButton
           on={options.microphone}
           iconOn={<MicOnIcon width={16} height={16} />}
           iconOff={<MicMutedIcon width={16} height={16} />}
           label="麦克风"
           title={options.microphone ? "麦克风：开" : "麦克风：关"}
-          onClick={() => updateOption("microphone", !options.microphone)}
-        /> */}
+          onClick={handleMicrophoneClick}
+        />
       </div>
 
       {/* 配置选项 */}

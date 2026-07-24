@@ -24,6 +24,7 @@
 import {
   MessageType,
   type RecordStartCurrentTabRequest,
+  type RecordStartDesktopRequest,
   type RecordStartRegionTabRequest,
   type RecordStopRequest
 } from "~src/shared/messages"
@@ -32,6 +33,20 @@ interface SimpleResponse {
   ok: boolean
   error?: string
   cancelled?: boolean
+}
+
+export function startDesktopRecording(): Promise<SimpleResponse> {
+  const req: RecordStartDesktopRequest = { type: MessageType.RECORD_START_DESKTOP }
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(req, (res: SimpleResponse) => {
+      const err = chrome.runtime.lastError
+      if (err) {
+        resolve({ ok: false, error: err.message ?? "消息通道异常" })
+        return
+      }
+      resolve(res)
+    })
+  })
 }
 
 /**

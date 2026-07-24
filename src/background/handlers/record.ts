@@ -30,6 +30,12 @@
  *     - background 关闭中转窗口、清除活跃 tab 标记、清理会话
  */
 import {
+  injectCameraPreview,
+  injectRecorderControlBar,
+  removeCameraPreview,
+  removeRecorderControlBar
+} from "~src/background/injected/recorder"
+import {
   injectRegionFrame,
   pickSelection,
   removeRegionFrame,
@@ -41,6 +47,7 @@ import {
   type RecorderStartedRequest,
   type RecorderStopRequest,
   type RecordStartCurrentTabRequest,
+  type RecordStartDesktopRequest,
   type RecordStartRegionTabRequest,
   type RecordStopRequest
 } from "~src/shared/messages"
@@ -65,11 +72,13 @@ const RECORDER_BOOT_KEY = "__recorderBoot"
 const RECORDING_TAB_TITLE_KEY = "__recordingTabTitle"
 
 interface RecorderBootConfig {
-  streamId: string
-  tabId: number
+  streamId?: string
+  source: "tab" | "desktop"
+  tabId?: number
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  camera: boolean
   /** 录制分辨率档位（影响 getUserMedia 的 maxWidth/maxHeight 约束） */
   resolution: RecordResolution
   filename: string
@@ -87,6 +96,7 @@ interface RecorderBootConfig {
 let activeTargetTabId: number | null = null
 let recordingStartTime = 0
 let activeRegion: SelectionResult | null = null
+let activeCamera = false
 
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   // 仅响应主框架导航
@@ -100,9 +110,10 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       const store = await chrome.storage.local.get(RECORDER_BOOT_KEY)
       const boot = store[RECORDER_BOOT_KEY] as RecorderBootConfig | undefined
       if (!boot) return
-      activeTargetTabId = boot.tabId
+      activeTargetTabId = boot.tabId ?? null
       recordingStartTime = session.startedAt
       activeRegion = boot.region ?? null
+      activeCamera = !!boot.camera
     } catch {
       return
     }
@@ -110,11 +121,32 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 
   if (details.tabId !== activeTargetTabId) return
 
-  // 控制栏已移到悬浮窗口，无需重注；仅区域边框需随页面导航重注
+  // 页面跳转后重注控制栏；区域边框也需随页面导航重注
+  void reinjectControlBar(details.tabId, recordingStartTime, false)
   if (activeRegion) {
     void reinjectRegionFrame(details.tabId, activeRegion)
   }
+  if (activeCamera) {
+    void reinjectCameraPreview(details.tabId)
+  }
 })
+
+async function reinjectControlBar(
+  tabId: number,
+  startTime: number,
+  microphone: boolean,
+  preparing = false
+): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: injectRecorderControlBar,
+      args: [{ startTime, microphone, preparing }]
+    })
+  } catch {
+    /* 忽略 */
+  }
+}
 
 async function reinjectRegionFrame(
   tabId: number,
@@ -131,20 +163,35 @@ async function reinjectRegionFrame(
   }
 }
 
+async function reinjectCameraPreview(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: injectCameraPreview,
+      args: [{ url: chrome.runtime.getURL("popup.html") + "?action=cameraPreview" }]
+    })
+  } catch {
+    /* 忽略 */
+  }
+}
+
 function setActiveTab(
   tabId: number,
   startTime: number,
-  region: SelectionResult | null
+  region: SelectionResult | null,
+  camera: boolean
 ): void {
   activeTargetTabId = tabId
   recordingStartTime = startTime
   activeRegion = region
+  activeCamera = camera
 }
 
 function clearActiveTab(): void {
   activeTargetTabId = null
   recordingStartTime = 0
   activeRegion = null
+  activeCamera = false
 }
 
 /* ============================================================
@@ -179,20 +226,24 @@ async function validateTargetTab(tabId: number): Promise<
  *   - 设会话 + 活跃 tab 标记
  * ============================================================ */
 async function bootstrapRecorder(params: {
-  streamId: string
-  tabId: number
+  streamId?: string
+  source: "tab" | "desktop"
+  tabId?: number
   tabTitle: string
   microphone: boolean
   systemAudio: boolean
+  camera: boolean
   resolution: RecordResolution
   region: SelectionResult | null
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const {
     streamId,
+    source,
     tabId,
     tabTitle,
     microphone,
     systemAudio,
+    camera,
     resolution,
     region
   } = params
@@ -201,11 +252,13 @@ async function bootstrapRecorder(params: {
 
   // 1) 写 storage
   const boot: RecorderBootConfig = {
-    streamId,
-    tabId,
+    ...(streamId ? { streamId } : {}),
+    source,
+    ...(tabId != null ? { tabId } : {}),
     tabTitle,
     microphone,
     systemAudio,
+    camera,
     resolution,
     filename: await buildRecordingFilename({ tabTitle, ext: "webm" }),
     ...(region ? { region } : {})
@@ -218,8 +271,8 @@ async function bootstrapRecorder(params: {
   // 2) 中转窗口：作为悬浮录屏控制窗，可见并置于屏幕右上角供用户操作
   const recorderUrl =
     chrome.runtime.getURL("popup.html") + "?action=offscreenRecorder"
-  const RECORDER_W = 340
-  const RECORDER_H = 132
+  const RECORDER_W = source === "desktop" ? 960 : 340
+  const RECORDER_H = source === "desktop" ? 640 : 132
   const pos = await computeFloatingWindowPos(RECORDER_W, RECORDER_H)
   let recorderWindowId: number | undefined
   try {
@@ -245,9 +298,40 @@ async function bootstrapRecorder(params: {
     startedAt,
     recorderWindowId
   })
-  setActiveTab(tabId, startedAt, region)
+  if (tabId != null) {
+    setActiveTab(tabId, startedAt, region, camera)
+    await reinjectControlBar(tabId, startedAt, microphone, true)
+    if (camera) {
+      await reinjectCameraPreview(tabId)
+    }
+  }
 
   return { ok: true }
+}
+
+export async function handleRecordStartDesktop(
+  _request: RecordStartDesktopRequest
+): Promise<SimpleResponse> {
+  try {
+    const session = await getRecordSession()
+    if (session.recording) return { ok: true }
+
+    const opts = await getRecordOptions()
+    return await bootstrapRecorder({
+      source: "desktop",
+      tabTitle: "desktop",
+      microphone: opts.microphone,
+      systemAudio: opts.systemAudio,
+      camera: opts.camera,
+      resolution: opts.resolution,
+      region: null
+    })
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err)
+    }
+  }
 }
 
 /* ============================================================
@@ -267,10 +351,12 @@ export async function handleRecordStartCurrentTab(
     const opts = await getRecordOptions()
     return await bootstrapRecorder({
       streamId,
+      source: "tab",
       tabId,
       tabTitle: v.tabTitle,
       microphone: opts.microphone,
       systemAudio: opts.systemAudio,
+      camera: opts.camera,
       resolution: opts.resolution,
       region: null
     })
@@ -336,10 +422,12 @@ export async function handleRecordStartRegionTab(
     const opts = await getRecordOptions()
     return await bootstrapRecorder({
       streamId,
+      source: "tab",
       tabId,
       tabTitle: v.tabTitle,
       microphone: opts.microphone,
       systemAudio: opts.systemAudio,
+      camera: opts.camera,
       resolution: opts.resolution,
       region: selection
     })
@@ -363,7 +451,7 @@ async function computeFloatingWindowPos(
     if (primary) {
       const wa = primary.workArea
       return {
-        left: Math.max(wa.left, wa.left + wa.width - width - margin),
+        left: Math.max(wa.left, wa.left + wa.width - width - margin * 3),
         top: wa.top + margin
       }
     }
@@ -410,8 +498,24 @@ async function resolveTargetTabId(): Promise<number | null> {
   }
 }
 
-/** 主动清理目标 tab 上的区域边框（控制栏已移至悬浮窗口，无需清理） */
+/** 主动清理目标 tab 上的控制栏和区域边框 */
 async function cleanupTargetTab(tabId: number): Promise<void> {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: removeRecorderControlBar
+    })
+  } catch {
+    /* 忽略 */
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: removeCameraPreview
+    })
+  } catch {
+    /* 忽略 */
+  }
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
@@ -419,6 +523,39 @@ async function cleanupTargetTab(tabId: number): Promise<void> {
     })
   } catch {
     /* 忽略 */
+  }
+}
+
+export async function handleRecordMicrophonePermissionWindow(
+  kind: "microphone" | "camera" = "microphone"
+): Promise<SimpleResponse> {
+  try {
+    const storageKey =
+      kind === "camera"
+        ? "__cameraPermissionGranted"
+        : "__microphonePermissionGranted"
+    await chrome.storage.local.remove(storageKey)
+    const url =
+      chrome.runtime.getURL("popup.html") +
+      `?action=microphonePermission&kind=${kind}`
+    const width = 420
+    const height = 180
+    const pos = await computeFloatingWindowPos(width, height)
+    await chrome.windows.create({
+      url,
+      type: "popup",
+      width,
+      height,
+      left: pos.left,
+      top: pos.top,
+      focused: true
+    })
+    return { ok: true }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err)
+    }
   }
 }
 
@@ -432,7 +569,7 @@ export async function handleRecorderStarted(
   request: RecorderStartedRequest
 ): Promise<SimpleResponse> {
   try {
-    const { startedAt } = request.payload
+    const { startedAt, microphone } = request.payload
     if (!Number.isFinite(startedAt) || startedAt <= 0) {
       return { ok: false, error: "invalid startedAt" }
     }
@@ -443,7 +580,10 @@ export async function handleRecorderStarted(
     recordingStartTime = startedAt
     await setRecordSession({ startedAt })
 
-    // 控制栏计时已由悬浮窗口自行维护，无需回注目标 tab
+    const targetTabId = await resolveTargetTabId()
+    if (targetTabId != null) {
+      await reinjectControlBar(targetTabId, startedAt, !!microphone, false)
+    }
     return { ok: true }
   } catch (err) {
     return {

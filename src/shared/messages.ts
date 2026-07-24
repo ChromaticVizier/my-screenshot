@@ -31,7 +31,8 @@ export const MessageType = {
   /** 编辑器 tab 放弃本次截图，请求清理待编辑图片 */
   EDITOR_DISCARD: "editor/discard",
 
-  /* ====== 录屏 ====== */
+  /** popup → background：开始录制桌面/窗口/屏幕 */
+  RECORD_START_DESKTOP: "record/startDesktop",
   /** popup → background：开始录制当前标签页（整页） */
   RECORD_START_CURRENT_TAB: "record/startCurrentTab",
   /** popup → background：开始区域录制当前标签页 */
@@ -48,6 +49,16 @@ export const MessageType = {
    *  （bootstrap 时设的 startedAt 包含创建窗口+加载popup+getUserMedia等准备时间，
    *  控制栏计时与实际视频时长会差约 1 秒；以此消息为准重置起点） */
   RECORDER_STARTED: "recorder/started",
+  /** 控制栏 → 中转窗口：请求开启麦克风 */
+  RECORD_MICROPHONE_REQUEST: "record/microphone/request",
+  /** popup → background：打开麦克风授权窗口 */
+  RECORD_MICROPHONE_PERMISSION_WINDOW: "record/microphone/permissionWindow",
+  /** popup → background：打开摄像头授权窗口 */
+  RECORD_CAMERA_PERMISSION_WINDOW: "record/camera/permissionWindow",
+  /** 中转窗口 → 控制栏：麦克风授权/启用状态 */
+  RECORDER_MICROPHONE_STATUS: "recorder/microphone/status",
+  /** 页面内摄像头预览 iframe：请求当前摄像头流 */
+  RECORDER_CAMERA_PREVIEW_STREAM: "recorder/cameraPreview/stream",
   /** 中转窗口 → background：录制完成（已自行下载） */
   RECORDER_FINISH: "recorder/finish"
 } as const
@@ -187,7 +198,10 @@ export interface EditorDiscardRequest {
   type: typeof MessageType.EDITOR_DISCARD
 }
 
-/* ---------- 录屏：popup → background ---------- */
+export interface RecordStartDesktopRequest {
+  type: typeof MessageType.RECORD_START_DESKTOP
+}
+
 export interface RecordStartCurrentTabRequest {
   type: typeof MessageType.RECORD_START_CURRENT_TAB
   payload: {
@@ -229,6 +243,28 @@ export interface RecorderStartedRequest {
   payload: {
     /** MediaRecorder.start() 调用瞬间的 Date.now() */
     startedAt: number
+    /** 录制开始时麦克风是否已启用 */
+    microphone: boolean
+  }
+}
+
+export interface RecordMicrophoneRequest {
+  type: typeof MessageType.RECORD_MICROPHONE_REQUEST
+}
+
+export interface RecordMicrophonePermissionWindowRequest {
+  type: typeof MessageType.RECORD_MICROPHONE_PERMISSION_WINDOW
+}
+
+export interface RecordCameraPermissionWindowRequest {
+  type: typeof MessageType.RECORD_CAMERA_PERMISSION_WINDOW
+}
+
+export interface RecorderMicrophoneStatusRequest {
+  type: typeof MessageType.RECORDER_MICROPHONE_STATUS
+  payload: {
+    enabled: boolean
+    error?: string
   }
 }
 
@@ -271,6 +307,7 @@ export type ExtensionRequest =
   | GetPendingImageRequest
   | EditorDownloadRequest
   | EditorDiscardRequest
+  | RecordStartDesktopRequest
   | RecordStartCurrentTabRequest
   | RecordStartRegionTabRequest
   | RecordStopRequest
@@ -278,4 +315,8 @@ export type ExtensionRequest =
   | RecorderPauseRequest
   | RecorderResumeRequest
   | RecorderStartedRequest
+  | RecordMicrophoneRequest
+  | RecordMicrophonePermissionWindowRequest
+  | RecordCameraPermissionWindowRequest
+  | RecorderMicrophoneStatusRequest
   | RecorderFinishRequest
